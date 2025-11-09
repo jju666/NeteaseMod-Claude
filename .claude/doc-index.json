@@ -1,0 +1,1094 @@
+{
+  "tasks": [],
+  "systems": [],
+  "guides": [
+    {
+      "type": "guide",
+      "path": "markdown\\开发规范.md",
+      "name": "开发规范",
+      "title": "开发规范",
+      "keywords": [
+        "python",
+        "data",
+        "serverApi",
+        "playerId",
+        "init",
+        "MyMod",
+        "args",
+        "print",
+        "MOD",
+        "Create",
+        "modConfig",
+        "py",
+        "正确",
+        "ServerSystem",
+        "systemName"
+      ],
+      "lastModified": "2025-11-09"
+    },
+    {
+      "type": "guide",
+      "path": "markdown\\问题排查.md",
+      "name": "问题排查",
+      "title": "问题排查指南",
+      "keywords": [
+        "md",
+        "问题",
+        "python",
+        "开发规范",
+        "print",
+        "目录",
+        "症状",
+        "解决方案",
+        "module",
+        "返回目录",
+        "DEBUG",
+        "开发指南",
+        "CLAUDE",
+        "README",
+        "调试技巧"
+      ],
+      "lastModified": "2025-11-09"
+    },
+    {
+      "type": "guide",
+      "path": "markdown\\快速开始.md",
+      "name": "快速开始",
+      "title": "快速开始",
+      "keywords": [
+        "md",
+        "cc",
+        "Claude指令参考",
+        "bash",
+        "开发规范",
+        "init",
+        "问题排查",
+        "分钟",
+        "步骤",
+        "搜索",
+        "错误",
+        "应该",
+        "python",
+        "Create",
+        "基于Claude的MODSDK开发工作流"
+      ],
+      "lastModified": "2025-11-09"
+    },
+    {
+      "type": "guide",
+      "path": "markdown\\开发指南.md",
+      "name": "开发指南",
+      "title": "开发指南",
+      "keywords": [
+        "md",
+        "print",
+        "Script",
+        "NeteaseMod",
+        "python",
+        "config",
+        "id",
+        "init",
+        "步骤",
+        "py",
+        "Create",
+        "player",
+        "item",
+        "开发规范",
+        "com"
+      ],
+      "lastModified": "2025-11-09"
+    },
+    {
+      "type": "guide",
+      "path": "markdown\\项目状态.md",
+      "name": "项目状态",
+      "title": "项目状态",
+      "keywords": [
+        "md",
+        "小时",
+        "已完成",
+        "完成",
+        "README",
+        "说明",
+        "开发指南",
+        "步骤",
+        "项目状态",
+        "里程碑",
+        "完成度",
+        "CLAUDE",
+        "开发规范",
+        "问题排查",
+        "快速开始"
+      ],
+      "lastModified": "2025-11-09"
+    }
+  ],
+  "references": [],
+  "tagMap": {
+    "python": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "data": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "serverApi": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "playerId": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "init": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "MyMod": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "args": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "print": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "MOD": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "Create": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "modConfig": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "py": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "正确": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "ServerSystem": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "systemName": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "md": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "问题": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "开发规范": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "目录": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "症状": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "解决方案": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "module": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "返回目录": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "DEBUG": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "开发指南": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "CLAUDE": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "README": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "调试技巧": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "cc": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "Claude指令参考": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "bash": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "问题排查": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "分钟": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "步骤": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "搜索": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "错误": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "应该": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "基于Claude的MODSDK开发工作流": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "Script": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "NeteaseMod": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "config": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "id": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "player": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "item": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "com": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "小时": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "已完成": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "完成": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "说明": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "项目状态": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "里程碑": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "完成度": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "快速开始": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ]
+  },
+  "systemMap": {},
+  "keywordMap": {
+    "python": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "data": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "serverApi": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "playerId": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "init": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "MyMod": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "args": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "print": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "MOD": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "Create": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "modConfig": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "py": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "正确": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "ServerSystem": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "systemName": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发规范.md",
+        "name": "开发规范"
+      }
+    ],
+    "md": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "问题": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "开发规范": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "目录": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "症状": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "解决方案": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "module": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "返回目录": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "DEBUG": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "开发指南": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "CLAUDE": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "README": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "调试技巧": [
+      {
+        "type": "guide",
+        "path": "markdown\\问题排查.md",
+        "name": "问题排查"
+      }
+    ],
+    "cc": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "Claude指令参考": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "bash": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "问题排查": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "分钟": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "步骤": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      },
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "搜索": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "错误": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "应该": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "基于Claude的MODSDK开发工作流": [
+      {
+        "type": "guide",
+        "path": "markdown\\快速开始.md",
+        "name": "快速开始"
+      }
+    ],
+    "Script": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "NeteaseMod": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "config": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "id": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "player": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "item": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "com": [
+      {
+        "type": "guide",
+        "path": "markdown\\开发指南.md",
+        "name": "开发指南"
+      }
+    ],
+    "小时": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "已完成": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "完成": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "说明": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "项目状态": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "里程碑": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "完成度": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ],
+    "快速开始": [
+      {
+        "type": "guide",
+        "path": "markdown\\项目状态.md",
+        "name": "项目状态"
+      }
+    ]
+  }
+}

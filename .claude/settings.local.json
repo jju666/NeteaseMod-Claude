@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d/new-mg/**)",
+      "Bash(dir:*)",
+      "Read(//d/EcWork/NetEaseMapECBedWars/**)",
+      "Bash(test:*)",
+      "Bash(cat:*)",
+      "Bash(node lib/analyzer.js:*)",
+      "Bash(node -e:*)",
+      "Bash(node bin/install-global.js:*)",
+      "Bash(node:*)",
+      "Bash(tree:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "WebFetch(domain:mcwiki.easecation.net)",
+      "WebFetch(domain:mc.163.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,1157 @@
+# 开发规范
+
+> **📍 导航**: [🏠 首页](../README.md) > [📂 文档](../README.md#文档导航) > 开发规范
+>
+> ⚠️ **CRITICAL**: 这些规则可防止运行时错误。开发前必读！
+>
+> **📅 最后更新**: 2025-02-01
+
+---
+
+## 📋 目录
+
+1. [Python 2.7兼容性](#python-27兼容性)
+2. [System生命周期](#system生命周期-critical) ⚠️ **CRITICAL**
+3. [模块导入规范](#模块导入规范-critical) ⚠️ **CRITICAL**
+4. [ECPreset预设开发](#ecpreset预设开发-critical) ⚠️ **CRITICAL**
+5. [命名规范](#命名规范)
+6. [文件组织](#文件组织)
+7. [状态机开发](#状态机开发)
+8. [事件系统](#事件系统)
+9. [性能优化建议](#性能优化建议)
+10. [网易引擎限制](#网易引擎限制)
+
+---
+
+## Python 2.7兼容性
+
+### ⚠️ 为什么重要？
+
+网易我的世界引擎使用**Python 2.7**，必须保持兼容性。使用Python 3特性会导致语法错误或运行时崩溃。
+
+### 必须遵守的规则
+
+#### 1. 文件编码声明
+
+**每个Python文件开头必须声明UTF-8编码**：
+
+```python
+# -*- coding: utf-8 -*-
+"""模块说明文档字符串"""
+```
+
+#### 2. Print函数
+
+**必须导入print_function**：
+
+```python
+# ✅ 正确
+from __future__ import print_function
+
+print("Hello, World!")
+print("Value:", value)
+
+# ❌ 错误（Python 2.7会报错）
+print "Hello, World"  # Python 2语法，但不推荐
+```
+
+#### 3. 字符串格式化
+
+**使用 `.format()` 而非 f-strings**：
+
+```python
+# ✅ 正确
+name = "玩家"
+msg = "欢迎 {} 加入游戏".format(name)
+msg = "坐标: ({}, {}, {})".format(x, y, z)
+
+# ❌ 错误（f-strings是Python 3.6+特性）
+msg = f"欢迎 {name} 加入游戏"
+```
+
+#### 4. 类型注解
+
+**使用注释形式，不要使用Python 3语法**：
+
+```python
+# ✅ 正确
+def get_player_name(player_id):
+    # type: (str) -> str
+    """获取玩家名称"""
+    return "PlayerName"
+
+# ❌ 错误（类型注解是Python 3特性）
+def get_player_name(player_id: str) -> str:
+    return "PlayerName"
+```
+
+#### 5. 字典方法
+
+**注意字典方法在Python 2/3的差异**：
+
+```python
+# ✅ 正确（兼容Python 2和3）
+for key in dict.keys():
+    print(key)
+
+for key, value in dict.items():
+    print(key, value)
+
+# ⚠️ 注意：Python 2的dict.iteritems()在Python 3中不存在
+# 推荐使用dict.items()（两者都支持）
+```
+
+#### 6. 除法运算
+
+**整数除法行为不同**：
+
+```python
+# Python 2: 5 / 2 = 2 (整数除法)
+# Python 3: 5 / 2 = 2.5 (浮点除法)
+
+# ✅ 正确（明确意图）
+from __future__ import division
+
+result = 5 / 2      # 2.5 (浮点除法)
+result = 5 // 2     # 2 (整数除法)
+
+# ❌ 错误（行为不明确）
+result = 5 / 2      # Python 2和3行为不同
+```
+
+#### 7. 异常处理
+
+**使用兼容的异常语法**：
+
+```python
+# ✅ 正确（Python 2和3都支持）
+try:
+    do_something()
+except Exception as e:
+    print("Error:", e)
+
+# ❌ 错误（Python 2旧语法，Python 3不支持）
+try:
+    do_something()
+except Exception, e:
+    print "Error:", e
+```
+
+### 兼容性检查清单
+
+开发时请确认：
+
+- [ ] 文件开头有 `# -*- coding: utf-8 -*-`
+- [ ] 导入了 `from __future__ import print_function`
+- [ ] 使用 `.format()` 而非 f-strings
+- [ ] 类型注解使用注释形式 `# type: ...`
+- [ ] 异常处理使用 `except ... as e` 语法
+- [ ] 没有使用Python 3专有特性（如 `async/await`、`@dataclass` 等）
+
+---
+
+## System生命周期 ⚠️ CRITICAL
+
+### ⚠️ 关键问题
+
+**网易引擎的System生命周期设计**：
+- ✅ **引擎只会自动触发 `Destroy()` 方法**
+- ❌ **引擎不会自动触发 `Create()` 方法**
+
+**结论**：`Create()` 必须在 `__init__` 中手动调用！
+
+### 标准实现模式
+
+```python
+# -*- coding: utf-8 -*-
+"""系统说明"""
+
+from mod.server.system import ServerSystem
+
+class MySystem(ServerSystem):
+    def __init__(self, namespace, systemName):
+        super(MySystem, self).__init__(namespace, systemName)
+
+        # 初始化成员变量
+        self.players = {}
+        self.config = None
+
+        # ========== ⚠️ 重要：手动调用Create() ==========
+        # 说明：网易引擎设计上只自动触发Destroy()，不自动触发Create()
+        # 因此需要在__init__中手动调用Create()完成系统初始化
+        print("[MySystem] 手动调用Create()完成系统初始化")
+        self.Create()
+
+    def Create(self):
+        """系统创建时的初始化逻辑"""
+        print("[MySystem] Create() 被调用")
+
+        # 注册事件
+        self.ListenForEvent(
+            "ServerPlayerJoinEvent",
+            "Minecraft",
+            self.OnPlayerJoin
+        )
+
+        # 加载配置
+        self.config = self.load_config()
+
+        # 其他初始化逻辑...
+
+    def Destroy(self):
+        """系统销毁时自动被引擎调用"""
+        print("[MySystem] Destroy() 被调用")
+
+        # 清理资源
+        self.players.clear()
+        self.config = None
+
+        # 取消事件监听（通常不需要手动取消，引擎会自动清理）
+
+    def OnPlayerJoin(self, args):
+        """玩家加入事件处理"""
+        player_id = args.get("id")
+        print("[MySystem] 玩家加入:", player_id)
+```
+
+### 为什么需要手动调用？
+
+**引擎源码分析**（`mod/common/system.py`）：
+
+```python
+class System(object):
+    def __init__(self, namespace, systemName):
+        self.namespace = namespace
+        self.systemName = systemName
+
+    def Create(self):
+        """由子类实现，但引擎不会自动调用"""
+        pass
+
+    def Destroy(self):
+        """引擎会在系统销毁时自动调用"""
+        pass
+```
+
+**引擎只在系统销毁时调用`Destroy()`，不会在创建时调用`Create()`。**
+
+### 常见错误
+
+#### ❌ 错误1：忘记调用Create()
+
+```python
+class MySystem(ServerSystem):
+    def __init__(self, namespace, systemName):
+        super(MySystem, self).__init__(namespace, systemName)
+        # ❌ 忘记调用self.Create()
+
+    def Create(self):
+        # 这个方法永远不会被执行！
+        self.ListenForEvent(...)  # 事件不会注册
+```
+
+**后果**：事件监听不生效，配置不加载，系统无法正常工作。
+
+#### ❌ 错误2：在__init__中重复调用
+
+```python
+class MySystem(ServerSystem):
+    def __init__(self, namespace, systemName):
+        super(MySystem, self).__init__(namespace, systemName)
+        self.Create()
+        self.Create()  # ❌ 重复调用
+```
+
+**后果**：事件可能被重复注册，导致回调执行多次。
+
+### 防止重复调用的保护措施
+
+```python
+class MySystem(ServerSystem):
+    def __init__(self, namespace, systemName):
+        super(MySystem, self).__init__(namespace, systemName)
+
+        self._created = False  # 标记是否已创建
+
+        if not self._created:
+            print("[MySystem] 手动调用Create()完成系统初始化")
+            self.Create()
+
+    def Create(self):
+        if self._created:
+            print("[MySystem] Create()已被调用，跳过")
+            return
+
+        print("[MySystem] 执行Create()初始化")
+        # 初始化逻辑...
+
+        self._created = True
+```
+
+### 相关文档
+
+详见项目文档：`手动调用Create()修复方案.md`
+
+---
+
+## 模块导入规范 ⚠️ CRITICAL
+
+### ⚠️ 关键问题
+
+**网易引擎的Mod加载机制会扫描模块的所有属性**，尝试实例化任何具有`MOD_NAME`属性的对象。
+
+**错误的导入方式会导致**：
+```
+TypeError: 'module' object is not callable
+```
+
+### 问题根源
+
+网易引擎的`ImportModMain()`函数实现：
+
+```python
+def ImportModMain(self, modMainPath, initTypeString):
+    modModule = __import__(modMainPath, fromlist=[''])
+
+    for mKey in dir(modModule):  # ⚠️ 遍历模块的所有属性
+        cls = getattr(modModule, mKey)
+        if not hasattr(cls, 'MOD_NAME'):
+            continue
+        instance = cls()  # ❌ 尝试调用 - 如果cls是module对象会报错!
+```
+
+### 错误场景示例
+
+```python
+# modMain.py
+# ❌ 错误导入方式
+import modConfig  # 这会将modConfig模块对象添加到当前模块的命名空间
+
+@Mod.Binding(name=modConfig.MOD_NAME, version=modConfig.MOD_VERSION)
+class Script_NeteaseMod(object):
+    pass
+```
+
+**执行流程**：
+1. `dir(modMain)` 包含 `'modConfig'`（因为 `import modConfig`）
+2. `getattr(modMain, 'modConfig')` 返回modConfig模块对象
+3. `hasattr(modConfig, 'MOD_NAME')` 为True（modConfig定义了MOD_NAME）
+4. `modConfig()` 尝试调用模块对象 → **TypeError: 'module' object is not callable**
+
+### ✅ 正确的导入规范
+
+#### 规则1：永远不要使用 `import module` 导入配置模块
+
+**对于包含`MOD_NAME`常量的配置模块**，必须使用 `from ... import ...`：
+
+```python
+# ✅ 正确导入方式
+from mod.common.mod import Mod
+import mod.client.extraClientApi as clientApi
+import mod.server.extraServerApi as serverApi
+
+# ⚠️ 关键：使用from...import导入，而非import modConfig
+from modConfig import MOD_NAME, MOD_VERSION, SERVER_SYSTEMS, CLIENT_SYSTEMS
+from modConfig import CLIENT_PRESET_IMPORTS, CLIENT_PRESET_TYPES
+
+@Mod.Binding(name=MOD_NAME, version=MOD_VERSION)
+class Script_NeteaseMod(object):
+    def __init__(self):
+        pass
+
+    @Mod.InitServer()
+    def Script_NeteaseModServerInit(self):
+        # ✅ 使用直接导入的变量名
+        for system_name, system_path in SERVER_SYSTEMS:
+            serverApi.RegisterSystem(MOD_NAME, system_name, system_path)
+```
+
+#### 规则1.1：子目录中导入modConfig必须使用完整路径 ⚠️ **NEW**
+
+**在子目录文件中**（如 `config/`, `systems/`, `presets/`），导入`modConfig`时必须使用**完整的包路径**：
+
+```python
+# ✅ 正确 - 在子目录中使用完整路径
+# 文件位置: Script_NeteaseMod/config/shop_config.py
+from Script_NeteaseMod.modConfig import MOD_NAME
+
+# ❌ 错误 - 在子目录中使用相对导入会导致ImportError
+# 文件位置: Script_NeteaseMod/config/shop_config.py
+from modConfig import MOD_NAME  # ImportError: No module named modConfig
+```
+
+**原因**：
+- `modConfig.py` 位于 `Script_NeteaseMod/` 根目录
+- 子目录文件（如 `Script_NeteaseMod/config/shop_config.py`）不在同一目录层级
+- Python模块解析规则要求使用完整路径从包根开始导入
+
+**正确做法对照表**：
+
+| 文件位置 | 正确导入方式 | 错误导入方式 |
+|---------|-------------|-------------|
+| `Script_NeteaseMod/modMain.py` | `from modConfig import MOD_NAME` | ✅ 同级目录可用 |
+| `Script_NeteaseMod/config/shop_config.py` | `from Script_NeteaseMod.modConfig import MOD_NAME` | ❌ `from modConfig import ...` |
+| `Script_NeteaseMod/systems/XXXSystem.py` | `from Script_NeteaseMod.modConfig import MOD_NAME` | ❌ `from modConfig import ...` |
+| `Script_NeteaseMod/presets/server/XXX.py` | `from Script_NeteaseMod.modConfig import MOD_NAME` | ❌ `from modConfig import ...` |
+
+**实际案例**（shop_config.py修复）：
+
+```python
+# ❌ 错误 - 导致 ImportError: No module named modConfig
+# 文件: Script_NeteaseMod/config/shop_config.py
+from mod.common.minecraftEnum import ItemColor, EnchantType
+import mod.server.extraServerApi as serverApi
+from modConfig import MOD_NAME  # ❌ 子目录中无法找到模块
+
+# ✅ 正确
+# 文件: Script_NeteaseMod/config/shop_config.py
+from mod.common.minecraftEnum import ItemColor, EnchantType
+import mod.server.extraServerApi as serverApi
+from Script_NeteaseMod.modConfig import MOD_NAME  # ✅ 使用完整路径
+```
+
+#### 规则2：API模块可以使用 `import ... as ...`
+
+**这些模块不包含`MOD_NAME`，不会被引擎误识别**：
+
+```python
+# ✅ 正确
+import mod.server.extraServerApi as serverApi
+import mod.client.extraClientApi as clientApi
+```
+
+#### 规则3：普通模块优先使用 `from ... import ...`
+
+```python
+# ✅ 推荐
+from systems.BedWarsGameSystem import BedWarsGameSystem
+from systems.state.GamingState import GamingState
+
+# ⚠️ 可用但不推荐（如果模块包含特殊属性可能有风险）
+import systems.BedWarsGameSystem
+```
+
+### 通用导入准则
+
+| 模块类型 | 文件位置 | 正确导入方式 | 错误导入方式 |
+|---------|---------|-------------|-------------|
+| **配置模块**（有MOD_NAME） | modMain.py同级 | `from modConfig import VAR` | ❌ `import modConfig` |
+| **配置模块**（有MOD_NAME） | 子目录（config/systems/presets/） | `from Script_NeteaseMod.modConfig import VAR` | ❌ `from modConfig import VAR` |
+| **API模块** | 任何位置 | `import mod.server.extraServerApi as api` | ✅ 可用 |
+| **系统模块** | 任何位置 | `from systems.XXX import XXX` | ✅ 推荐 |
+
+### 排查方法
+
+如果遇到 `TypeError: 'module' object is not callable`：
+
+#### 步骤1：检查所有 `import` 语句
+
+```bash
+# 在项目根目录执行
+grep "^import [^.]" behavior_packs/behavior_pack_TSK85dvb/Script_NeteaseMod/modMain.py
+```
+
+#### 步骤2：查找导入的模块是否有 `MOD_NAME`
+
+```bash
+# 检查被导入模块
+grep "MOD_NAME" behavior_packs/behavior_pack_TSK85dvb/Script_NeteaseMod/modConfig.py
+```
+
+#### 步骤3：改用 `from ... import ...`
+
+将所有问题导入改为：
+```python
+from modConfig import MOD_NAME, MOD_VERSION, ...
+```
+
+### 实际案例
+
+**问题代码**：
+```python
+# ❌ 导致TypeError
+import modConfig
+
+@Mod.Binding(name=modConfig.MOD_NAME, version=modConfig.MOD_VERSION)
+class Script_NeteaseMod(object):
+    @Mod.InitServer()
+    def Script_NeteaseModServerInit(self):
+        for system_name, system_path in modConfig.SERVER_SYSTEMS:
+            serverApi.RegisterSystem(modConfig.MOD_NAME, system_name, system_path)
+```
+
+**修复后代码**：
+```python
+# ✅ 正确
+from modConfig import MOD_NAME, MOD_VERSION, SERVER_SYSTEMS
+
+@Mod.Binding(name=MOD_NAME, version=MOD_VERSION)
+class Script_NeteaseMod(object):
+    @Mod.InitServer()
+    def Script_NeteaseModServerInit(self):
+        for system_name, system_path in SERVER_SYSTEMS:
+            serverApi.RegisterSystem(MOD_NAME, system_name, system_path)
+```
+
+### 相关引擎源码
+
+参考：`D:\EcWork\3.5\mod\common\minecraftMod.py` 的 `ImportModMain` 函数
+
+[⬆️ 返回目录](#目录)
+
+---
+
+## ECPreset预设开发 ⚠️ CRITICAL
+
+### ⚠️ 为什么重要？
+
+ECPreset框架采用**单例PresetDefinition + 多例PresetInstance**架构，不理解这一点会导致数据错乱、方法签名错误等严重BUG。
+
+### 核心架构理解
+
+**PresetDefinition（预设定义） = 单例**
+- 所有同类型的预设实例（如10个产矿机）**共享同一个**`PresetDefinitionClient`或`PresetDefinitionServer`对象
+- 类似于Python的类定义，只有一个实例
+
+**PresetInstance（预设实例） = 多例**
+- 每个预设实例有独立的`PresetInstanceClient`或`PresetInstanceServer`对象
+- 类似于Python的类实例，可以有多个
+
+### 数据存储规则 ⚠️ CRITICAL
+
+```python
+# ❌ 错误：将实例级数据存储在self中
+class GeneratorPresetDefClient(PresetDefinitionClient):
+    def _create_floating_text(self, instance):
+        self.floating_text_board_id = create_text()  # ❌ 错误！会被后续实例覆盖
+
+# ✅ 正确：将实例级数据存储在instance.data中
+class GeneratorPresetDefClient(PresetDefinitionClient):
+    def _create_floating_text(self, instance):
+        board_id = create_text()
+        instance.set_data("floating_text_board_id", board_id)  # ✅ 正确！
+
+    def _update_floating_text(self, instance):
+        board_id = instance.get_data("floating_text_board_id")  # ✅ 读取
+```
+
+**数据存储原则**：
+- **实例级数据**（如board_id、倒计时时间）→ `instance.set_data()` / `instance.get_data()`
+- **全局配置**（如资源类型配置）→ `self`成员变量
+- **预设配置**（如位置、队伍）→ `instance.get_config()`
+
+### 生命周期钩子签名 ⚠️ CRITICAL
+
+```python
+# ✅ 正确的方法签名
+class MyPresetDefClient(PresetDefinitionClient):
+    enable_tick = True  # 启用tick更新
+
+    def on_init(self, instance):
+        pass
+
+    def on_start(self, instance):
+        pass
+
+    def on_tick(self, instance, dt):  # ⚠️ 必须接受dt参数！
+        pass
+
+    def on_stop(self, instance):
+        pass
+
+    def on_destroy(self, instance):
+        pass
+```
+
+**常见错误**：
+```python
+# ❌ 错误：on_tick缺少dt参数
+def on_tick(self, instance):
+    pass
+# 错误信息：TypeError: on_tick() takes exactly 2 arguments (3 given)
+```
+
+### 位置信息获取 ⚠️ CRITICAL
+
+```python
+# ❌ 错误：PresetInstance没有get_position()方法
+position = instance.get_position()
+# 错误信息：AttributeError: 'PresetInstanceClient' object has no attribute 'get_position'
+
+# ✅ 正确：从配置中读取位置
+position = instance.get_config("position") or instance.get_config("pos")
+```
+
+### 完整示例：产矿机浮空文字倒计时
+
+```python
+class GeneratorPresetDefClient(PresetDefinitionClient):
+    # 启用tick更新
+    enable_tick = True
+
+    def on_start(self, instance):
+        # 从配置读取位置（不是get_position）
+        pos = instance.get_config("position")
+
+    def on_tick(self, instance, dt):  # 必须接受dt参数
+        import time
+        now = time.time()
+
+        # 从instance.data读取（不是self）
+        board_id = instance.get_data("floating_text_board_id")
+        next_update = instance.get_data("next_text_update", 0.0)
+
+        if board_id and now >= next_update:
+            # 写入instance.data（不是self）
+            instance.set_data("next_text_update", now + 1.0)
+            self._update_text(instance, board_id)
+```
+
+### 常见BUG及修复
+
+| 问题 | 原因 | 修复 |
+|------|------|------|
+| TypeError: on_tick() takes 2 arguments (3 given) | 方法签名缺少dt参数 | 添加dt参数：`def on_tick(self, instance, dt)` |
+| AttributeError: no attribute 'get_position' | 调用了不存在的方法 | 改用`instance.get_config("position")` |
+| 浮空文字倒计时不更新 | 数据存储在self被覆盖 | 改用`instance.set_data()` |
+| enable_tick=True但on_tick不执行 | 方法签名错误导致抛异常 | 检查方法签名是否正确 |
+
+[⬆️ 返回目录](#目录)
+
+---
+
+## 命名规范
+
+### 类名：PascalCase
+
+```python
+# ✅ 正确
+class BedWarsGameSystem(ServerSystem):
+    pass
+
+class TeamUpgradeManager(object):
+    pass
+
+# ❌ 错误
+class bedwarsGameSystem(ServerSystem):  # 首字母应大写
+    pass
+
+class team_upgrade_manager(object):  # 应使用PascalCase
+    pass
+```
+
+### 方法/函数名：snake_case
+
+```python
+# ✅ 正确
+def on_enter(self):
+    pass
+
+def register_sub_state(self, name, state_class):
+    pass
+
+def get_player_team_id(self, player_id):
+    pass
+
+# ❌ 错误
+def OnEnter(self):  # 应使用snake_case
+    pass
+
+def RegisterSubState(self, name, state_class):  # 应使用snake_case
+    pass
+```
+
+### 常量：UPPER_SNAKE_CASE
+
+```python
+# ✅ 正确
+MOD_NAME = "Script_NeteaseMod"
+MOD_VERSION = "1.0.0"
+MAX_PLAYERS_PER_TEAM = 4
+DEFAULT_TIMEOUT_SECONDS = 10
+
+# ❌ 错误
+modName = "Script_NeteaseMod"  # 应全大写
+maxPlayersPerTeam = 4  # 应全大写+下划线
+```
+
+### 预设类型：namespace:type
+
+```python
+# ✅ 正确
+"bedwars:bed"
+"bedwars:generator"
+"bedwars:shop"
+"bedwars:spawn"
+
+# ❌ 错误
+"BedwarsPresetBed"  # 应使用namespace:type格式
+"bedwars_shop"  # 应使用冒号分隔
+```
+
+### 私有成员：单下划线前缀
+
+```python
+# ✅ 正确
+class MySystem(ServerSystem):
+    def __init__(self, namespace, systemName):
+        self._created = False  # 私有成员
+        self._internal_state = {}
+
+    def _internal_method(self):  # 私有方法
+        pass
+
+# ⚠️ 注意：Python不强制私有，但约定俗成使用单下划线
+```
+
+[⬆️ 返回目录](#目录)
+
+---
+
+## 文件组织
+
+### 模块文件结构
+
+每个Python文件应遵循以下结构：
+
+```python
+# -*- coding: utf-8 -*-
+"""
+模块名称和简要说明
+
+详细说明（可选）：
+- 功能1
+- 功能2
+
+重构说明（如适用）：
+从老项目XXXPart迁移到新项目XXXSystem
+"""
+
+# 1. 标准库导入
+from __future__ import print_function
+
+# 2. 网易引擎导入
+import mod.server.extraServerApi as serverApi
+
+# 3. 第三方库导入（如有）
+# import third_party_lib
+
+# 4. 项目内部导入
+from systems.state.GamingState import GamingState
+from modConfig import MOD_NAME
+
+# 5. 类型注解（注释形式）
+# type: (str) -> bool
+
+# 6. 常量定义
+DEFAULT_RADIUS = 5.0
+
+# 7. 类定义
+class MyClass(object):
+    pass
+
+# 8. 函数定义
+def my_function():
+    pass
+```
+
+### 目录组织规则
+
+- **系统文件**：`systems/XXXSystem.py`
+- **状态文件**：`systems/state/XXXState.py` 或 `systems/bedwars_states/XXXState.py`
+- **预设服务端**：`presets/server/XXXPresetDefServer.py`
+- **预设客户端**：`presets/client/XXXPresetDefClient.py`
+- **工具类**：`systems/util/XXXHelper.py`
+- **配置文件**：`config/XXX.py`
+
+### __init__.py文件
+
+每个Python包目录必须包含`__init__.py`：
+
+```python
+# -*- coding: utf-8 -*-
+"""
+包说明
+"""
+
+# 可以为空，或导出常用类/函数
+from .MyClass import MyClass
+from .my_function import my_function
+
+__all__ = ['MyClass', 'my_function']
+```
+
+[⬆️ 返回目录](#目录)
+
+---
+
+## 状态机开发
+
+### 状态类应该只包含该状态的逻辑
+
+```python
+# ✅ 正确
+class BedWarsStartingState(GamingState):
+    def on_enter(self):
+        """进入启动状态"""
+        self.broadcast_title("游戏即将开始!")
+        self.switch_to_sub_state("BedWarsRunningState")
+
+    def on_exit(self):
+        """退出启动状态"""
+        pass
+
+# ❌ 错误 - 混杂其他状态的逻辑
+class BedWarsStartingState(GamingState):
+    def on_enter(self):
+        self.broadcast_title("游戏即将开始!")
+
+        # ❌ 不应该在这里处理运行状态的逻辑
+        self.start_resource_generators()  # 这应该在RunningState中
+        self.enable_pvp()  # 这应该在RunningState中
+```
+
+### 使用switch_to_sub_state()切换子状态
+
+```python
+# ✅ 正确
+def on_countdown_finished(self):
+    self.switch_to_sub_state("BedWarsRunningState")
+
+# ❌ 错误 - 不要手动管理状态
+def on_countdown_finished(self):
+    self.current_state = BedWarsRunningState(self.system)  # ❌ 错误
+```
+
+### 使用listen_event()管理事件监听
+
+```python
+# ✅ 正确 - 会在状态退出时自动取消
+def on_enter(self):
+    self.listen_event(
+        "ServerPlayerJoinEvent",
+        self.on_player_join
+    )
+
+# ❌ 错误 - 不会自动清理
+def on_enter(self):
+    self.system.ListenForEvent(
+        "ServerPlayerJoinEvent",
+        "Minecraft",
+        self.on_player_join
+    )  # 状态退出后事件仍然监听，可能导致错误
+```
+
+### 定时状态使用TimedGamingState
+
+```python
+# ✅ 正确
+from systems.state.TimedGamingState import TimedGamingState
+
+class CountdownState(TimedGamingState):
+    def __init__(self, system_context):
+        super(CountdownState, self).__init__(
+            system_context,
+            timeout_seconds=10  # 10秒后自动超时
+        )
+
+    def on_timeout(self):
+        """超时后切换状态"""
+        self.switch_to_state("NextState")
+
+# ❌ 错误 - 手动实现定时器容易出错
+class CountdownState(GamingState):
+    def __init__(self, system_context):
+        super(CountdownState, self).__init__(system_context)
+        self.countdown = 10
+
+    def on_tick(self):
+        self.countdown -= 1
+        if self.countdown <= 0:
+            # 手动管理容易忘记清理或出错
+            pass
+```
+
+[⬆️ 返回目录](#目录)
+
+---
+
+## 事件系统
+
+### 注册引擎事件
+
+```python
+# ✅ 正确
+def Create(self):
+    self.ListenForEvent(
+        "ServerPlayerJoinEvent",   # 事件名
+        "Minecraft",                # 命名空间
+        self.OnPlayerJoin           # 回调函数
+    )
+
+def OnPlayerJoin(self, args):
+    player_id = args.get("id")
+    print("玩家加入:", player_id)
+```
+
+### 在状态内监听事件
+
+```python
+# ✅ 正确 - 自动管理生命周期
+class MyState(GamingState):
+    def on_enter(self):
+        self.listen_event(
+            "ServerPlayerJoinEvent",
+            self.on_player_join
+        )
+        # 状态退出时会自动取消监听
+
+    def on_player_join(self, args):
+        player_id = args.get("id")
+        print("State: 玩家加入", player_id)
+```
+
+### 发送客户端事件
+
+```python
+# ✅ 单个玩家
+self.NotifyToClient(player_id, "CustomClientEvent", {"key": "value"})
+
+# ✅ 所有玩家
+self.BroadcastToAllClient("CustomClientEvent", {"key": "value"})
+
+# ✅ 指定维度的所有玩家
+self.BroadcastToAllClient("CustomClientEvent", {"key": "value"}, dimensionId=0)
+```
+
+### 事件回调命名
+
+```python
+# ✅ 正确 - 使用On前缀
+def OnPlayerJoin(self, args):
+    pass
+
+def OnPlayerDie(self, args):
+    pass
+
+# ❌ 错误 - 命名不清晰
+def handle_join(self, args):  # 应使用On前缀
+    pass
+
+def player_die_handler(self, args):  # 应使用On前缀
+    pass
+```
+
+[⬆️ 返回目录](#目录)
+
+---
+
+## 性能优化建议
+
+### 1. 避免在on_tick()中执行耗时操作
+
+```python
+# ✅ 正确 - 使用计数器降低频率
+class MyState(GamingState):
+    def __init__(self, system_context):
+        super(MyState, self).__init__(system_context)
+        self.tick_counter = 0
+
+    def on_tick(self):
+        self.tick_counter += 1
+
+        # 每20 tick（1秒）执行一次
+        if self.tick_counter % 20 == 0:
+            self.update_expensive_calculation()
+
+# ❌ 错误 - 每tick都执行耗时操作
+class MyState(GamingState):
+    def on_tick(self):
+        # 每tick都查询数据库、计算复杂逻辑等
+        self.query_database()
+        self.complex_calculation()
+```
+
+### 2. 及时取消事件监听
+
+```python
+# ✅ 正确 - 在状态内使用listen_event()会自动取消
+def on_enter(self):
+    self.listen_event("SomeEvent", self.handler)
+
+# ✅ 正确 - 手动取消监听
+def on_exit(self):
+    self.UnListenForEvent("SomeEvent", "Minecraft", self.handler)
+```
+
+### 3. 缓存频繁访问的数据
+
+```python
+# ✅ 正确 - 使用成员变量缓存
+class MySystem(ServerSystem):
+    def __init__(self, namespace, systemName):
+        super(MySystem, self).__init__(namespace, systemName)
+        self.player_cache = {}  # 缓存玩家数据
+
+    def get_player_team(self, player_id):
+        if player_id in self.player_cache:
+            return self.player_cache[player_id]
+
+        team = self._query_player_team(player_id)
+        self.player_cache[player_id] = team
+        return team
+
+# ❌ 错误 - 每次都查询
+class MySystem(ServerSystem):
+    def get_player_team(self, player_id):
+        return self._query_player_team(player_id)  # 每次都查询，性能差
+```
+
+### 4. 批量操作
+
+```python
+# ✅ 正确 - 批量处理
+def update_all_players_hud(self, message):
+    for player_id in self.get_all_players():
+        self.NotifyToClient(player_id, "UpdateHUD", {"msg": message})
+
+# ❌ 错误 - 一次一个（如果可以批量）
+def update_player_hud(self, player_id, message):
+    self.NotifyToClient(player_id, "UpdateHUD", {"msg": message})
+    # 然后在外部循环调用此方法
+```
+
+### 5. 日志控制
+
+```python
+# ✅ 正确 - 使用日志级别
+DEBUG = True
+
+def on_player_join(self, player_id):
+    if DEBUG:
+        print("[DEBUG] 玩家加入:", player_id)
+
+    # 核心逻辑...
+
+# ❌ 错误 - 生产环境大量日志
+def on_player_join(self, player_id):
+    print("玩家加入:", player_id)
+    print("当前玩家列表:", self.players)
+    print("当前状态:", self.current_state)
+    # 大量日志影响性能
+```
+
+[⬆️ 返回目录](#目录)
+
+---
+
+## 网易引擎限制
+
+### 1. Python版本
+
+- ✅ **必须兼容Python 2.7**
+- ❌ 不能使用Python 3专有特性
+
+### 2. 实体标识符
+
+- ✅ 实体类型名称建议不超过32字符
+- ✅ 使用小写字母和下划线：`ecbedwars_entity_bed`
+
+### 3. 维度管理
+
+- ✅ 维度ID必须是整数
+- ✅ 推荐使用10000以上的ID避免冲突
+- ✅ 主世界：0，地狱：1，末地：2
+
+### 4. 事件系统
+
+- ✅ 自定义事件名称建议使用驼峰命名：`TeamResourceUpdateEvent`
+- ✅ 事件数据必须是可序列化的（字典、列表、字符串、数字）
+- ❌ 不能传递对象实例
+
+### 5. 组件限制
+
+- ⚠️ 某些组件在特定维度或游戏模式下可能不可用
+- ⚠️ 客户端组件不能在服务端使用，反之亦然
+
+[⬆️ 返回目录](#目录)
+
+---
+
+## 检查清单
+
+在提交代码前，请确认：
+
+### Python 2.7兼容性
+- [ ] 文件开头有 `# -*- coding: utf-8 -*-`
+- [ ] 导入了 `from __future__ import print_function`
+- [ ] 使用 `.format()` 而非 f-strings
+- [ ] 类型注解使用注释形式
+
+### System生命周期
+- [ ] 在 `__init__` 中手动调用了 `self.Create()`
+- [ ] `Create()` 中包含初始化逻辑
+- [ ] `Destroy()` 中包含清理逻辑
+
+### 模块导入
+- [ ] 配置模块使用 `from ... import ...`
+- [ ] 没有使用 `import modConfig`
+- [ ] **子目录文件使用 `from Script_NeteaseMod.modConfig import ...`** ⚠️ NEW
+- [ ] **modMain.py同级文件使用 `from modConfig import ...`**
+
+### 命名规范
+- [ ] 类名使用PascalCase
+- [ ] 方法名使用snake_case
+- [ ] 常量使用UPPER_SNAKE_CASE
+
+### 文件组织
+- [ ] 文件有文档字符串说明
+- [ ] 导入顺序正确
+- [ ] 目录有 `__init__.py`
+
+### 状态机
+- [ ] 状态只包含该状态的逻辑
+- [ ] 使用 `switch_to_sub_state()` 切换
+- [ ] 使用 `listen_event()` 监听事件
+
+### 性能
+- [ ] `on_tick()` 中避免耗时操作
+- [ ] 及时取消事件监听
+- [ ] 缓存频繁访问的数据
+
+[⬆️ 返回目录](#目录)
+
+---
+
+## 📚 相关文档
+
+### 学习路径
+- **上一篇**: [快速开始](./快速开始.md) 🚀
+- **当前**: 开发规范 📍
+- **下一篇**: [开发指南](./开发指南.md) 📖
+
+### 必读文档
+- [问题排查](./问题排查.md) - 违反规范时查看
+- [迁移指南](./迁移指南.md) - 架构对比
+- [CLAUDE.md](../CLAUDE.md) - 核心架构参考
+
+---
+
+## 🔗 快速链接
+
+| 核心规范 | 开发指南 | 参考资料 |
+|---------|---------|---------|
+| [🏠 首页](../README.md) | [📖 开发指南](./开发指南.md) | [🏗️ 架构文档](../CLAUDE.md) |
+| [🚀 快速开始](./快速开始.md) | [🔧 问题排查](./问题排查.md) | [📊 项目状态](./项目状态.md) |
+
+---
+
+**[⬆️ 返回顶部](#开发规范)** | **[🏠 返回首页](../README.md)** | **[➡️ 下一篇: 开发指南](./开发指南.md)**
+
+---
+
+_最后更新: 2025-01-29 | 文档版本: 2.0_
+
+---
+
+**记住**：遵循这些规范可以避免90%的常见错误！

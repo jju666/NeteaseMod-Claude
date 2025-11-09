@@ -1,0 +1,11 @@
+  _generateSystemDoc(systemName, systemInfo, targetPath) {
+    const relativePath = path.relative(targetPath, systemInfo.filePath).replace(/\/g, '/');
+
+    const lines = [];
+
+    // 添加 YAML Front Matter
+    const frontMatter = createSystemMetadata(systemInfo);
+    lines.push(frontMatter);
+    lines.push('\n');
+
+    lines.push(`# ${systemName}\n`);

@@ -1,0 +1,29 @@
+{
+  "name": "modsdk-workflow-generator",
+  "version": "1.0.0",
+  "description": "全局MODSDK工作流生成器 - 一次安装，到处使用",
+  "main": "lib/init-workflow.js",
+  "scripts": {
+    "install-global": "node bin/install-global.js",
+    "uninstall": "node bin/uninstall-global.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "modsdk-deploy": "./bin/quick-deploy.js"
+  },
+  "keywords": [
+    "modsdk",
+    "minecraft",
+    "netease",
+    "workflow",
+    "claude",
+    "ai"
+  ],
+  "author": "MODSDK Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

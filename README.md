@@ -10,6 +10,8 @@
 
 General类型MODSDK项目
 
+> ⚠️ **文档说明**: 本项目文档专注于**网易MODSDK通用开发知识**，适用于任意MODSDK项目开发。文档不包含特定游戏项目的实现细节。
+
 ---
 
 ## 🚀 快速开始
@@ -216,12 +218,14 @@ node lib/indexer.js
 ## 🌐 官方资源
 
 ### 网易MODSDK文档
-- GitHub: https://github.com/EaseCation/netease-modsdk-wiki
-- 查询API用法、事件说明、组件文档
+- **GitHub仓库**: https://github.com/EaseCation/netease-modsdk-wiki
+- **本地副本**: D:\EcWork\netease-modsdk-wiki（离线参考）
+- **推荐方式**: 使用WebFetch工具查询在线文档（保证最新）
+- **用途**: 查询API用法、事件说明、组件文档
 
 ### 基岩版Wiki
-- GitHub: https://github.com/Bedrock-OSS/bedrock-wiki
-- 查询NBT结构、实体属性、原版机制
+- **GitHub仓库**: https://github.com/Bedrock-OSS/bedrock-wiki
+- **用途**: 查询NBT结构、实体属性、原版机制
 
 ---
 

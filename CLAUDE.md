@@ -132,15 +132,19 @@ Grep("关键词", path="markdown/", output_mode="files_with_matches")
 ```
 
 **2.2 优先级**
-1. **开发规范.md** - CRITICAL规范，防止90%错误 ⭐
-2. **问题排查.md** - 已知问题和调试技巧
-3. **Systems文档** - 系统实现文档（`markdown/systems/`）
 
-5. **Systems文档** - 系统实现文档
+**快速参考**（无需查阅完整文档）：
+- 🔍 **API速查.md** - 常用API代码片段，可直接复制使用 ⭐
+- 📖 **MODSDK核心概念.md** - System/Component/Event/Entity速查 ⭐
+
+**详细文档**（需要深入理解时查阅）：
+1. **开发规范.md** - CRITICAL规范，防止90%错误 ⭐⭐⭐
+2. **问题排查.md** - 已知问题和调试技巧
+3. **Systems文档** - 系统实现文档
    - 路径: `markdown/systems/`
    - 查阅对应系统的技术文档
 
-5. **官方MODSDK文档** - 遇到不熟悉API时查阅 ⭐
+4. **官方MODSDK文档** - 遇到不熟悉API时查阅 ⭐
    - 仓库：https://github.com/EaseCation/netease-modsdk-wiki
    - 使用WebFetch工具在线获取最新文档
    - 示例：
@@ -151,7 +155,7 @@ Grep("关键词", path="markdown/", output_mode="files_with_matches")
      )
      ```
 
-6. **基岩版Wiki** - 涉及原版实体/物品/NBT时查阅 ⭐
+5. **基岩版Wiki** - 涉及原版实体/物品/NBT时查阅 ⭐
    - 仓库：https://github.com/Bedrock-OSS/bedrock-wiki
    - 查阅NBT结构、实体属性、原版机制
    - 使用WebFetch工具获取文档

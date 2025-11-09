@@ -59,6 +59,8 @@ npm run install-global
 | 文档 | 用途 |
 |------|------|
 | **[开发指南.md](./markdown/开发指南.md)** | 进阶开发教程 |
+| **[API速查.md](./markdown/API速查.md)** | 常用API代码片段 ⭐ |
+| **[MODSDK核心概念.md](./markdown/MODSDK核心概念.md)** | 核心概念速查 ⭐ |
 | **[问题排查.md](./markdown/问题排查.md)** | 调试和问题解决 |
 | **[项目状态.md](./markdown/项目状态.md)** | 功能清单和进度 |
 
@@ -105,6 +107,8 @@ npm run install-global
 /cc 搜索 system:ShopSystem # 按System搜索
 ```
 
+查看完整索引：**[索引.md](./markdown/索引.md)**
+
 ### 🗂️ 任务归档
 
 一键归档已完成任务，保持项目整洁：
@@ -142,7 +146,8 @@ Claude会自动使用WebFetch查询在线文档，保证信息最新。
 - **项目类型**: General MODSDK
 - **Python版本**: 2.7
 - **AI辅助**: Claude Code
-- **文档版本**: v12.0
+- **文档版本**: v13.0
+- **[更新日志](./CHANGELOG.md)**
 
 详见：[项目状态.md](./markdown/项目状态.md)
 

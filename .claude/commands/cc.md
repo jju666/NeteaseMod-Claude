@@ -51,9 +51,13 @@
 
 ### 📚 步骤2：查阅文档 ⭐ 核心步骤
 
-按优先级查阅文档：
+**快速参考**（无需查阅完整文档）：
+- 🔍 **markdown/API速查.md** - 常用API代码片段，可直接复制使用 ⭐
+- 📖 **markdown/MODSDK核心概念.md** - System/Component/Event/Entity速查 ⭐
 
-1. **markdown/开发规范.md** - 检查是否违反CRITICAL规范（最高优先级）
+**详细文档**（需要深入理解时查阅）：
+
+1. **markdown/开发规范.md** - 检查是否违反CRITICAL规范（最高优先级）⭐⭐⭐
    - 使用Grep搜索关键词，定位相关规范
    - 详细阅读并提取原则
 

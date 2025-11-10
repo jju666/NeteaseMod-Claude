@@ -42,7 +42,7 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/yourusername/NeteaseMod-Claude.git
+git clone https://github.com/jju666/NeteaseMod-Claude.git
 cd NeteaseMod-Claude
 
 # 2. 安装依赖

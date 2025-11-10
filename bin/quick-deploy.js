@@ -88,7 +88,7 @@ function deployInitmc() {
   const commandsDir = path.join(CURRENT_DIR, '.claude', 'commands');
   ensureDir(commandsDir);
 
-  const srcPath = path.join(WORKFLOW_HOME, 'commands', 'initmc.md');
+  const srcPath = path.join(WORKFLOW_HOME, '.claude', 'commands', 'initmc.md');
   const destPath = path.join(commandsDir, 'initmc.md');
 
   if (!fs.existsSync(srcPath)) {

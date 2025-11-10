@@ -250,8 +250,15 @@ mkdir {{PROJECT_ROOT}}/tasks/[中文任务名]  # 必须创建tasks目录
 - **[快速通道流程.md](./markdown/ai/快速通道流程.md)** - 微任务流程
 - **[上下文管理规范.md](./markdown/ai/上下文管理规范.md)** - 模板系统
 
-### 系统文档
-- **[systems/](./markdown/systems/)** - 系统实现文档
+### 组件文档（⭐ 自适应维护）
+- **[systems/](./markdown/systems/)** - MODSDK Systems 文档
+- **[presets/](./markdown/presets/)** - ECPreset 组件文档（项目特定）
+- **[states/](./markdown/states/)** - 状态机文档（自动发现）
+- **[config/](./markdown/config/)** - 配置文件文档（自动发现）
+- **其他项目特定组件** - AI自动发现并维护
+
+> 💡 **自适应学习机制**：AI会自动发现项目中的任意组件类型（Presets、States、Managers等），
+> 推断文档目录结构，并智能维护文档。无需手动配置，支持任意项目结构。
 
 ### 开发文档
 - **[开发指南.md](./markdown/开发指南.md)** - 完整开发工作流（System/Component/Event/Entity）

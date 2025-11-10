@@ -716,6 +716,266 @@ def 生成layer2待补充项():
 
 ---
 
+### 📝 步骤3.5：智能文档重命名 ⭐ 新增
+
+**目标**：将所有英文文档名重命名为清晰的中文名称
+
+**触发条件**：步骤3生成文档完成后自动执行
+
+#### 3.5.1 扫描文档目录
+
+扫描以下目录的所有.md文件（排除README.md）：
+```python
+doc_dirs = [
+  'markdown/systems',
+  'markdown/states',
+  'markdown/presets',
+  'markdown/config',
+  # 其他自适应发现的组件目录
+]
+
+all_docs = []
+for dir_path in doc_dirs:
+  if os.path.exists(dir_path):
+    files = [f for f in os.listdir(dir_path) if f.endswith('.md') and f != 'README.md']
+    for file in files:
+      all_docs.append({
+        'dir': dir_path,
+        'filename': file,
+        'path': os.path.join(dir_path, file)
+      })
+
+print(f"[扫描] 发现 {len(all_docs)} 个文档待重命名")
+```
+
+#### 3.5.2 深度分析每个文档
+
+对每个文档执行AI深度分析：
+
+```python
+rename_plan = []
+
+for doc in all_docs:
+  # 读取文档内容
+  content = Read(doc['path'])
+
+  # 提取关键信息
+  info = extract_doc_info(content)
+  # info包含:
+  # - class_name: 类名
+  # - component_type: 组件类型(system/state/preset/等)
+  # - methods: 主要方法列表
+  # - file_path: 原始Python文件路径
+
+  # AI分析推断中文名
+  chinese_name = infer_chinese_name(info)
+
+  # 记录重命名计划
+  rename_plan.append({
+    'old_name': doc['filename'],
+    'new_name': chinese_name,
+    'dir': doc['dir'],
+    'reason': info['inferred_purpose']  # AI推断的业务职责
+  })
+```
+
+**AI分析示例**：
+
+```python
+# 示例1: ShopServerSystem.md
+info = {
+  'class_name': 'ShopServerSystem',
+  'component_type': 'system',
+  'methods': ['handle_buy', 'handle_sell', 'show_shop', 'get_item_price'],
+  'file_path': 'systems/ShopServerSystem.py'
+}
+
+# AI分析:
+# - 类名: ShopServerSystem → Shop(商店) + Server + System(系统)
+# - 方法: handle_buy/handle_sell → 购买/销售功能
+# - 业务职责: 管理游戏商店,处理玩家购买和销售物品
+# - 推断中文名: 商店系统.md
+
+chinese_name = "商店系统.md"
+```
+
+```python
+# 示例2: BedWarsEndingState.md
+info = {
+  'class_name': 'BedWarsEndingState',
+  'component_type': 'state',
+  'methods': ['_on_enter', '_display_victory', '_play_victory_dance', '_switch_all_to_spectator'],
+  'file_path': 'Parts/ECBedWars/state/BedWarsEndingState.py'
+}
+
+# AI分析:
+# - 类名: BedWarsEndingState → BedWars(起床战争) + Ending(结束) + State(状态)
+# - 方法: _display_victory/play_victory_dance → 展示胜利/胜利动画(结束阶段特征)
+# - 业务职责: 起床战争游戏的结束阶段状态,展示胜利信息
+# - 推断中文名: 起床战争结束状态.md
+
+chinese_name = "起床战争结束状态.md"
+```
+
+```python
+# 示例3: RootGamingState.md
+info = {
+  'class_name': 'RootGamingState',
+  'component_type': 'state',
+  'methods': ['__init__', 'get_part', '_on_no_such_next_sub_state'],
+  'file_path': 'Parts/GamingState/state/RootGamingState.py'
+}
+
+# AI分析:
+# - 类名: RootGamingState → Root(根) + Gaming(游戏) + State(状态)
+# - 方法: _on_no_such_next_sub_state → 处理子状态(状态机特征)
+# - 文件路径: GamingState目录,状态机根节点
+# - 业务职责: 游戏状态机的根节点状态,管理子状态转换
+# - 推断中文名: 根游戏状态.md 或 游戏状态机根节点.md
+
+chinese_name = "根游戏状态.md"
+```
+
+**命名原则**（AI遵循）：
+1. **清晰性**: 一眼看出职责
+2. **简洁性**: 保持5-8个汉字,避免冗长
+3. **规范性**: 统一格式"XXX系统/状态/预设/管理器"
+4. **准确性**: 反映真实业务含义
+5. **唯一性**: 避免重复文件名
+
+#### 3.5.3 展示重命名计划
+
+生成格式化的重命名计划表：
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 智能重命名计划
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Systems (13个):
+  ShopServerSystem.md          → 商店系统.md
+  IronGolemAISystem.md         → 铁傀儡AI系统.md
+  ScoreboardSystem.md          → 计分板系统.md
+  FormBuilderSystem.md         → 表单构建器系统.md
+  TeamServerSystem.md          → 队伍系统.md
+  WaypointServerSystem.md      → 路径点系统.md
+  OrnamentServerSystem.md      → 装饰系统.md
+  CoreServerSystem.md          → 核心系统.md
+  ... (显示所有)
+
+States (12个):
+  BedWarsEndingState.md        → 起床战争结束状态.md
+  BedWarsStartingState.md      → 起床战争开始状态.md
+  BedWarsRunningState.md       → 起床战争进行中状态.md
+  BedWarsWaitingState.md       → 起床战争等待状态.md
+  RootGamingState.md           → 根游戏状态.md
+  TimedGamingState.md          → 计时游戏状态.md
+  ... (显示所有)
+
+Presets (9个):
+  BedPresetDefServer.md        → 床位预设.md
+  GeneratorPresetDefServer.md  → 生成器预设.md
+  ... (显示所有)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+总计: 34 个文档将被重命名
+中文文档比例: 100%
+
+⚠️  请仔细审查上述重命名计划
+
+是否执行重命名？(y/n): _
+```
+
+**注意**：
+- 使用AskUserQuestion工具等待用户输入
+- 明确提示"y"表示执行,"n"表示跳过
+
+#### 3.5.4 等待用户确认
+
+```python
+# 使用AskUserQuestion工具
+user_response = AskUserQuestion("是否执行上述重命名计划？(输入 y 执行, n 跳过)")
+
+if user_response.lower() == 'y':
+  # 执行重命名
+  execute_rename(rename_plan)
+  show_success_report()
+elif user_response.lower() == 'n':
+  print("\n⚠️  已跳过重命名步骤")
+  print("文档保留英文名称,可稍后手动重命名")
+  print("提示: 可使用系统文件管理器批量重命名\n")
+else:
+  # 无效输入,询问重试
+  print("输入无效,请输入 y 或 n")
+```
+
+#### 3.5.5 执行重命名
+
+如果用户确认执行,批量重命名所有文档：
+
+```bash
+# 使用Bash工具执行重命名
+cd {PROJECT_PATH}
+
+# Systems
+cd markdown/systems
+mv "ShopServerSystem.md" "商店系统.md"
+mv "IronGolemAISystem.md" "铁傀儡AI系统.md"
+mv "ScoreboardSystem.md" "计分板系统.md"
+...
+
+# States
+cd ../states
+mv "BedWarsEndingState.md" "起床战争结束状态.md"
+mv "BedWarsStartingState.md" "起床战争开始状态.md"
+...
+
+# Presets
+cd ../presets
+mv "BedPresetDefServer.md" "床位预设.md"
+...
+```
+
+**错误处理**：
+- 如果文件不存在,记录警告但继续
+- 如果目标文件名已存在,添加序号(如"商店系统(2).md")
+- 所有错误记录到重命名日志
+
+#### 3.5.6 输出重命名报告
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ 文档重命名完成！
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Systems:
+  ✓ ShopServerSystem.md → 商店系统.md
+  ✓ IronGolemAISystem.md → 铁傀儡AI系统.md
+  ✓ ScoreboardSystem.md → 计分板系统.md
+  ... (显示所有成功的重命名)
+
+States:
+  ✓ BedWarsEndingState.md → 起床战争结束状态.md
+  ✓ BedWarsStartingState.md → 起床战争开始状态.md
+  ... (显示所有成功的重命名)
+
+Presets:
+  ✓ BedPresetDefServer.md → 床位预设.md
+  ... (显示所有成功的重命名)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 重命名统计:
+   总文档数: 34
+   重命名成功: 34
+   重命名失败: 0
+   中文文档比例: 100%
+
+✨ 所有文档现已使用清晰的中文名称！
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
 ### ✅ 步骤4：输出完成报告
 
 ```

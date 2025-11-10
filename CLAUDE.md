@@ -179,7 +179,8 @@ Grep("关键词", path="markdown/", output_mode="files_with_matches")
 
 **3.1 标准任务（5章模板）**
 ```bash
-mkdir {{PROJECT_ROOT}}/tasks/[任务名]  # 必须创建tasks目录⭐
+mkdir {{PROJECT_ROOT}}/tasks/[中文任务名]  # 必须创建tasks目录⭐
+# 命名示例：修复NPC名称显示、添加计分板系统
 # 原因：需要记录文档补充标记，支持自学习机制
 # 创建5章精简模板
 # 父代理直接探索（不用Task）
@@ -188,7 +189,8 @@ mkdir {{PROJECT_ROOT}}/tasks/[任务名]  # 必须创建tasks目录⭐
 
 **3.2 复杂任务（9章模板）**
 ```bash
-mkdir {{PROJECT_ROOT}}/tasks/[任务名]  # 必须创建tasks目录
+mkdir {{PROJECT_ROOT}}/tasks/[中文任务名]  # 必须创建tasks目录
+# 命名示例：重构战斗系统、优化性能瓶颈
 # 创建9章完整模板
 # 可选并行探索（仅用户要求时）
 # 分阶段实施→测试→文档更新→Git commit

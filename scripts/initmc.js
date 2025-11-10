@@ -92,10 +92,18 @@ function isBehaviorPack(manifestPath) {
  * @returns {Object|null} { feature: string, path: string } 或 null
  */
 function detectModSDKFeatures(dir) {
-  // 1. 排除工作流项目本身
+  // 1. 排除工作流项目本身（更严格的检测）
   const hasCLAUDE = fs.existsSync(path.join(dir, 'CLAUDE.md'));
   const hasInitmc = fs.existsSync(path.join(dir, '.claude', 'commands', 'initmc.md'));
-  if (hasCLAUDE && hasInitmc) {
+  const hasPackageJson = fs.existsSync(path.join(dir, 'package.json'));
+  const hasBinDir = fs.existsSync(path.join(dir, 'bin', 'initmc.js'));
+  const hasScriptsDir = fs.existsSync(path.join(dir, 'scripts', 'initmc.js'));
+
+  // 只有同时满足以下条件才是工作流项目：
+  // - 有 CLAUDE.md 和 .claude/commands/initmc.md
+  // - 有 package.json（工作流项目特征）
+  // - 有 bin/initmc.js 或 scripts/initmc.js（工作流项目核心文件）
+  if (hasCLAUDE && hasInitmc && hasPackageJson && (hasBinDir || hasScriptsDir)) {
     return null;
   }
 
@@ -209,10 +217,15 @@ function inferProjectRoot(featurePath, feature) {
  * @returns {Object} { type: 'modsdk'|'workflow'|'unknown', projectDir: string, feature?: string }
  */
 function detectProjectType(projectDir) {
-  // 1. 检查是否为工作流项目
+  // 1. 检查是否为工作流项目（使用严格检测）
   const hasCLAUDE = fs.existsSync(path.join(projectDir, 'CLAUDE.md'));
   const hasInitmc = fs.existsSync(path.join(projectDir, '.claude', 'commands', 'initmc.md'));
-  if (hasCLAUDE && hasInitmc) {
+  const hasPackageJson = fs.existsSync(path.join(projectDir, 'package.json'));
+  const hasBinDir = fs.existsSync(path.join(projectDir, 'bin', 'initmc.js'));
+  const hasScriptsDir = fs.existsSync(path.join(projectDir, 'scripts', 'initmc.js'));
+
+  // 只有同时满足所有条件才是工作流项目
+  if (hasCLAUDE && hasInitmc && hasPackageJson && (hasBinDir || hasScriptsDir)) {
     return { type: 'workflow', projectDir };
   }
 

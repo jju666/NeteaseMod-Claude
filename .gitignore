@@ -1,1 +1,32 @@
-nul
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code 本地配置（不提交个人配置）
+.claude/settings.local.json
+
+# 临时文件
+*.tmp
+*.bak
+*.log
+
+# 示例项目的生成文件
+example-project/.claude/
+example-project/tasks/
+example-project/markdown/
+
+# 脚本临时文件
+scripts/extract-vocabulary.js

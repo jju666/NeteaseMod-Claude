@@ -3,7 +3,9 @@
     "allow": [
       "Bash(where:*)",
       "Read(//c/Users/28114/**)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Read(//d/EcWork/NetEaseMapECBedWars_备份/markdown/**)",
+      "Read(//d/EcWork/NetEaseMapECBedWars_备份/behavior_packs/behavior_pack_TSK85dvb/Parts/GamingState/state/**)"
     ],
     "deny": [],
     "ask": []

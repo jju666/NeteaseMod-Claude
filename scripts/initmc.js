@@ -70,22 +70,218 @@ function detectGlobalWorkflowDir() {
 }
 
 /**
- * 检测当前项目类型
+ * 检测manifest.json是否为behavior pack
+ */
+function isBehaviorPack(manifestPath) {
+  try {
+    const content = fs.readFileSync(manifestPath, 'utf-8');
+    const manifest = JSON.parse(content);
+
+    // 检查modules中是否包含data类型（behavior pack特征）
+    if (manifest.modules && Array.isArray(manifest.modules)) {
+      return manifest.modules.some(module => module.type === 'data');
+    }
+    return false;
+  } catch (err) {
+    return false;
+  }
+}
+
+/**
+ * 检测单个目录的MODSDK特征
+ * @returns {Object|null} { feature: string, path: string } 或 null
+ */
+function detectModSDKFeatures(dir) {
+  // 1. 排除工作流项目本身
+  const hasCLAUDE = fs.existsSync(path.join(dir, 'CLAUDE.md'));
+  const hasInitmc = fs.existsSync(path.join(dir, '.claude', 'commands', 'initmc.md'));
+  if (hasCLAUDE && hasInitmc) {
+    return null;
+  }
+
+  // 2. 检测modMain.py（最高优先级）
+  const modMainPath = path.join(dir, 'modMain.py');
+  if (fs.existsSync(modMainPath)) {
+    return { feature: 'modMain.py', path: modMainPath };
+  }
+
+  // 3. 检测behavior pack的manifest.json
+  const manifestPath = path.join(dir, 'manifest.json');
+  if (fs.existsSync(manifestPath) && isBehaviorPack(manifestPath)) {
+    return { feature: 'manifest.json (behavior pack)', path: manifestPath };
+  }
+
+  // 4. 检测网易地图特征
+  const worldBPPath = path.join(dir, 'world_behavior_packs.json');
+  if (fs.existsSync(worldBPPath)) {
+    return { feature: 'world_behavior_packs.json', path: worldBPPath };
+  }
+
+  const studioPath = path.join(dir, 'studio.json');
+  if (fs.existsSync(studioPath)) {
+    return { feature: 'studio.json', path: studioPath };
+  }
+
+  return null;
+}
+
+/**
+ * 递归搜索所有符合条件的MODSDK项目
+ */
+function findModSDKProjects(startDir, maxDepth = 10, currentDepth = 0) {
+  const results = [];
+  const excludeDirs = ['node_modules', '.git', '__pycache__', '.venv', 'venv',
+                       'dist', 'build', '.cache', '.temp', 'temp'];
+
+  if (currentDepth > maxDepth) {
+    return results;
+  }
+
+  try {
+    const entries = fs.readdirSync(startDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (excludeDirs.includes(entry.name)) continue;
+
+      const fullPath = path.join(startDir, entry.name);
+
+      // 检测当前目录特征
+      const features = detectModSDKFeatures(fullPath);
+      if (features) {
+        results.push({ dir: fullPath, ...features });
+      }
+
+      // 递归搜索子目录
+      const subResults = findModSDKProjects(fullPath, maxDepth, currentDepth + 1);
+      results.push(...subResults);
+    }
+  } catch (err) {
+    // 忽略无权限访问的目录
+  }
+
+  return results;
+}
+
+/**
+ * 推断项目根目录
+ */
+function inferProjectRoot(featurePath, feature) {
+  let dir = path.dirname(featurePath);
+
+  // 1. 如果是modMain.py，向上查找最近的manifest.json
+  if (feature === 'modMain.py') {
+    let current = dir;
+    for (let i = 0; i < 5; i++) {
+      const manifestPath = path.join(current, 'manifest.json');
+      if (fs.existsSync(manifestPath) && isBehaviorPack(manifestPath)) {
+        // 继续向上查找behavior_packs目录
+        let parent = path.dirname(current);
+        if (path.basename(parent) === 'behavior_packs' ||
+            path.basename(parent) === 'development_behavior_packs') {
+          return path.dirname(parent); // 返回项目根目录
+        }
+        return current; // 返回behavior pack目录
+      }
+      const parent = path.dirname(current);
+      if (parent === current) break;
+      current = parent;
+    }
+    return dir; // 找不到manifest.json，返回modMain.py所在目录
+  }
+
+  // 2. 如果是manifest.json，向上查找behavior_packs父目录
+  if (feature.includes('manifest.json')) {
+    const parent = path.dirname(dir);
+    if (path.basename(parent) === 'behavior_packs' ||
+        path.basename(parent) === 'development_behavior_packs') {
+      return path.dirname(parent);
+    }
+    return dir;
+  }
+
+  // 3. 如果是网易地图特征文件，返回其所在目录
+  return dir;
+}
+
+/**
+ * 检测当前项目类型（新版本）
+ * @returns {Object} { type: 'modsdk'|'workflow'|'unknown', projectDir: string, feature?: string }
  */
 function detectProjectType(projectDir) {
-  const hasModMain = fs.existsSync(path.join(projectDir, 'modMain.py'));
+  // 1. 检查是否为工作流项目
   const hasCLAUDE = fs.existsSync(path.join(projectDir, 'CLAUDE.md'));
   const hasInitmc = fs.existsSync(path.join(projectDir, '.claude', 'commands', 'initmc.md'));
-
   if (hasCLAUDE && hasInitmc) {
-    return 'workflow'; // 工作流项目本身
+    return { type: 'workflow', projectDir };
   }
 
-  if (hasModMain) {
-    return 'modsdk'; // MODSDK 项目
+  // 2. 检测当前目录特征
+  const currentFeatures = detectModSDKFeatures(projectDir);
+  if (currentFeatures) {
+    const root = inferProjectRoot(currentFeatures.path, currentFeatures.feature);
+    return {
+      type: 'modsdk',
+      projectDir: root,
+      feature: currentFeatures.feature,
+      featurePath: currentFeatures.path
+    };
   }
 
-  return 'unknown';
+  // 3. 递归搜索子目录
+  info('当前目录未检测到MODSDK特征，开始搜索子目录...');
+  const candidates = findModSDKProjects(projectDir);
+
+  if (candidates.length === 0) {
+    return { type: 'unknown', projectDir };
+  }
+
+  // 4. 处理搜索结果
+  if (candidates.length === 1) {
+    const root = inferProjectRoot(candidates[0].path, candidates[0].feature);
+    success(`找到项目: ${path.relative(projectDir, root)}`);
+    info(`检测依据: ${candidates[0].feature}`);
+    return {
+      type: 'modsdk',
+      projectDir: root,
+      feature: candidates[0].feature,
+      featurePath: candidates[0].path
+    };
+  }
+
+  // 5. 多个候选项目，需要推断最佳根目录
+  const roots = new Map();
+  candidates.forEach(candidate => {
+    const root = inferProjectRoot(candidate.path, candidate.feature);
+    if (!roots.has(root)) {
+      roots.set(root, []);
+    }
+    roots.get(root).push(candidate);
+  });
+
+  if (roots.size === 1) {
+    const root = Array.from(roots.keys())[0];
+    const features = roots.get(root);
+    success(`找到项目: ${path.relative(projectDir, root)}`);
+    info(`检测依据: ${features.map(f => f.feature).join(', ')}`);
+    return {
+      type: 'modsdk',
+      projectDir: root,
+      feature: features[0].feature,
+      featurePath: features[0].path
+    };
+  }
+
+  // 6. 多个不同的项目根目录
+  warning(`找到 ${roots.size} 个候选项目:`);
+  Array.from(roots.keys()).forEach((root, idx) => {
+    const features = roots.get(root);
+    console.log(`  ${idx + 1}. ${path.relative(projectDir, root)}`);
+    console.log(`     特征: ${features.map(f => f.feature).join(', ')}`);
+  });
+  console.log('');
+  error('请在具体的项目目录中执行 initmc');
+  return { type: 'multiple', projectDir, candidates: Array.from(roots.keys()) };
 }
 
 /**
@@ -198,9 +394,9 @@ async function deployWorkflow() {
   info(`当前目录: ${currentDir}`);
   console.log('');
 
-  const projectType = detectProjectType(currentDir);
+  const detection = detectProjectType(currentDir);
 
-  if (projectType === 'workflow') {
+  if (detection.type === 'workflow') {
     error('检测到工作流项目本身');
     console.log('');
     console.log('initmc 命令仅用于在 MODSDK 项目中部署工作流。');
@@ -214,15 +410,34 @@ async function deployWorkflow() {
     process.exit(1);
   }
 
-  if (projectType === 'unknown') {
-    error('当前目录不是 MODSDK 项目');
+  if (detection.type === 'unknown') {
+    error('未找到 MODSDK 项目');
     console.log('');
-    console.log('请在项目根目录（包含 modMain.py 的目录）执行 initmc');
+    console.log('支持的项目类型:');
+    console.log('  • 包含 modMain.py 的 MODSDK 项目');
+    console.log('  • 包含 behavior pack (manifest.json) 的基岩版项目');
+    console.log('  • 包含 world_behavior_packs.json 的网易地图项目');
+    console.log('');
+    console.log('请在项目目录或其父目录中执行 initmc');
     console.log('');
     process.exit(1);
   }
 
+  if (detection.type === 'multiple') {
+    error('找到多个候选项目，请在具体项目目录中执行');
+    process.exit(1);
+  }
+
+  // 使用检测到的项目根目录
+  const projectDir = detection.projectDir;
+
   success('检测到 MODSDK 项目');
+  if (projectDir !== currentDir) {
+    info(`项目根目录: ${path.relative(currentDir, projectDir)}`);
+  }
+  if (detection.feature) {
+    info(`检测依据: ${detection.feature}`);
+  }
   console.log('');
 
   // 2. 检测全局工作流目录
@@ -253,18 +468,18 @@ async function deployWorkflow() {
 
   allSuccess &= copyFileWithValidation(
     path.join(globalDir, '.claude', 'commands', 'enhance-docs.md'),
-    path.join(currentDir, '.claude', 'commands', 'enhance-docs.md'),
+    path.join(projectDir, '.claude', 'commands', 'enhance-docs.md'),
     5000
   );
 
   allSuccess &= copyFileWithValidation(
     path.join(globalDir, '.claude', 'commands', 'validate-docs.md'),
-    path.join(currentDir, '.claude', 'commands', 'validate-docs.md'),
+    path.join(projectDir, '.claude', 'commands', 'validate-docs.md'),
     6000
   );
 
   // 生成定制化 cc.md
-  allSuccess &= generateCustomizedCC(globalDir, currentDir);
+  allSuccess &= generateCustomizedCC(globalDir, projectDir);
 
   console.log('');
 
@@ -288,7 +503,7 @@ async function deployWorkflow() {
   docsToCopy.forEach(doc => {
     allSuccess &= copyFileWithValidation(
       path.join(globalDir, doc.src),
-      path.join(currentDir, doc.src),
+      path.join(projectDir, doc.src),
       doc.minSize
     );
   });
@@ -312,7 +527,7 @@ async function deployWorkflow() {
   aiDocsToCopy.forEach(doc => {
     allSuccess &= copyFileWithValidation(
       path.join(globalDir, doc.src),
-      path.join(currentDir, doc.src),
+      path.join(projectDir, doc.src),
       doc.minSize
     );
   });
@@ -326,7 +541,7 @@ async function deployWorkflow() {
 
   // 6. 生成 CLAUDE.md
   log('⚙️  生成定制化配置...', 'blue');
-  allSuccess &= generateCustomizedCLAUDE(globalDir, currentDir);
+  allSuccess &= generateCustomizedCLAUDE(globalDir, projectDir);
   console.log('');
 
   if (!allSuccess) {
@@ -338,10 +553,10 @@ async function deployWorkflow() {
   log('📁 创建目录结构...', 'blue');
 
   try {
-    fs.ensureDirSync(path.join(currentDir, 'tasks'));
+    fs.ensureDirSync(path.join(projectDir, 'tasks'));
     log('  ✅ tasks/', 'green');
 
-    fs.ensureDirSync(path.join(currentDir, 'markdown', 'systems'));
+    fs.ensureDirSync(path.join(projectDir, 'markdown', 'systems'));
     log('  ✅ markdown/systems/', 'green');
 
     console.log('');
@@ -365,7 +580,7 @@ async function deployWorkflow() {
   let allValid = true;
 
   filesToVerify.forEach(file => {
-    const filePath = path.join(currentDir, file.path);
+    const filePath = path.join(projectDir, file.path);
 
     if (!fs.existsSync(filePath)) {
       error(`  ${file.path} - 文件不存在`);
@@ -398,30 +613,41 @@ async function deployWorkflow() {
 
   // 9. 输出完成报告
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'green');
-  log('  ✅ 工作流部署完成！', 'green');
+  log('  ✅ 核心工作流部署完成！', 'green');
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'green');
   console.log('');
 
-  console.log('📊 部署统计:');
-  console.log('  ✅ 命令文件: 3 个');
-  console.log('  ✅ 通用文档: 6 个');
+  console.log('📊 部署内容:');
+  console.log('  ✅ 命令文件: 3 个 (/cc, /validate-docs, /enhance-docs)');
+  console.log('  ✅ 通用文档: 6 个 (开发规范.md, 问题排查.md等)');
   console.log('  ✅ AI 文档: 3 个');
-  console.log('  ✅ 配置文件: 1 个');
+  console.log('  ✅ 配置文件: 1 个 (CLAUDE.md)');
   console.log('');
 
-  console.log('📝 后续步骤:');
-  console.log('  1. 查阅 CLAUDE.md 了解 AI 工作流程');
-  console.log('  2. 使用 /cc "任务描述" 快速创建/继续任务');
-  console.log('  3. 查阅 markdown/ 目录下的文档');
+  log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'cyan');
+  console.log('');
+  log('🎯 下一步（重要！）', 'yellow');
+  console.log('');
+  console.log('请在 Claude Code 中执行以下命令：');
+  console.log('');
+  log('  /validate-docs', 'cyan');
+  console.log('');
+  console.log('该命令将：');
+  console.log('  1. AI 自动发现项目中的所有组件（Systems/States/Presets等）');
+  console.log('  2. 智能推断规范化的中文文档名');
+  console.log('  3. 生成文档待补充清单');
+  console.log('  4. （可选）创建文档占位符');
   console.log('');
 
-  console.log('🎯 可用命令:');
-  console.log('  /cc "任务描述" - 快速任务执行器');
-  console.log('  /enhance-docs - 批量补充文档');
-  console.log('  /validate-docs - 验证文档完整性');
+  log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'cyan');
+  console.log('');
+  console.log('📚 完整工作流:');
+  console.log('  1. /validate-docs - 发现组件并规范化文档结构');
+  console.log('  2. /enhance-docs - 批量生成高质量文档内容');
+  console.log('  3. /cc "任务描述" - 开发时自动维护文档');
   console.log('');
 
-  log('🎉 开始高效开发吧！', 'cyan');
+  log('🎉 开始体验文档驱动的开发工作流吧！', 'green');
   console.log('');
 }
 

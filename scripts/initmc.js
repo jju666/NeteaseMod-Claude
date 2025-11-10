@@ -765,12 +765,6 @@ async function deployWorkflow() {
     6000
   );
 
-  allSuccess &= copyFileWithValidation(
-    path.join(globalDir, '.claude', 'commands', 'updatemc.md'),
-    path.join(projectDir, '.claude', 'commands', 'updatemc.md'),
-    4000
-  );
-
   // 生成定制化 cc.md
   allSuccess &= generateCustomizedCC(globalDir, projectDir);
 

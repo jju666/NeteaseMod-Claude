@@ -467,6 +467,12 @@ async function deployWorkflow() {
   let allSuccess = true;
 
   allSuccess &= copyFileWithValidation(
+    path.join(globalDir, '.claude', 'commands', 'discover.md'),
+    path.join(projectDir, '.claude', 'commands', 'discover.md'),
+    5000
+  );
+
+  allSuccess &= copyFileWithValidation(
     path.join(globalDir, '.claude', 'commands', 'enhance-docs.md'),
     path.join(projectDir, '.claude', 'commands', 'enhance-docs.md'),
     5000
@@ -570,6 +576,7 @@ async function deployWorkflow() {
 
   const filesToVerify = [
     { path: '.claude/commands/cc.md', minSize: 10000 },
+    { path: '.claude/commands/discover.md', minSize: 5000 },
     { path: '.claude/commands/enhance-docs.md', minSize: 5000 },
     { path: '.claude/commands/validate-docs.md', minSize: 6000 },
     { path: 'CLAUDE.md', minSize: 10000 },
@@ -618,7 +625,7 @@ async function deployWorkflow() {
   console.log('');
 
   console.log('📊 部署内容:');
-  console.log('  ✅ 命令文件: 3 个 (/cc, /validate-docs, /enhance-docs)');
+  console.log('  ✅ 命令文件: 4 个 (/cc, /discover, /validate-docs, /enhance-docs)');
   console.log('  ✅ 通用文档: 6 个 (开发规范.md, 问题排查.md等)');
   console.log('  ✅ AI 文档: 3 个');
   console.log('  ✅ 配置文件: 1 个 (CLAUDE.md)');

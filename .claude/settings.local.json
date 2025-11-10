@@ -1,11 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(where:*)",
-      "Read(//c/Users/28114/**)",
-      "Bash(find:*)",
-      "Read(//d/EcWork/NetEaseMapECBedWars_备份/markdown/**)",
-      "Read(//d/EcWork/NetEaseMapECBedWars_备份/behavior_packs/behavior_pack_TSK85dvb/Parts/GamingState/state/**)"
+      "Bash(dir:*)",
+      "Bash(test:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(findstr:*)",
+      "Bash(git commit:*)",
+      "Bash(node:*)",
+      "Bash(where initmc:*)"
     ],
     "deny": [],
     "ask": []

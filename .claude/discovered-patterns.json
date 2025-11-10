@@ -1,0 +1,47 @@
+{
+  "timestamp": "2025-11-10T09:45:56.194Z",
+  "projectRoot": "d:\\EcWork\\基于Claude的MODSDK开发工作流",
+  "behaviorPackPath": "d:\\EcWork\\基于Claude的MODSDK开发工作流\\example-project\\behavior_packs",
+  "patterns": {
+    "officialConcepts": {
+      "systems": [
+        {
+          "className": "ShopServerSystem",
+          "filePath": "d:\\EcWork\\基于Claude的MODSDK开发工作流\\example-project\\behavior_packs\\behavior_pack_test\\scripts\\ShopServerSystem.py",
+          "fileDir": "d:\\EcWork\\基于Claude的MODSDK开发工作流\\example-project\\behavior_packs\\behavior_pack_test\\scripts"
+        },
+        {
+          "className": "TeamServerSystem",
+          "filePath": "d:\\EcWork\\基于Claude的MODSDK开发工作流\\example-project\\behavior_packs\\behavior_pack_test\\scripts\\TeamServerSystem.py",
+          "fileDir": "d:\\EcWork\\基于Claude的MODSDK开发工作流\\example-project\\behavior_packs\\behavior_pack_test\\scripts"
+        }
+      ],
+      "components": []
+    },
+    "customPatterns": {
+      "state": {
+        "suffix": "State",
+        "count": 3,
+        "examples": [
+          {
+            "className": "EndingState",
+            "filePath": "d:\\EcWork\\基于Claude的MODSDK开发工作流\\example-project\\behavior_packs\\behavior_pack_test\\scripts\\states\\EndingState.py",
+            "fileDir": "d:\\EcWork\\基于Claude的MODSDK开发工作流\\example-project\\behavior_packs\\behavior_pack_test\\scripts\\states"
+          },
+          {
+            "className": "PlayingState",
+            "filePath": "d:\\EcWork\\基于Claude的MODSDK开发工作流\\example-project\\behavior_packs\\behavior_pack_test\\scripts\\states\\PlayingState.py",
+            "fileDir": "d:\\EcWork\\基于Claude的MODSDK开发工作流\\example-project\\behavior_packs\\behavior_pack_test\\scripts\\states"
+          },
+          {
+            "className": "WaitingState",
+            "filePath": "d:\\EcWork\\基于Claude的MODSDK开发工作流\\example-project\\behavior_packs\\behavior_pack_test\\scripts\\states\\WaitingState.py",
+            "fileDir": "d:\\EcWork\\基于Claude的MODSDK开发工作流\\example-project\\behavior_packs\\behavior_pack_test\\scripts\\states"
+          }
+        ],
+        "docDirCandidate": "states/",
+        "docDirExists": false
+      }
+    }
+  }
+}

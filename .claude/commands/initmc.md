@@ -417,71 +417,187 @@ if not 全局工作流目录:
 print(f"✓ 检测到全局工作流目录: {全局工作流目录}")
 ```
 
-**步骤B：复制额外的命令文件** ⭐ 必须执行
+**步骤B：复制命令文件** ⭐ 必须执行
 
-1. 读取全局工作流目录中的`enhance-docs.md`：
-   ```
-   Read(file_path="{全局工作流目录}/.claude/commands/enhance-docs.md")
-   ```
+**重要说明**：以下步骤必须使用 Read 和 Write 工具实际执行，不是伪代码示例！
 
-2. 将读取的内容写入目标项目：
-   ```
-   Write(file_path="<项目路径>/.claude/commands/enhance-docs.md", content=<上一步读取的内容>)
-   ```
+**B.1 确定路径变量**：
 
-3. 读取全局工作流目录中的`validate-docs.md`：
-   ```
-   Read(file_path="{全局工作流目录}/.claude/commands/validate-docs.md")
-   ```
+从步骤A获取的变量：
+- `全局工作流目录` = 步骤A检测到的目录路径（例如：`C:/Users/用户名/.claude-modsdk-workflow` 或 `/c/Users/用户名/.claude-modsdk-workflow`）
+- `目标项目路径` = 当前工作目录的绝对路径
 
-4. 将读取的内容写入目标项目：
-   ```
-   Write(file_path="<项目路径>/.claude/commands/validate-docs.md", content=<上一步读取的内容>)
-   ```
+**B.2 创建目标目录**：
+
+使用 Bash 工具创建 `.claude/commands/` 目录：
+
+```bash
+# Windows路径示例（根据实际项目路径调整）
+mkdir -p "<目标项目路径>/.claude/commands"
+```
+
+如果目录已存在，mkdir -p 不会报错。
+
+**B.3 复制 enhance-docs.md**：
+
+**第1步 - 读取源文件**：
+使用 Read 工具读取全局工作流目录中的文件：
+```
+Read(file_path="<全局工作流目录>/.claude/commands/enhance-docs.md")
+```
+
+将读取的内容保存到变量（记为 `enhance_docs_content`）
+
+**第2步 - 验证读取**：
+检查读取的内容：
+- 如果内容为空或行数 < 50，输出错误并终止
+- 如果正常，继续下一步
+
+**第3步 - 写入目标文件**：
+使用 Write 工具将内容写入目标项目：
+```
+Write(file_path="<目标项目路径>/.claude/commands/enhance-docs.md", content=<enhance_docs_content变量>)
+```
+
+**第4步 - 验证写入**：
+重新读取目标文件，确认内容一致：
+```
+Read(file_path="<目标项目路径>/.claude/commands/enhance-docs.md")
+```
+检查行数是否 > 50，如果不是，输出错误。
+
+**B.4 复制 validate-docs.md**：
+
+重复 B.3 的完整流程（读取 → 验证 → 写入 → 验证）：
+
+**第1步 - 读取源文件**：
+```
+Read(file_path="<全局工作流目录>/.claude/commands/validate-docs.md")
+```
+
+**第2步 - 验证读取**：
+检查行数 > 50
+
+**第3步 - 写入目标文件**：
+```
+Write(file_path="<目标项目路径>/.claude/commands/validate-docs.md", content=<读取的内容>)
+```
+
+**第4步 - 验证写入**：
+读取目标文件，检查行数 > 50
+
+**B.5 最终验证**：
+
+使用 Bash 列出目标目录内容：
+```bash
+ls -lh "<目标项目路径>/.claude/commands/"
+```
+
+确认以下文件存在且大小 > 5KB：
+- cc.md（已在步骤 3.1.3 生成）
+- enhance-docs.md
+- validate-docs.md
+
+如果任何文件缺失或过小，输出错误并终止执行。
 
 **步骤C：复制通用文档**
 
-对于以下每个文件，执行Read → Write操作：
+**重要说明**：以下步骤必须实际执行 Read 和 Write 工具！
 
-全局源目录：`{全局工作流目录}/markdown/`
+**C.1 创建markdown目录**：
+
+```bash
+mkdir -p "<目标项目路径>/markdown"
+```
+
+**C.2 复制文档文件**：
+
+对于以下每个文件，按顺序执行：**读取源文件 → 验证内容（行数>100） → 写入目标文件 → 验证写入**
 
 1. **开发规范.md**：
-   - Read: `{全局工作流目录}/markdown/开发规范.md`
-   - Write: `<项目路径>/markdown/开发规范.md`
+   - Read: `<全局工作流目录>/markdown/开发规范.md`
+   - 验证行数 > 100
+   - Write: `<目标项目路径>/markdown/开发规范.md`
+   - 验证写入成功
 
 2. **问题排查.md**：
-   - Read: `{全局工作流目录}/markdown/问题排查.md`
-   - Write: `<项目路径>/markdown/问题排查.md`
+   - Read: `<全局工作流目录>/markdown/问题排查.md`
+   - 验证行数 > 100
+   - Write: `<目标项目路径>/markdown/问题排查.md`
+   - 验证写入成功
 
 3. **快速开始.md**：
-   - Read: `{全局工作流目录}/markdown/快速开始.md`
-   - Write: `<项目路径>/markdown/快速开始.md`
+   - Read: `<全局工作流目录>/markdown/快速开始.md`
+   - 验证行数 > 100
+   - Write: `<目标项目路径>/markdown/快速开始.md`
+   - 验证写入成功
 
 4. **开发指南.md**：
-   - Read: `{全局工作流目录}/markdown/开发指南.md`
-   - Write: `<项目路径>/markdown/开发指南.md`
+   - Read: `<全局工作流目录>/markdown/开发指南.md`
+   - 验证行数 > 100
+   - Write: `<目标项目路径>/markdown/开发指南.md`
+   - 验证写入成功
 
 5. **API速查.md**：
-   - Read: `{全局工作流目录}/markdown/API速查.md`
-   - Write: `<项目路径>/markdown/API速查.md`
+   - Read: `<全局工作流目录>/markdown/API速查.md`
+   - 验证行数 > 50
+   - Write: `<目标项目路径>/markdown/API速查.md`
+   - 验证写入成功
 
 6. **MODSDK核心概念.md**：
-   - Read: `{全局工作流目录}/markdown/MODSDK核心概念.md`
-   - Write: `<项目路径>/markdown/MODSDK核心概念.md`
+   - Read: `<全局工作流目录>/markdown/MODSDK核心概念.md`
+   - 验证行数 > 50
+   - Write: `<目标项目路径>/markdown/MODSDK核心概念.md`
+   - 验证写入成功
+
+**C.3 验证复制结果**：
+
+使用 Bash 列出目录内容：
+```bash
+ls -lh "<目标项目路径>/markdown/"
+```
+
+确认所有6个文件存在且大小合理（>5KB）。
 
 **步骤D：复制AI辅助文档**
 
+**重要说明**：必须实际执行 Read 和 Write 工具！
+
+**D.1 创建ai目录**：
+
+```bash
+mkdir -p "<目标项目路径>/markdown/ai"
+```
+
+**D.2 复制AI文档文件**：
+
+对于以下每个文件，执行：**读取 → 验证（行数>50） → 写入 → 验证**
+
 1. **任务类型决策表.md**：
-   - Read: `{全局工作流目录}/markdown/ai/任务类型决策表.md`
-   - Write: `<项目路径>/markdown/ai/任务类型决策表.md`
+   - Read: `<全局工作流目录>/markdown/ai/任务类型决策表.md`
+   - 验证行数 > 50
+   - Write: `<目标项目路径>/markdown/ai/任务类型决策表.md`
+   - 验证写入成功
 
 2. **快速通道流程.md**：
-   - Read: `{全局工作流目录}/markdown/ai/快速通道流程.md`
-   - Write: `<项目路径>/markdown/ai/快速通道流程.md`
+   - Read: `<全局工作流目录>/markdown/ai/快速通道流程.md`
+   - 验证行数 > 50
+   - Write: `<目标项目路径>/markdown/ai/快速通道流程.md`
+   - 验证写入成功
 
 3. **上下文管理规范.md**：
-   - Read: `{全局工作流目录}/markdown/ai/上下文管理规范.md`
-   - Write: `<项目路径>/markdown/ai/上下文管理规范.md`
+   - Read: `<全局工作流目录>/markdown/ai/上下文管理规范.md`
+   - 验证行数 > 50
+   - Write: `<目标项目路径>/markdown/ai/上下文管理规范.md`
+   - 验证写入成功
+
+**D.3 验证复制结果**：
+
+```bash
+ls -lh "<目标项目路径>/markdown/ai/"
+```
+
+确认所有3个文件存在。
 
 **步骤F：创建README.md**
 
@@ -973,6 +1089,120 @@ Presets:
 ✨ 所有文档现已使用清晰的中文名称！
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+---
+
+### 🔍 步骤3.6：工作流部署验证 ⭐ 新增
+
+**目标**：在输出完成报告前，验证所有关键文件已正确生成
+
+**执行时机**：步骤3完成后，步骤4（输出报告）之前
+
+#### 3.6.1 验证 Layer 1 文件
+
+使用 Bash 和 Read 工具验证以下文件：
+
+1. **验证 CLAUDE.md**：
+   ```bash
+   ls -lh "<目标项目路径>/CLAUDE.md"
+   ```
+   - 文件存在 ✅
+   - 文件大小 > 10KB ✅
+
+2. **验证命令文件**：
+   ```bash
+   ls -lh "<目标项目路径>/.claude/commands/"
+   ```
+
+   检查以下文件：
+   - ✅ `cc.md` - 大小 > 10KB
+   - ✅ `enhance-docs.md` - 大小 > 5KB
+   - ✅ `validate-docs.md` - 大小 > 5KB
+
+   **关键验证**（防止空文件问题）：
+   ```
+   Read(file_path="<目标项目路径>/.claude/commands/enhance-docs.md", limit=5)
+   Read(file_path="<目标项目路径>/.claude/commands/validate-docs.md", limit=5)
+   ```
+
+   确认读取的内容：
+   - 包含标题（`# /enhance-docs` 或 `# /validate-docs`）
+   - 不是空白文件
+   - 行数 > 50
+
+3. **验证通用文档**：
+   ```bash
+   ls -lh "<目标项目路径>/markdown/"
+   ```
+
+   确认以下6个文件存在：
+   - 开发规范.md
+   - 问题排查.md
+   - 快速开始.md
+   - 开发指南.md
+   - API速查.md
+   - MODSDK核心概念.md
+
+4. **验证AI文档**：
+   ```bash
+   ls -lh "<目标项目路径>/markdown/ai/"
+   ```
+
+   确认以下3个文件存在：
+   - 任务类型决策表.md
+   - 快速通道流程.md
+   - 上下文管理规范.md
+
+#### 3.6.2 验证 Layer 2 文件
+
+```bash
+ls -lh "<目标项目路径>/markdown/systems/" | wc -l
+```
+
+确认系统文档数量与分析结果一致。
+
+#### 3.6.3 验证失败处理
+
+如果任何验证失败：
+
+1. **输出详细错误信息**：
+   ```
+   ❌ 工作流部署验证失败！
+
+   失败项：
+   - [文件路径] - [失败原因：不存在/文件过小/内容为空]
+   - ...
+
+   可能原因：
+   1. 全局工作流目录路径错误
+   2. 文件读取/写入权限问题
+   3. 磁盘空间不足
+
+   请检查上述问题后重新执行 /initmc
+   ```
+
+2. **终止执行**，不输出步骤4的完成报告
+
+#### 3.6.4 验证成功
+
+如果所有验证通过：
+
+```
+✅ 工作流部署验证通过！
+
+核心文件验证：
+  ✅ CLAUDE.md - 12.5 KB
+  ✅ .claude/commands/cc.md - 15.3 KB
+  ✅ .claude/commands/enhance-docs.md - 6.8 KB
+  ✅ .claude/commands/validate-docs.md - 7.2 KB
+  ✅ markdown/ - 6个通用文档
+  ✅ markdown/ai/ - 3个AI文档
+  ✅ markdown/systems/ - X个系统文档
+
+继续输出完成报告...
+```
+
+然后继续步骤4。
 
 ---
 

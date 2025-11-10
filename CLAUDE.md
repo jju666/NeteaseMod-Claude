@@ -250,6 +250,44 @@ mkdir {{PROJECT_ROOT}}/tasks/[中文任务名]  # 必须创建tasks目录
 - **[快速通道流程.md](./markdown/ai/快速通道流程.md)** - 微任务流程
 - **[上下文管理规范.md](./markdown/ai/上下文管理规范.md)** - 模板系统
 
+### 文档维护工具（⭐ 自适应机制）
+
+#### /discover - 自适应项目结构发现
+**用途**：自动扫描项目代码，发现组件类型和文档组织模式
+- 执行：`/discover` 或 `node lib/adaptive-doc-discovery.js`
+- 输出：`.claude/discovered-patterns.json`（供其他工具使用）
+- 功能：
+  - 识别MODSDK官方概念（System、Component）
+  - 自动推断项目自定义模式（State、Preset、Manager等）
+  - 推断文档目录结构
+  - 生成组件→文档路径映射规则
+
+#### /validate-docs - 文档完整性验证
+**用途**：验证文档覆盖率，生成待补充清单
+- 依赖：`.claude/discovered-patterns.json`（先运行 `/discover`）
+- 功能：
+  - 读取自适应发现结果
+  - AI智能推断中文文档名
+  - 检查文档覆盖率
+  - 生成文档待补充清单
+- 输出：`markdown/文档待补充清单.md`
+
+#### /enhance-docs - 批量文档内容生成
+**用途**：批量补充文档内容（非占位符）
+- 依赖：`markdown/文档待补充清单.md`（先运行 `/validate-docs`）
+- 功能：
+  - AI深度分析源代码
+  - 生成完整文档内容（1500-3000字）
+  - 动态适配项目组件类型
+  - 自动更新待补充清单
+
+**工作流程**：
+```
+1. /discover          → 发现项目结构
+2. /validate-docs     → 验证文档覆盖率
+3. /enhance-docs      → 批量生成文档内容
+```
+
 ### 组件文档（⭐ 自适应维护）
 
 #### 核心概念（MODSDK官方）
@@ -363,16 +401,32 @@ WebFetch(
 
 ## 📝 版本信息
 
-> **文档版本**: 14.0 (真·通用化重构)
+> **文档版本**: 14.1 (真·自适应机制实现)
 > **最后更新**: 2025-11-10
 > **项目状态**: {{PROJECT_STATUS}}
+
+### v14.1 更新亮点 ⚡
+
+**真·自适应机制实现**（方案A完成）：
+- ✅ **核心引擎**: lib/adaptive-doc-discovery.js - 自动扫描项目结构
+- ✅ **Windows兼容**: 使用Node.js原生API替代grep/find命令
+- ✅ **/discover命令**: 一键生成.claude/discovered-patterns.json
+- ✅ **集成到/validate-docs**: 动态读取发现结果
+- ✅ **集成到/enhance-docs**: 自适应生成选项和路径
+- ✅ **零配置**: 完全基于代码分析，无需手动配置
+
+**技术亮点**：
+- 📦 自动识别MODSDK官方概念（System、Component）
+- 🔮 智能推断项目自定义模式（State、Preset、Manager等）
+- 📁 自动推断文档目录结构
+- 🗺️ 生成组件→文档路径映射规则
 
 ### v14.0 更新亮点 ⚡
 
 **通用化重构**（基于官方MODSDK文档审定）：
 - ✅ **移除所有硬编码目录结构**: 删除presets/、states/、config/等项目特定目录引用
 - ✅ **对齐MODSDK官方架构**: 只保留System和Component两个官方定义的核心概念
-- ✅ **实现真·自适应机制**: AI根据实际项目代码推断组织方式和文档路径
+- ✅ **实现真·自适应机制描述**: AI根据实际项目代码推断组织方式和文档路径
 - ✅ **全面清理35处硬编码**: 包括具体业务示例、外部项目引用等
 - ✅ **通用化命令工具**: validate-docs和enhance-docs改为动态识别组件类型
 

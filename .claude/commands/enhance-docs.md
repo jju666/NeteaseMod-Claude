@@ -17,10 +17,21 @@
 
 ### 步骤0：前置检查（新增⭐）
 
-**任务**：检查是否存在文档待补充清单
+**任务**：检查是否存在必要的前置文件
 
 ```javascript
-// 1. 检查清单文件是否存在
+// 1. 检查discovered-patterns.json是否存在
+if (!exists(".claude/discovered-patterns.json")) {
+  console.log("❌ 未找到自适应发现结果文件");
+  console.log("");
+  console.log("请先运行以下命令：");
+  console.log("  /discover");
+  console.log("  或: node lib/adaptive-doc-discovery.js");
+  console.log("");
+  return; // 终止执行
+}
+
+// 2. 检查清单文件是否存在
 const todoListPath = "markdown/文档待补充清单.md";
 
 if (!exists(todoListPath)) {
@@ -66,10 +77,37 @@ while ((match = regex.exec(content)) !== null) {
   });
 }
 
-// inferTypeFromClassName实现示例：
+// inferTypeFromClassName实现（使用discovered-patterns.json）：
+function inferTypeFromClassName(className) {
+  // 读取discovered-patterns.json
+  const discovered = JSON.parse(Read(".claude/discovered-patterns.json"));
+  const { officialConcepts, customPatterns } = discovered.patterns;
+
+  // 检查是否是System
+  if (className.endsWith('ServerSystem') || className.endsWith('ClientSystem')) {
+    return 'system';
+  }
+
+  // 检查是否是Component
+  if (officialConcepts.components.some(c => c.className === className)) {
+    return 'component';
+  }
+
+  // 检查自定义模式
+  for (const [patternKey, pattern] of Object.entries(customPatterns)) {
+    if (className.endsWith(pattern.suffix)) {
+      return patternKey;  // 'state', 'preset', 'manager' 等
+    }
+  }
+
+  // 默认
+  return 'unknown';
+}
+
+// 示例结果：
 // ShopServerSystem → 'system'
-// WaitingState → 'state' (如果项目使用State模式)
-// PayManager → 'manager' (如果项目使用Manager模式)
+// WaitingState → 'state' (如果项目实际使用State模式)
+// PayManager → 'manager' (如果项目实际使用Manager模式)
 ```
 
 **输出示例**：
@@ -130,9 +168,20 @@ const options = [
   }
 ];
 
-// 为每种组件类型添加选项
+// 为每种组件类型添加选项（基于discovered-patterns.json动态生成）
 for (const [type, items] of Object.entries(grouped)) {
-  const typeName = type === 'system' ? 'Systems' : `[${type}模式]组件`;
+  let typeName;
+  if (type === 'system') {
+    typeName = 'Systems';
+  } else if (type === 'component') {
+    typeName = 'Components';
+  } else {
+    // 从discovered-patterns.json获取后缀名，转换为中文
+    const discovered = JSON.parse(Read(".claude/discovered-patterns.json"));
+    const pattern = discovered.patterns.customPatterns[type];
+    typeName = pattern ? `[${pattern.suffix}模式]组件` : `[${type}]组件`;
+  }
+
   options.push({
     label: `只补充 ${typeName}`,
     description: `只补充 ${items.length} 个${typeName}（预计Token: ${items.length * 5}-${items.length * 10}k）`

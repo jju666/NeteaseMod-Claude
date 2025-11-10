@@ -16,26 +16,75 @@ AI驱动的项目文档完整性验证工具。自动发现项目组件，智能
 
 ## 📋 执行流程
 
-### 步骤1：扫描项目结构（自动发现组件）
+### 步骤0：预检查 - 运行自适应发现工具（必须）⭐
 
-**任务**：使用现有的项目分析逻辑，发现所有组件
+**任务**：确保 `.claude/discovered-patterns.json` 存在且为最新
+
+```bash
+# 如果文件不存在或超过1天，重新运行发现工具
+if [ ! -f .claude/discovered-patterns.json ] || [ $(find .claude/discovered-patterns.json -mtime +1) ]; then
+  node lib/adaptive-doc-discovery.js
+fi
+```
+
+**重要提示**：
+- 必须先运行自适应发现工具，生成 `.claude/discovered-patterns.json`
+- 该文件包含项目组件类型、文档目录等关键信息
+- 如果项目结构有变化，建议重新运行 `/discover` 命令
+
+---
+
+### 步骤1：读取发现结果并构建组件列表
+
+**任务**：从 discovered-patterns.json 加载组件信息
 
 ```javascript
-// 1. 扫描所有Python类定义（通用搜索）
-Grep("class \\w+(System|Client|Server|Component|Def|Manager|Handler|Controller|Service|State|Preset)",
-     path="behavior_packs/",
-     output_mode="content")
+// 1. 运行自适应发现工具（如果 .claude/discovered-patterns.json 不存在或过期）
+// 执行: node lib/adaptive-doc-discovery.js
+// 这会生成 .claude/discovered-patterns.json
 
-// 2. AI自适应识别组件类型
-// 策略：
-//   a) MODSDK官方核心概念：
-//      - System: 继承自ServerSystem/ClientSystem的类
-//      - Component: 调用RegisterComponent注册的类
-//
-//   b) 项目自定义模式（自动推断）：
-//      - 提取类名后缀（如：State, Preset, Manager, Controller）
-//      - 分析目录结构（如：states/, presets/, managers/）
-//      - AI根据实际项目推断组织模式
+// 2. 读取发现结果
+const discoveredPatterns = Read(".claude/discovered-patterns.json");
+
+// 3. 解析组件信息
+const { patterns } = JSON.parse(discoveredPatterns);
+const { officialConcepts, customPatterns } = patterns;
+
+// 4. 构建组件列表
+const components = [];
+
+// MODSDK官方核心概念
+for (const system of officialConcepts.systems) {
+  components.push({
+    className: system.className,
+    filePath: system.filePath,
+    type: 'system',
+    patternType: 'official'
+  });
+}
+
+for (const component of officialConcepts.components) {
+  components.push({
+    className: component.className,
+    filePath: component.filePath,
+    type: 'component',
+    patternType: 'official'
+  });
+}
+
+// 项目自定义模式
+for (const [patternKey, pattern] of Object.entries(customPatterns)) {
+  for (const example of pattern.examples) {
+    components.push({
+      className: example.className,
+      filePath: example.filePath,
+      type: patternKey,  // 'state', 'preset', 等
+      patternType: 'custom',
+      patternSuffix: pattern.suffix,
+      docDir: pattern.docDirCandidate
+    });
+  }
+}
 ```
 
 **输出示例**：
@@ -45,9 +94,9 @@ MODSDK核心：
 - 发现 2 个 Systems (ServerSystem/ClientSystem)
 - 发现 0 个 自定义Components
 
-项目特定组织（AI自动推断）：
-- 发现 16 个 [State模式] 组件
-- 发现 2 个 [Preset模式] 组件
+项目特定组织（自适应发现）：
+- 发现 16 个 [State模式] 组件 → 文档目录: states/
+- 发现 2 个 [Preset模式] 组件 → 文档目录: presets/
 - 发现 0 个 [Manager模式] 组件
 ```
 
@@ -91,13 +140,17 @@ for (const comp of components) {
 3. 推断该组件的核心业务功能
 4. 生成规范化的中文文档名
 
-**命名规则：**
+**命名规则（自适应）：**
 - Systems: "{功能描述}系统.md"（如：XXX业务系统.md）
-- 自定义模式组件: "{功能描述}{类型}.md"
-  - State模式: "{阶段描述}状态.md"（如：XXX阶段状态.md）
-  - Preset模式: "{配置描述}预设.md"（如：XXX配置预设.md）
-  - Manager模式: "{功能描述}管理器.md"（如：XXX管理器.md）
-  - 其他: 根据实际项目自适应推断
+- Components: "{功能描述}组件.md"（如：XXX功能组件.md）
+- 自定义模式组件（根据discovered-patterns.json自动推断）:
+  - 对于每个发现的自定义模式，使用其后缀作为类型标识
+  - 命名格式: "{功能描述}{后缀对应的中文}.md"
+  - 示例:
+    - State模式 → "{阶段描述}状态.md"（如：XXX阶段状态.md）
+    - Preset模式 → "{配置描述}预设.md"（如：XXX配置预设.md）
+    - Manager模式 → "{功能描述}管理器.md"（如：XXX管理器.md）
+    - 其他模式 → 根据后缀推断对应的中文词汇
 
 **返回格式（纯文本，一行）：**
 中文文档名.md|功能描述（一句话）
@@ -143,7 +196,17 @@ XXX业务系统.md|处理玩家XXX功能的服务端逻辑
 ```javascript
 // 对于每个组件
 for (const comp of components) {
-  const docPath = `markdown/${comp.type}s/${comp.chineseName}`;
+  // 根据组件类型和discovered-patterns.json推断文档路径
+  let docDir;
+  if (comp.type === 'system') {
+    docDir = 'markdown/systems/';
+  } else if (comp.patternType === 'custom' && comp.docDir) {
+    docDir = `markdown/${comp.docDir}`;
+  } else {
+    docDir = `markdown/${comp.type}s/`;  // 默认复数化
+  }
+
+  const docPath = `${docDir}${comp.chineseName}`;
 
   if (exists(docPath)) {
     // 评估文档质量

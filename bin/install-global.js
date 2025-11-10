@@ -46,12 +46,12 @@ function copyDirRecursive(src, dest) {
 function installWindows() {
   console.log('\n📦 Windows安装模式\n');
 
-  // 创建 modsdk-deploy.cmd
+  // 创建 initmc.cmd（唯一的部署命令）
   const cmdContent = `@echo off
-node "%USERPROFILE%\\.claude-modsdk-workflow\\bin\\quick-deploy.js" %*
+node "%USERPROFILE%\\.claude-modsdk-workflow\\bin\\initmc.js" %*
 `;
 
-  const cmdPath = path.join(os.homedir(), 'modsdk-deploy.cmd');
+  const cmdPath = path.join(os.homedir(), 'initmc.cmd');
   fs.writeFileSync(cmdPath, cmdContent);
 
   console.log('✅ 已创建命令脚本:');
@@ -73,7 +73,7 @@ node "%USERPROFILE%\\.claude-modsdk-workflow\\bin\\quick-deploy.js" %*
 
   console.log('📝 使用方法:');
   console.log('   cd your-modsdk-project');
-  console.log('   modsdk-deploy\n');
+  console.log('   initmc\n');
 }
 
 /**
@@ -83,12 +83,12 @@ function installUnix() {
   console.log('\n📦 Unix/Linux/Mac安装模式\n');
 
   const shellConfig = path.join(os.homedir(), '.bashrc');
-  const aliasLine = `\n# MODSDK Workflow Generator\nalias modsdk-deploy="node ~/.claude-modsdk-workflow/bin/quick-deploy.js"\n`;
+  const aliasLine = `\n# MODSDK Workflow Generator\nalias initmc="node ~/.claude-modsdk-workflow/bin/initmc.js"\n`;
 
   // 检查是否已添加
   if (fs.existsSync(shellConfig)) {
     const content = fs.readFileSync(shellConfig, 'utf8');
-    if (content.includes('modsdk-deploy')) {
+    if (content.includes('initmc')) {
       console.log('✅ Alias已存在于 ~/.bashrc\n');
     } else {
       fs.appendFileSync(shellConfig, aliasLine);
@@ -104,7 +104,7 @@ function installUnix() {
     const zshConfig = path.join(os.homedir(), '.zshrc');
     if (fs.existsSync(zshConfig)) {
       const content = fs.readFileSync(zshConfig, 'utf8');
-      if (!content.includes('modsdk-deploy')) {
+      if (!content.includes('initmc')) {
         fs.appendFileSync(zshConfig, aliasLine);
         console.log('✅ 已添加alias到 ~/.zshrc（Mac）\n');
       }
@@ -116,7 +116,7 @@ function installUnix() {
 
   console.log('📝 使用方法:');
   console.log('   cd your-modsdk-project');
-  console.log('   modsdk-deploy\n');
+  console.log('   initmc\n');
 }
 
 /**
@@ -155,8 +155,8 @@ function main() {
 
   console.log('🎯 下一步:');
   console.log('   1. 进入任意MODSDK项目目录');
-  console.log('   2. 运行: modsdk-deploy');
-  console.log('   3. 使用: /initmc 初始化工作流\n');
+  console.log('   2. 运行: initmc');
+  console.log('   3. 开始使用Claude Code开发\n');
 
   console.log('📚 更多信息:');
   console.log('   README: ' + path.join(TARGET_DIR, 'README.md') + '\n');

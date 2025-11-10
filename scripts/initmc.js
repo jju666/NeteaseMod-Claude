@@ -395,18 +395,22 @@ function generateCustomizedCLAUDE(globalDir, projectDir) {
     const destPath = path.join(projectDir, 'CLAUDE.md');
 
     // 如果文件已存在，先备份
+    let hasBackup = false;
     if (fs.existsSync(destPath)) {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
       const backupPath = path.join(projectDir, `CLAUDE.md.backup.${timestamp}`);
       fs.copyFileSync(destPath, backupPath);
       log(`  📦 备份原文件: ${path.basename(backupPath)}`, 'yellow');
+      hasBackup = true;
     }
 
     fs.writeFileSync(destPath, content, 'utf-8');
 
     const stat = fs.statSync(destPath);
     log(`  ✅ CLAUDE.md - ${(stat.size / 1024).toFixed(1)} KB`, 'green');
-    return true;
+
+    // 返回是否有备份
+    return hasBackup;
   } catch (err) {
     error(`生成 CLAUDE.md 失败: ${err.message}`);
     return false;
@@ -612,10 +616,10 @@ async function deployWorkflow() {
 
   // 6. 生成 CLAUDE.md
   log('⚙️  生成定制化配置...', 'blue');
-  allSuccess &= generateCustomizedCLAUDE(globalDir, projectDir);
+  const claudeBackedUp = generateCustomizedCLAUDE(globalDir, projectDir);
   console.log('');
 
-  if (!allSuccess) {
+  if (claudeBackedUp === false) {
     error('配置生成失败');
     process.exit(1);
   }
@@ -731,6 +735,23 @@ async function deployWorkflow() {
   console.log('  3. /enhance-docs - 批量生成高质量文档内容');
   console.log('  4. /cc "任务描述" - 开发时自动维护文档');
   console.log('');
+
+  // 如果CLAUDE.md被备份了，提示用户使用/updatemc合并
+  if (claudeBackedUp) {
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'yellow');
+    console.log('');
+    log('⚠️  检测到 CLAUDE.md 已被备份', 'yellow');
+    console.log('');
+    console.log('您之前修改过 CLAUDE.md，现在已自动备份。');
+    console.log('如需保留您的修改，请在 Claude Code 中执行：');
+    console.log('');
+    log('  /updatemc', 'cyan');
+    console.log('');
+    console.log('该命令将智能合并您的修改到新版本 CLAUDE.md。');
+    console.log('');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'yellow');
+    console.log('');
+  }
 
   log('🎉 开始体验文档驱动的开发工作流吧！', 'green');
   console.log('');

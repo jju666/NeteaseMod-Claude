@@ -1,6 +1,6 @@
 {
   "name": "modsdk-workflow-generator",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "全局MODSDK工作流生成器 - 一次安装，到处使用",
   "main": "lib/init-workflow.js",
   "scripts": {
@@ -9,7 +9,8 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {
-    "modsdk-deploy": "./bin/quick-deploy.js"
+    "modsdk-deploy": "./bin/quick-deploy.js",
+    "initmc": "./bin/initmc.js"
   },
   "keywords": [
     "modsdk",
@@ -24,6 +25,7 @@
   "engines": {
     "node": ">=12.0.0"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "fs-extra": "^10.1.0"
+  }
 }

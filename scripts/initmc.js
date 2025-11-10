@@ -525,7 +525,7 @@ async function deployWorkflow() {
   allSuccess &= copyFileWithValidation(
     path.join(globalDir, '.claude', 'commands', 'updatemc.md'),
     path.join(projectDir, '.claude', 'commands', 'updatemc.md'),
-    8000
+    4000
   );
 
   // 生成定制化 cc.md

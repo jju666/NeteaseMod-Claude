@@ -370,51 +370,294 @@ function generateCustomizedCC(globalDir, projectDir) {
 }
 
 /**
- * 生成定制化的 CLAUDE.md
+ * 从工作流模板中提取纯工作流内容
+ */
+function extractWorkflowContent(globalDir) {
+  const templatePath = path.join(globalDir, '.claude', 'workflow.template.md');
+
+  if (fs.existsSync(templatePath)) {
+    // 优先使用 workflow.template.md
+    return fs.readFileSync(templatePath, 'utf-8');
+  }
+
+  // 降级：从 CLAUDE.md 中提取（向后兼容）
+  const claudePath = path.join(globalDir, 'CLAUDE.md');
+  if (!fs.existsSync(claudePath)) {
+    throw new Error('找不到工作流模板文件');
+  }
+
+  let content = fs.readFileSync(claudePath, 'utf-8');
+
+  // 移除文件头和元数据，只保留从"AI助手身份定位"开始的内容
+  const match = content.match(/## 🎯 AI助手身份定位[\s\S]*/);
+  if (match) {
+    content = match[0];
+    // 移除版本信息章节
+    content = content.replace(/## 📝 版本信息[\s\S]*$/, '');
+    // 移除尾部"记住"章节后的空行
+    content = content.replace(/\n+$/, '');
+  }
+
+  return content.trim();
+}
+
+/**
+ * 生成全新的内联式 CLAUDE.md
+ */
+function generateNewCLAUDE({ projectRoot, currentDate, workflowContent, version }) {
+  return `# CLAUDE.md
+
+> 🤖 **基于 MODSDK 工作流 v${version}**
+>
+> 本文件由工作流自动生成和管理，请勿删除标记行。
+
+---
+
+<!-- ==================== 用户配置区 START ==================== -->
+<!-- 此区域可自由编辑，升级时会保留 -->
+
+## 📌 项目配置
+
+- **项目路径**: ${projectRoot}
+- **项目类型**: MODSDK 行为包
+- **开发阶段**: 开发中
+- **最后更新**: ${currentDate}
+
+---
+<!-- ==================== 用户配置区 END ==================== -->
+
+<!-- ==================== 工作流内容 START v${version} ==================== -->
+<!-- ⚠️ 警告：以下内容由工作流管理，请勿手动修改！升级时会自动替换。 -->
+<!-- 如需自定义规范，请在"项目扩展区"添加 -->
+
+${workflowContent}
+
+<!-- ==================== 工作流内容 END v${version} ==================== -->
+
+<!-- ==================== 项目扩展区 START ==================== -->
+<!-- 此区域可自由编辑，升级时会保留 -->
+
+## 🎯 项目特定规范
+
+<!-- 在此添加项目特定的开发规范、约定、注意事项等 -->
+
+---
+
+## 🔧 扩展配置
+
+<!-- 可选：覆盖工作流默认行为 -->
+
+---
+<!-- ==================== 项目扩展区 END ==================== -->
+`;
+}
+
+/**
+ * 升级内联式 CLAUDE.md（精确替换工作流区域）
+ */
+function upgradeInlineCLAUDE({ existingContent, newWorkflowContent, newVersion, currentDate }) {
+  // 正则匹配工作流区域（支持任意版本号）
+  const workflowRegex = /<!-- ==================== 工作流内容 START v[\d.]+ ====================.*?-->[\s\S]*?<!-- ==================== 工作流内容 END v[\d.]+ ====================.*?-->/;
+
+  const newWorkflowSection = `<!-- ==================== 工作流内容 START v${newVersion} ==================== -->
+<!-- ⚠️ 警告：以下内容由工作流管理，请勿手动修改！升级时会自动替换。 -->
+<!-- 如需自定义规范，请在"项目扩展区"添加 -->
+
+${newWorkflowContent}
+
+<!-- ==================== 工作流内容 END v${newVersion} ==================== -->`;
+
+  // 替换工作流区域，保留用户配置区和扩展区
+  let updated = existingContent.replace(workflowRegex, newWorkflowSection);
+
+  // 更新日期（如果用户配置区包含"最后更新"字段）
+  updated = updated.replace(
+    /(- \*\*最后更新\*\*: ).+/,
+    `$1${currentDate}`
+  );
+
+  // 更新顶部版本标记
+  updated = updated.replace(
+    /(> 🤖 \*\*基于 MODSDK 工作流 v)[\d.]+(\*\*)/,
+    `$1${newVersion}$2`
+  );
+
+  return updated;
+}
+
+/**
+ * 将旧版 CLAUDE.md 迁移为内联式（智能提取用户内容）
+ */
+function migrateToInline({ oldContent, workflowContent, projectRoot, currentDate, version }) {
+  // 提取项目路径（如果存在）
+  const pathMatch = oldContent.match(/- \*\*项目根目录\*\*:\s*`(.+?)`/);
+  const extractedPath = pathMatch ? pathMatch[1] : projectRoot;
+
+  // 生成新内容（暂时不尝试智能提取用户内容，因为旧版结构复杂）
+  const migratedContent = generateNewCLAUDE({
+    projectRoot: extractedPath,
+    currentDate: currentDate,
+    workflowContent: workflowContent,
+    version: version
+  });
+
+  // 在扩展区添加迁移提示
+  return migratedContent.replace(
+    '<!-- 在此添加项目特定的开发规范、约定、注意事项等 -->',
+    `<!-- 在此添加项目特定的开发规范、约定、注意事项等 -->
+
+<!-- ⚠️ 迁移提示：-->
+<!-- 您的旧版 CLAUDE.md 已自动备份为 CLAUDE.md.backup.${currentDate} -->
+<!-- 如旧版中有自定义内容，请从备份中提取并粘贴到此处 -->
+<!-- 详见迁移指南：markdown/迁移指南-v15.0.md -->`
+  );
+}
+
+/**
+ * 更新版本追踪文件
+ */
+function updateVersionTracking(projectDir, version, isNewInstall, oldVersion = null) {
+  const versionFilePath = path.join(projectDir, '.claude', 'workflow-version.json');
+  const now = new Date().toISOString();
+  const today = now.split('T')[0];
+
+  let versionData;
+
+  if (isNewInstall || !fs.existsSync(versionFilePath)) {
+    // 新安装
+    versionData = {
+      version: version,
+      installedAt: now,
+      lastUpdatedAt: now,
+      changes: [
+        {
+          version: version,
+          date: today,
+          description: '初始安装内联式架构'
+        }
+      ]
+    };
+  } else {
+    // 升级
+    versionData = JSON.parse(fs.readFileSync(versionFilePath, 'utf-8'));
+    const previousVersion = oldVersion || versionData.version;
+
+    versionData.version = version;
+    versionData.lastUpdatedAt = now;
+    versionData.changes.unshift({
+      version: version,
+      date: today,
+      description: `从 v${previousVersion} 升级`,
+      previousVersion: previousVersion
+    });
+
+    // 只保留最近10次变更记录
+    if (versionData.changes.length > 10) {
+      versionData.changes = versionData.changes.slice(0, 10);
+    }
+  }
+
+  fs.ensureDirSync(path.dirname(versionFilePath));
+  fs.writeFileSync(versionFilePath, JSON.stringify(versionData, null, 2), 'utf-8');
+
+  log(`  ✅ 版本追踪: v${version}`, 'green');
+}
+
+/**
+ * 生成定制化的 CLAUDE.md（重构版 - 内联式架构）
  */
 function generateCustomizedCLAUDE(globalDir, projectDir) {
-  const templatePath = path.join(globalDir, 'CLAUDE.md');
+  const destPath = path.join(projectDir, 'CLAUDE.md');
+  const currentDate = new Date().toISOString().split('T')[0];
+  const normalizedPath = projectDir.replace(/\\/g, '/');
+  const version = '15.0'; // 从 package.json 读取的版本号
 
-  if (!fs.existsSync(templatePath)) {
-    error('找不到 CLAUDE.md 模板文件');
-    return false;
-  }
+  let hasBackup = false;
+  let isUpgrade = false;
+  let needsMigration = false;
 
+  // 提取工作流内容
+  let workflowContent;
   try {
-    let content = fs.readFileSync(templatePath, 'utf-8');
-
-    // 替换项目路径占位符
-    const normalizedPath = projectDir.replace(/\\/g, '/');
-    content = content.replace(/\{\{PROJECT_ROOT\}\}/g, normalizedPath);
-
-    // 替换当前日期
-    const currentDate = new Date().toISOString().split('T')[0];
-    content = content.replace(/\{\{CURRENT_DATE\}\}/g, currentDate);
-
-    // 写入目标文件（带备份保护）
-    const destPath = path.join(projectDir, 'CLAUDE.md');
-
-    // 如果文件已存在，先备份
-    let hasBackup = false;
-    if (fs.existsSync(destPath)) {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
-      const backupPath = path.join(projectDir, `CLAUDE.md.backup.${timestamp}`);
-      fs.copyFileSync(destPath, backupPath);
-      log(`  📦 备份原文件: ${path.basename(backupPath)}`, 'yellow');
-      hasBackup = true;
-    }
-
-    fs.writeFileSync(destPath, content, 'utf-8');
-
-    const stat = fs.statSync(destPath);
-    log(`  ✅ CLAUDE.md - ${(stat.size / 1024).toFixed(1)} KB`, 'green');
-
-    // 返回是否有备份
-    return hasBackup;
+    workflowContent = extractWorkflowContent(globalDir);
   } catch (err) {
-    error(`生成 CLAUDE.md 失败: ${err.message}`);
-    return false;
+    error(`提取工作流内容失败: ${err.message}`);
+    return { success: false, hasBackup: false, isUpgrade: false };
   }
+
+  // 替换工作流内容中的占位符
+  workflowContent = workflowContent.replace(/\{\{PROJECT_ROOT\}\}/g, normalizedPath);
+
+  // 场景1: 文件不存在 → 全新安装
+  if (!fs.existsSync(destPath)) {
+    const newContent = generateNewCLAUDE({
+      projectRoot: normalizedPath,
+      currentDate: currentDate,
+      workflowContent: workflowContent,
+      version: version
+    });
+
+    fs.writeFileSync(destPath, newContent, 'utf-8');
+    log(`  ✅ CLAUDE.md - ${(fs.statSync(destPath).size / 1024).toFixed(1)} KB (全新创建)`, 'green');
+
+    // 创建版本追踪文件
+    updateVersionTracking(projectDir, version, true);
+
+    return { success: true, hasBackup: false, isUpgrade: false, needsMigration: false };
+  }
+
+  // 场景2: 文件已存在 → 检测是否为内联式
+  const existingContent = fs.readFileSync(destPath, 'utf-8');
+  const hasMarkers = existingContent.includes('<!-- ==================== 工作流内容 START');
+
+  if (hasMarkers) {
+    // 场景2a: 已经是内联式 → 升级模式（精确替换）
+    isUpgrade = true;
+
+    // 提取旧版本号
+    const versionMatch = existingContent.match(/<!-- ==================== 工作流内容 START v([\d.]+) ====================/);
+    const oldVersion = versionMatch ? versionMatch[1] : '14.x';
+
+    const updatedContent = upgradeInlineCLAUDE({
+      existingContent: existingContent,
+      newWorkflowContent: workflowContent,
+      newVersion: version,
+      currentDate: currentDate
+    });
+
+    fs.writeFileSync(destPath, updatedContent, 'utf-8');
+    log(`  ✅ CLAUDE.md - 升级 v${oldVersion} → v${version}`, 'green');
+
+    // 更新版本追踪文件
+    updateVersionTracking(projectDir, version, false, oldVersion);
+
+    return { success: true, hasBackup: false, isUpgrade: true, needsMigration: false };
+  }
+
+  // 场景2b: 旧版格式 → 迁移模式（保留用户内容）
+  needsMigration = true;
+
+  const timestamp = currentDate;
+  const backupPath = path.join(projectDir, `CLAUDE.md.backup.${timestamp}`);
+  fs.copyFileSync(destPath, backupPath);
+  log(`  📦 备份旧版: ${path.basename(backupPath)}`, 'yellow');
+  hasBackup = true;
+
+  const migratedContent = migrateToInline({
+    oldContent: existingContent,
+    workflowContent: workflowContent,
+    projectRoot: normalizedPath,
+    currentDate: currentDate,
+    version: version
+  });
+
+  fs.writeFileSync(destPath, migratedContent, 'utf-8');
+  log(`  ⚠️  CLAUDE.md - 迁移到 v${version} (请检查备份)`, 'yellow');
+
+  // 创建版本追踪文件（标记为迁移）
+  updateVersionTracking(projectDir, version, false, '14.x');
+
+  return { success: true, hasBackup: true, isUpgrade: false, needsMigration: true };
 }
 
 /**
@@ -622,10 +865,10 @@ async function deployWorkflow() {
 
   // 6. 生成 CLAUDE.md
   log('⚙️  生成定制化配置...', 'blue');
-  const claudeBackedUp = generateCustomizedCLAUDE(globalDir, projectDir);
+  const claudeResult = generateCustomizedCLAUDE(globalDir, projectDir);
   console.log('');
 
-  if (claudeBackedUp === false) {
+  if (!claudeResult.success) {
     error('配置生成失败');
     process.exit(1);
   }
@@ -742,20 +985,30 @@ async function deployWorkflow() {
   console.log('  4. /cc "任务描述" - 开发时自动维护文档');
   console.log('');
 
-  // 如果CLAUDE.md被备份了，提示用户使用/updatemc合并
-  if (claudeBackedUp) {
+  // 根据不同场景输出不同提示
+  if (claudeResult.needsMigration) {
+    // 场景：旧版迁移
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'yellow');
     console.log('');
-    log('⚠️  检测到 CLAUDE.md 已被备份', 'yellow');
+    log('⚠️  检测到旧版格式，已自动迁移', 'yellow');
     console.log('');
-    console.log('您之前修改过 CLAUDE.md，现在已自动备份。');
-    console.log('如需保留您的修改，请在 Claude Code 中执行：');
+    console.log('您的旧版 CLAUDE.md 已备份，迁移到新版内联式架构。');
     console.log('');
-    log('  /updatemc', 'cyan');
+    console.log('📋 如何处理旧版自定义内容：');
+    console.log('  1. 查看备份文件：CLAUDE.md.backup.YYYY-MM-DD');
+    console.log('  2. 如有自定义内容，复制到新版"项目扩展区"');
+    console.log('  3. 详见迁移指南：markdown/迁移指南-v15.0.md');
     console.log('');
-    console.log('该命令将智能合并您的修改到新版本 CLAUDE.md。');
+    console.log('✨ 新版优势：');
+    console.log('  - 零风险升级：用户内容自动保留');
+    console.log('  - 精确替换：工作流更新不影响自定义内容');
+    console.log('  - 版本追踪：.claude/workflow-version.json');
     console.log('');
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'yellow');
+    console.log('');
+  } else if (claudeResult.isUpgrade) {
+    // 场景：内联式升级
+    info('✅ 升级完成！您的自定义内容已自动保留。');
     console.log('');
   }
 

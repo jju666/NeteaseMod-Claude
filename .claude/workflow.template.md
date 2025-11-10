@@ -1,14 +1,3 @@
-# CLAUDE.md
-
-> 🤖 **Claude Code AI Assistant 项目参考文档 v14.1**
->
-> This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
->
-> **当前版本**: v14.1 (真·自适应机制实现)
-> **最后更新**: 2025-11-10
-
----
-
 ## 🎯 AI助手身份定位
 
 你是一个**精通网易我的世界MODSDK的Python游戏开发专家**，在项目开发中遵循**三步核心流程**和**三级任务分类**系统。
@@ -399,73 +388,6 @@ WebFetch(
 ## 🔗 关键路径
 
 - **项目根目录**: `{{PROJECT_ROOT}}`
-
----
-
-## 📝 版本信息
-
-> **文档版本**: 15.0 (内联式架构)
-> **最后更新**: 2025-11-10
-> **项目状态**: {{PROJECT_STATUS}}
-
-### v15.0 更新亮点 ⚡
-
-**内联式架构重构**（彻底解决升级风险）：
-- ✅ **零风险升级**: 精确替换工作流区域，用户内容 100% 保留
-- ✅ **三段式结构**: 用户配置区 + 工作流内容 + 项目扩展区
-- ✅ **自动迁移**: 智能识别旧版格式，自动备份和迁移
-- ✅ **版本追踪**: 新增 .claude/workflow-version.json 追踪升级历史
-- ✅ **简化升级**: 移除 /updatemc 命令，直接 initmc 即可升级
-
-**架构优势**：
-- 📁 清晰的区域划分（HTML注释标记）
-- 🔒 工作流内容只读（带警告提示）
-- ✏️ 用户内容可编辑（配置区和扩展区）
-- 🔄 向后兼容（自动识别并迁移旧版）
-
-**升级指南**：
-- 新项目：执行 `initmc` 即可获得最新架构
-- 旧项目：执行 `initmc`，系统自动迁移（会备份旧版）
-- 详见：[迁移指南-v15.0.md](./markdown/迁移指南-v15.0.md)
-
----
-
-### v14.1 更新亮点 ⚡
-
-**真·自适应机制实现**（方案A完成）：
-- ✅ **核心引擎**: lib/adaptive-doc-discovery.js - 自动扫描项目结构
-- ✅ **Windows兼容**: 使用Node.js原生API替代grep/find命令
-- ✅ **/discover命令**: 一键生成.claude/discovered-patterns.json
-- ✅ **集成到/validate-docs**: 动态读取发现结果
-- ✅ **集成到/enhance-docs**: 自适应生成选项和路径
-- ✅ **零配置**: 完全基于代码分析，无需手动配置
-
-**技术亮点**：
-- 📦 自动识别MODSDK官方概念（System、Component）
-- 🔮 智能推断项目自定义模式（State、Preset、Manager等）
-- 📁 自动推断文档目录结构
-- 🗺️ 生成组件→文档路径映射规则
-
-### v14.0 更新亮点 ⚡
-
-**通用化重构**（基于官方MODSDK文档审定）：
-- ✅ **移除所有硬编码目录结构**: 删除presets/、states/、config/等项目特定目录引用
-- ✅ **对齐MODSDK官方架构**: 只保留System和Component两个官方定义的核心概念
-- ✅ **实现真·自适应机制描述**: AI根据实际项目代码推断组织方式和文档路径
-- ✅ **全面清理35处硬编码**: 包括具体业务示例、外部项目引用等
-- ✅ **通用化命令工具**: validate-docs和enhance-docs改为动态识别组件类型
-
-**官方依据**：
-- 📚 MODSDK官方文档只定义System（ServerSystem/ClientSystem）和Component
-- 📚 官方制作规范只要求entities/和textures/目录
-- 📚 Preset、State、Manager等都是项目自定义的组织方式，不应硬编码
-
-**兼容性**：
-- ✅ 适配任意MODSDK项目架构（状态机、预设、管理器等任意模式）
-- ✅ 零配置，AI自动发现项目组织方式
-- ✅ 保留所有核心优势（CRITICAL规范、三步流程、三级分类等）
-
-**产品定位**: 100%通用MODSDK开发工作流，适用于任何基于网易MODSDK的项目
 
 ---
 

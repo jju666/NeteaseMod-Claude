@@ -28,12 +28,23 @@ General类型MODSDK项目，使用AI辅助开发工作流，提升开发效率�
 # 1. 全局安装工作流（仅需一次）
 npm run install-global
 
-# 2. 在任意MODSDK项目中初始化
-/initmc
+# 2. 在任意MODSDK项目中初始化（在终端执行）
+cd <你的MODSDK项目>
+initmc
 
-# 3. 执行第一个任务
+# 3. 自适应发现项目结构（新增！）⭐
+/discover
+
+# 4. 文档审计与规范化
+/validate-docs
+
+# 5. 执行第一个任务
 /cc 创建一个简单的System，监听玩家加入游戏事件
 ```
+
+> ⚠️ **重要区分**:
+> - `initmc` - 全局命令（在终端执行）
+> - `/initmc` - Slash command（已废弃）
 
 ---
 
@@ -79,6 +90,25 @@ npm run install-global
 ---
 
 ## 💡 核心功能
+
+### 🔍 自适应项目发现（新！）⭐
+
+使用 `/discover` 命令自动扫描项目结构：
+
+```bash
+/discover
+```
+
+**功能**：
+- ✅ 识别MODSDK官方概念（System、Component）
+- ✅ 发现项目自定义模式（State、Preset、Manager等任意架构）
+- ✅ 推断文档目录结构和命名规则
+- ✅ 生成 `.claude/discovered-patterns.json` 映射文件
+- ✅ 零配置，5-10秒完成，不消耗Token
+
+核心实现：[lib/adaptive-doc-discovery.js](lib/adaptive-doc-discovery.js)
+
+---
 
 ### ⚡ 智能任务执行
 
@@ -143,10 +173,10 @@ Claude会自动使用WebFetch查询在线文档，保证信息最新。
 
 ## 📊 项目信息
 
-- **项目类型**: General MODSDK
-- **Python版本**: 2.7
+- **项目类型**: 通用MODSDK开发工作流
+- **Python版本**: 2.7（MODSDK要求）
 - **AI辅助**: Claude Code
-- **文档版本**: v13.0
+- **当前版本**: v2.1.0 (真·自适应机制实现)
 - **[更新日志](./CHANGELOG.md)**
 
 详见：[项目状态.md](./markdown/项目状态.md)
@@ -174,4 +204,4 @@ Claude会自动使用WebFetch查询在线文档，保证信息最新。
 
 ---
 
-_最后更新: 2025-11-09 | 文档版本: v12.0_
+_最后更新: 2025-11-10 | 文档版本: v2.1.0 (真·自适应机制实现)_

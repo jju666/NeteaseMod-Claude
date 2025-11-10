@@ -1,8 +1,11 @@
 # CLAUDE.md
 
-> 🤖 **Claude Code AI Assistant 项目参考文档 v12.0**
+> 🤖 **Claude Code AI Assistant 项目参考文档 v14.1**
 >
 > This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+>
+> **当前版本**: v14.1 (真·自适应机制实现)
+> **最后更新**: 2025-11-10
 
 ---
 

@@ -112,7 +112,7 @@ Systems数量: X个
 现有文档: Y个
 
 预计生成:
- - Layer 1（通用层）: 13个文件
+ - Layer 1（通用层）: 15个文件
  - Layer 2（架构层）: X个系统文档
  - Layer 3（业务层）: 框架文档
 
@@ -375,6 +375,15 @@ mkdir -p PROJECT_PATH/markdown/ai
 mkdir -p PROJECT_PATH/markdown/systems
 mkdir -p PROJECT_PATH/tasks
 
+# 复制额外的命令文件（enhance-docs.md 和 validate-docs.md）
+工作流根目录 = 获取工作流项目根目录()  # 通过查找CLAUDE.md的位置
+命令文件列表 = ["enhance-docs.md", "validate-docs.md"]
+for 命令文件 in 命令文件列表:
+    源路径 = os.path.join(工作流根目录, ".claude/commands", 命令文件)
+    目标路径 = os.path.join(PROJECT_PATH, ".claude/commands", 命令文件)
+    命令内容 = Read(file_path=源路径)
+    Write(file_path=目标路径, content=命令内容)
+
 # 生成README.md（使用内置模板）
 模板路径 = os.path.join(TEMPLATES_DIR, "README.md.template")
 模板内容 = Read(file_path=模板路径)
@@ -589,12 +598,14 @@ def 生成layer2待补充项():
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📊 生成统计:
-- Layer 1（通用层）: 13个文件 ✅
+- Layer 1（通用层）: 15个文件 ✅
   - CLAUDE.md
   - .claude/commands/cc.md ⭐
+  - .claude/commands/enhance-docs.md ⭐
+  - .claude/commands/validate-docs.md ⭐
   - markdown/开发规范.md
   - markdown/问题排查.md
-  - markdown/ai/（4个AI文档）
+  - markdown/ai/（3个AI文档）
   - 等...
 
 - Layer 2（架构层）: {systems_count}个文件 ✅

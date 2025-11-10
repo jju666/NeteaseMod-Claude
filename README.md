@@ -45,12 +45,17 @@
 git clone https://github.com/jju666/NeteaseMod-Claude.git
 cd NeteaseMod-Claude
 
-# 2. 安装依赖
+# 2. 安装依赖（⚠️ 必须执行，不能跳过！）
 npm install
 
 # 3. 全局安装（仅需一次）
 npm run install-global
 ```
+
+> ⚠️ **重要提示**：
+> - 步骤2的 `npm install` 是**必须的**，不能跳过
+> - 跳过会导致运行 `initmc` 时报错：`Error: Cannot find module 'fs-extra'`
+> - 从 v15.1 版本开始，`install-global` 脚本会自动检测并安装缺失的依赖
 
 ### ⚡ 在你的 MODSDK 项目中使用
 

@@ -7,10 +7,56 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { execSync } = require('child_process');
 
 const SOURCE_DIR = path.resolve(__dirname, '..');
 const TARGET_DIR = path.join(os.homedir(), '.claude-modsdk-workflow');
 const IS_WINDOWS = process.platform === 'win32';
+
+/**
+ * 检查依赖是否已安装
+ */
+function checkDependencies() {
+  const requiredDeps = ['fs-extra'];
+  const missingDeps = [];
+
+  for (const dep of requiredDeps) {
+    try {
+      require.resolve(dep, { paths: [SOURCE_DIR] });
+    } catch (err) {
+      missingDeps.push(dep);
+    }
+  }
+
+  return missingDeps;
+}
+
+/**
+ * 安装缺失的依赖
+ */
+function installDependencies() {
+  console.log('\n⚠️  检测到缺失依赖，正在自动安装...\n');
+
+  try {
+    console.log('📦 执行: npm install\n');
+
+    // 在工作流项目目录执行 npm install
+    execSync('npm install', {
+      cwd: SOURCE_DIR,
+      stdio: 'inherit',
+      shell: true
+    });
+
+    console.log('\n✅ 依赖安装完成\n');
+    return true;
+  } catch (err) {
+    console.error('\n❌ 依赖安装失败:', err.message);
+    console.error('\n请手动执行:');
+    console.error(`   cd ${SOURCE_DIR}`);
+    console.error('   npm install\n');
+    return false;
+  }
+}
 
 /**
  * 递归复制目录
@@ -126,6 +172,27 @@ function main() {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🚀 MODSDK工作流生成器 - 全局安装');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+  // 检查依赖
+  console.log('🔍 检查依赖...\n');
+  const missingDeps = checkDependencies();
+
+  if (missingDeps.length > 0) {
+    console.log('⚠️  缺失依赖:', missingDeps.join(', '));
+    console.log('   这通常是因为跳过了 npm install 步骤\n');
+
+    const success = installDependencies();
+    if (!success) {
+      console.log('❌ 全局安装失败：无法安装依赖\n');
+      console.log('请先执行以下步骤:');
+      console.log(`   1. cd ${SOURCE_DIR}`);
+      console.log('   2. npm install');
+      console.log('   3. npm run install-global\n');
+      process.exit(1);
+    }
+  } else {
+    console.log('✅ 依赖检查通过\n');
+  }
 
   // 检查目标目录
   if (fs.existsSync(TARGET_DIR)) {

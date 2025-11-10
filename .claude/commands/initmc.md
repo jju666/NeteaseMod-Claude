@@ -41,7 +41,8 @@
      1. 在需要初始化的MODSDK项目根目录执行 /initmc
      2. 工作流文件将从全局目录自动复制到目标项目
 
-     全局工作流目录：C:/Users/28114/.claude-modsdk-workflow/
+     全局工作流目录：~/.claude-modsdk-workflow/
+     (Windows示例：C:/Users/<你的用户名>/.claude-modsdk-workflow/)
      ```
 
    - 否则，检查是否为MODSDK项目：
@@ -387,8 +388,8 @@ def 生成NBT检查部分():
 # 定位全局工作流目录（优先级顺序）
 全局工作流目录 = None
 
-# 方法1：检查默认全局目录
-默认目录 = "C:/Users/28114/.claude-modsdk-workflow"
+# 方法1：检查默认全局目录（用户主目录）
+默认目录 = os.path.join(os.path.expanduser("~"), ".claude-modsdk-workflow")
 if os.path.exists(os.path.join(默认目录, "CLAUDE.md")):
     全局工作流目录 = 默认目录
 
@@ -772,7 +773,8 @@ def 生成layer2待补充项():
 1. 在需要初始化的MODSDK项目根目录执行 /initmc
 2. 工作流文件将从全局目录自动复制到目标项目
 
-全局工作流目录：C:/Users/28114/.claude-modsdk-workflow/
+全局工作流目录：~/.claude-modsdk-workflow/
+(Windows示例：C:/Users/<你的用户名>/.claude-modsdk-workflow/)
 ```
 
 **原因**：用户在工作流项目本身运行了 `/initmc`，这会导致文件循环复制。
@@ -818,8 +820,9 @@ D:\EcWork\基于Claude的MODSDK开发工作流\workflow-generator\analyzer.py
 ❌ 错误: 无法找到全局工作流目录
 
 已尝试以下位置:
-- C:/Users/28114/.claude-modsdk-workflow （默认全局目录）
-- ~/.claude-modsdk-workflow （用户主目录）
+- ~/.claude-modsdk-workflow （默认全局目录，在用户主目录下）
+  Windows: C:/Users/<你的用户名>/.claude-modsdk-workflow
+  Linux/Mac: /home/<你的用户名>/.claude-modsdk-workflow
 - 环境变量 CLAUDE_WORKFLOW_ROOT
 
 请确保工作流已正确安装。
@@ -828,7 +831,9 @@ D:\EcWork\基于Claude的MODSDK开发工作流\workflow-generator\analyzer.py
 **原因**：AI无法自动定位全局工作流目录。
 
 **解决方案**：
-1. 检查工作流是否已安装到 `C:/Users/28114/.claude-modsdk-workflow`
+1. 检查工作流是否已安装到 `~/.claude-modsdk-workflow`
+   - Windows: `C:/Users/<你的用户名>/.claude-modsdk-workflow`
+   - Linux/Mac: `/home/<你的用户名>/.claude-modsdk-workflow`
 2. 或设置环境变量 `CLAUDE_WORKFLOW_ROOT` 指向工作流目录
 
 ---

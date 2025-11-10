@@ -25,12 +25,31 @@
 
 ### 📍 步骤0：准备工作
 
-1. **检查当前目录是否为MODSDK项目**：
+1. **检查当前目录类型**：
    ```bash
-   ls modMain.py
+   # 检查是否为工作流项目本身
+   ls CLAUDE.md && ls .claude/commands/initmc.md
    ```
-   - 如果不存在modMain.py，提示用户："当前目录不是MODSDK项目，请在项目根目录执行 /initmc"
-   - 如果存在，继续下一步
+   - 如果两者都存在 → **工作流项目本身**，输出提示并终止：
+     ```
+     ⚠️  检测到工作流项目本身
+
+     /initmc 命令仅用于初始化新的MODSDK项目。
+     当前目录是工作流项目本身，无需初始化。
+
+     使用说明：
+     1. 在需要初始化的MODSDK项目根目录执行 /initmc
+     2. 工作流文件将从全局目录自动复制到目标项目
+
+     全局工作流目录：C:/Users/28114/.claude-modsdk-workflow/
+     ```
+
+   - 否则，检查是否为MODSDK项目：
+     ```bash
+     ls modMain.py
+     ```
+     - 如果不存在modMain.py，提示用户："当前目录不是MODSDK项目，请在项目根目录执行 /initmc"
+     - 如果存在，继续下一步
 
 2. **读取参数**（从用户命令中提取）：
    ```python
@@ -362,11 +381,46 @@ def 生成NBT检查部分():
 
 执行以下操作来复制文档和命令文件（**重要：这些是实际要执行的操作，不是伪代码**）：
 
-**步骤A：复制额外的命令文件** ⭐ 必须执行
+**步骤A：动态检测全局工作流目录** ⭐ 关键
+
+```python
+# 定位全局工作流目录（优先级顺序）
+全局工作流目录 = None
+
+# 方法1：检查默认全局目录
+默认目录 = "C:/Users/28114/.claude-modsdk-workflow"
+if os.path.exists(os.path.join(默认目录, "CLAUDE.md")):
+    全局工作流目录 = 默认目录
+
+# 方法2：通过环境变量（如果设置）
+if not 全局工作流目录 and "CLAUDE_WORKFLOW_ROOT" in os.environ:
+    env_dir = os.environ["CLAUDE_WORKFLOW_ROOT"]
+    if os.path.exists(os.path.join(env_dir, "CLAUDE.md")):
+        全局工作流目录 = env_dir
+
+# 方法3：搜索用户主目录
+if not 全局工作流目录:
+    可能位置 = [
+        os.path.expanduser("~/.claude-modsdk-workflow"),
+    ]
+    for 位置 in 可能位置:
+        if os.path.exists(os.path.join(位置, "CLAUDE.md")):
+            全局工作流目录 = 位置
+            break
+
+# 验证
+if not 全局工作流目录:
+    输出错误("无法找到全局工作流目录，请检查安装")
+    终止执行
+
+print(f"✓ 检测到全局工作流目录: {全局工作流目录}")
+```
+
+**步骤B：复制额外的命令文件** ⭐ 必须执行
 
 1. 读取全局工作流目录中的`enhance-docs.md`：
    ```
-   Read(file_path="C:/Users/28114/.claude-modsdk-workflow/.claude/commands/enhance-docs.md")
+   Read(file_path="{全局工作流目录}/.claude/commands/enhance-docs.md")
    ```
 
 2. 将读取的内容写入目标项目：
@@ -376,7 +430,7 @@ def 生成NBT检查部分():
 
 3. 读取全局工作流目录中的`validate-docs.md`：
    ```
-   Read(file_path="C:/Users/28114/.claude-modsdk-workflow/.claude/commands/validate-docs.md")
+   Read(file_path="{全局工作流目录}/.claude/commands/validate-docs.md")
    ```
 
 4. 将读取的内容写入目标项目：
@@ -384,64 +438,64 @@ def 生成NBT检查部分():
    Write(file_path="<项目路径>/.claude/commands/validate-docs.md", content=<上一步读取的内容>)
    ```
 
-**步骤B：复制通用文档**
+**步骤C：复制通用文档**
 
 对于以下每个文件，执行Read → Write操作：
 
-全局源目录：`C:/Users/28114/.claude-modsdk-workflow/markdown/`
+全局源目录：`{全局工作流目录}/markdown/`
 
 1. **开发规范.md**：
-   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/开发规范.md`
+   - Read: `{全局工作流目录}/markdown/开发规范.md`
    - Write: `<项目路径>/markdown/开发规范.md`
 
 2. **问题排查.md**：
-   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/问题排查.md`
+   - Read: `{全局工作流目录}/markdown/问题排查.md`
    - Write: `<项目路径>/markdown/问题排查.md`
 
 3. **快速开始.md**：
-   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/快速开始.md`
+   - Read: `{全局工作流目录}/markdown/快速开始.md`
    - Write: `<项目路径>/markdown/快速开始.md`
 
 4. **开发指南.md**：
-   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/开发指南.md`
+   - Read: `{全局工作流目录}/markdown/开发指南.md`
    - Write: `<项目路径>/markdown/开发指南.md`
 
 5. **API速查.md**：
-   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/API速查.md`
+   - Read: `{全局工作流目录}/markdown/API速查.md`
    - Write: `<项目路径>/markdown/API速查.md`
 
 6. **MODSDK核心概念.md**：
-   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/MODSDK核心概念.md`
+   - Read: `{全局工作流目录}/markdown/MODSDK核心概念.md`
    - Write: `<项目路径>/markdown/MODSDK核心概念.md`
 
-**步骤C：复制AI辅助文档**
+**步骤D：复制AI辅助文档**
 
 1. **任务类型决策表.md**：
-   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/ai/任务类型决策表.md`
+   - Read: `{全局工作流目录}/markdown/ai/任务类型决策表.md`
    - Write: `<项目路径>/markdown/ai/任务类型决策表.md`
 
 2. **快速通道流程.md**：
-   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/ai/快速通道流程.md`
+   - Read: `{全局工作流目录}/markdown/ai/快速通道流程.md`
    - Write: `<项目路径>/markdown/ai/快速通道流程.md`
 
 3. **上下文管理规范.md**：
-   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/ai/上下文管理规范.md`
+   - Read: `{全局工作流目录}/markdown/ai/上下文管理规范.md`
    - Write: `<项目路径>/markdown/ai/上下文管理规范.md`
 
-**步骤D：创建README.md**
+**步骤F：创建README.md**
 
 使用Write工具创建项目README：
 ```
 Write(file_path="<项目路径>/README.md", content=<根据项目信息生成的README内容>)
 ```
 
-**步骤E：创建项目状态文档**
+**步骤G：创建项目状态文档**
 
 ```
 Write(file_path="<项目路径>/markdown/项目状态.md", content="# 项目状态\n\n⚠️ **待补充**\n")
 ```
 
-**步骤F：创建tasks目录说明**
+**步骤H：创建tasks目录说明**
 
 ```
 Write(file_path="<项目路径>/tasks/README.md", content=<生成tasks说明文档>)
@@ -707,7 +761,27 @@ def 生成layer2待补充项():
 
 ## 错误处理
 
-### 1. 未检测到modMain.py
+### 1. 在工作流项目本身执行 /initmc ⭐ 新增
+```
+⚠️  检测到工作流项目本身
+
+/initmc 命令仅用于初始化新的MODSDK项目。
+当前目录是工作流项目本身，无需初始化。
+
+使用说明：
+1. 在需要初始化的MODSDK项目根目录执行 /initmc
+2. 工作流文件将从全局目录自动复制到目标项目
+
+全局工作流目录：C:/Users/28114/.claude-modsdk-workflow/
+```
+
+**原因**：用户在工作流项目本身运行了 `/initmc`，这会导致文件循环复制。
+
+**解决方案**：切换到目标MODSDK项目根目录，然后执行 `/initmc`。
+
+---
+
+### 2. 未检测到modMain.py
 ```
 ❌ 错误: 当前目录不是MODSDK项目
 
@@ -715,7 +789,7 @@ def 生成layer2待补充项():
 项目根目录应包含 modMain.py 文件。
 ```
 
-### 2. markdown/目录已存在
+### 3. markdown/目录已存在
 ```
 ⚠️  检测到现有文档
 
@@ -729,7 +803,7 @@ def 生成layer2待补充项():
 是否备份现有文档后继续？[Y/n]
 ```
 
-### 3. Python模块导入失败
+### 4. Python模块导入失败
 ```
 ❌ 错误: 无法导入项目分析器
 
@@ -738,6 +812,24 @@ D:\EcWork\基于Claude的MODSDK开发工作流\workflow-generator\analyzer.py
 
 如果问题持续，请检查Python环境配置。
 ```
+
+### 5. 无法检测到全局工作流目录 ⭐ 新增
+```
+❌ 错误: 无法找到全局工作流目录
+
+已尝试以下位置:
+- C:/Users/28114/.claude-modsdk-workflow （默认全局目录）
+- ~/.claude-modsdk-workflow （用户主目录）
+- 环境变量 CLAUDE_WORKFLOW_ROOT
+
+请确保工作流已正确安装。
+```
+
+**原因**：AI无法自动定位全局工作流目录。
+
+**解决方案**：
+1. 检查工作流是否已安装到 `C:/Users/28114/.claude-modsdk-workflow`
+2. 或设置环境变量 `CLAUDE_WORKFLOW_ROOT` 指向工作流目录
 
 ---
 

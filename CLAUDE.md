@@ -251,14 +251,31 @@ mkdir {{PROJECT_ROOT}}/tasks/[中文任务名]  # 必须创建tasks目录
 - **[上下文管理规范.md](./markdown/ai/上下文管理规范.md)** - 模板系统
 
 ### 组件文档（⭐ 自适应维护）
-- **[systems/](./markdown/systems/)** - MODSDK Systems 文档
-- **[presets/](./markdown/presets/)** - ECPreset 组件文档（项目特定）
-- **[states/](./markdown/states/)** - 状态机文档（自动发现）
-- **[config/](./markdown/config/)** - 配置文件文档（自动发现）
-- **其他项目特定组件** - AI自动发现并维护
 
-> 💡 **自适应学习机制**：AI会自动发现项目中的任意组件类型（Presets、States、Managers等），
-> 推断文档目录结构，并智能维护文档。无需手动配置，支持任意项目结构。
+#### 核心概念（MODSDK官方）
+- **System** - ServerSystem/ClientSystem文档
+  - MODSDK官方定义的核心概念
+  - AI自动发现项目中的System类并维护文档
+
+- **Component** - 自定义Component文档
+  - MODSDK官方定义的组件系统
+  - AI自动发现RegisterComponent调用并维护文档
+
+#### 项目特定组织（AI自适应发现）
+AI会根据实际项目代码自动发现和维护任意组织方式的文档，例如：
+- 状态机模式（State类） → 自动推断文档路径
+- 预设模式（Preset类） → 自动推断文档路径
+- 管理器模式（Manager类） → 自动推断文档路径
+- 控制器模式（Controller类） → 自动推断文档路径
+- 配置模块（config/目录） → 自动推断文档路径
+- 工具模块（utils/目录） → 自动推断文档路径
+- ...（任意项目特定架构）
+
+> 💡 **自适应学习机制**：
+> - AI会扫描项目代码，提取类名后缀和目录结构
+> - 根据发现的组织模式，自动推断文档路径并维护
+> - 无需预设目录结构，完全适配任意MODSDK项目架构
+> - 只保留MODSDK官方定义的System和Component作为核心概念
 
 ### 开发文档
 - **[开发指南.md](./markdown/开发指南.md)** - 完整开发工作流（System/Component/Event/Entity）
@@ -346,30 +363,30 @@ WebFetch(
 
 ## 📝 版本信息
 
-> **文档版本**: 13.0 (MODSDK纯化重构)
-> **最后更新**: 2025-11-09
+> **文档版本**: 14.0 (真·通用化重构)
+> **最后更新**: 2025-11-10
 > **项目状态**: {{PROJECT_STATUS}}
 
-### v13.0 更新亮点 ⚡
+### v14.0 更新亮点 ⚡
 
-**核心重构**：
-- ✅ **完全移除项目特定内容**: 删除ECPreset、GamingState、BedWars示例
-- ✅ **CRITICAL规范扩充**: 新增EventData序列化限制、AOI范围限制
-- ✅ **核心文档重构**:
-  - 开发规范.md (960→1330行, +38%)
-  - 开发指南.md (831→1636行, +97%)
-  - 问题排查.md (232→712行, +206%)
-  - 快速开始.md (216→327行, +51%)
-- ✅ **快速索引增强**: 14条常见问题直达章节
+**通用化重构**（基于官方MODSDK文档审定）：
+- ✅ **移除所有硬编码目录结构**: 删除presets/、states/、config/等项目特定目录引用
+- ✅ **对齐MODSDK官方架构**: 只保留System和Component两个官方定义的核心概念
+- ✅ **实现真·自适应机制**: AI根据实际项目代码推断组织方式和文档路径
+- ✅ **全面清理35处硬编码**: 包括具体业务示例、外部项目引用等
+- ✅ **通用化命令工具**: validate-docs和enhance-docs改为动态识别组件类型
 
-**保留优势**：
-- ✅ CRITICAL规范前置（前150行）
-- ✅ 三步工作流程
-- ✅ 三级任务分类
-- ✅ WebFetch官方文档集成
-- ✅ 完整MODSDK知识体系
+**官方依据**：
+- 📚 MODSDK官方文档只定义System（ServerSystem/ClientSystem）和Component
+- 📚 官方制作规范只要求entities/和textures/目录
+- 📚 Preset、State、Manager等都是项目自定义的组织方式，不应硬编码
 
-**文档纯度**: 100%聚焦MODSDK通用开发知识
+**兼容性**：
+- ✅ 适配任意MODSDK项目架构（状态机、预设、管理器等任意模式）
+- ✅ 零配置，AI自动发现项目组织方式
+- ✅ 保留所有核心优势（CRITICAL规范、三步流程、三级分类等）
+
+**产品定位**: 100%通用MODSDK开发工作流，适用于任何基于网易MODSDK的项目
 
 ---
 

@@ -52,7 +52,7 @@ const content = Read(file_path="markdown/文档待补充清单.md");
 // 解析未完成的项（标记为 `- [ ]` 的项）
 const todoItems = [];
 
-// 正则匹配：- [ ] `markdown/systems/商店购买系统.md`
+// 正则匹配：- [ ] `markdown/{推断路径}/XXX系统.md`
 const regex = /- \[ \] `(markdown\/[^`]+)`\s+- 类名：(\w+)\s+- 路径：(.+)\s+- 功能：(.+)/g;
 
 let match;
@@ -62,9 +62,14 @@ while ((match = regex.exec(content)) !== null) {
     className: match[2],
     sourcePath: match[3],
     description: match[4],
-    type: inferTypeFromPath(match[1]) // systems/states/presets
+    type: inferTypeFromClassName(match[2]) // 从类名推断类型，而非路径
   });
 }
+
+// inferTypeFromClassName实现示例：
+// ShopServerSystem → 'system'
+// WaitingState → 'state' (如果项目使用State模式)
+// PayManager → 'manager' (如果项目使用Manager模式)
 ```
 
 **输出示例**：
@@ -72,8 +77,8 @@ while ((match = regex.exec(content)) !== null) {
 [读取待补充清单]
 - 发现 18 个待补充项
   - Systems: 2 个
-  - States: 16 个
-  - Presets: 2 个
+  - [State模式]: 16 个
+  - [Preset模式]: 2 个
 ```
 
 ---
@@ -83,12 +88,19 @@ while ((match = regex.exec(content)) !== null) {
 **任务**：按组件类型分组，标记核心组件
 
 ```javascript
-// 1. 按类型分组
-const grouped = {
-  systems: todoItems.filter(item => item.type === 'system'),
-  states: todoItems.filter(item => item.type === 'state'),
-  presets: todoItems.filter(item => item.type === 'preset')
-};
+// 1. 按类型分组（动态识别项目中实际使用的组件类型）
+const grouped = {};
+
+// 自动提取所有唯一的组件类型
+const uniqueTypes = [...new Set(todoItems.map(item => item.type))];
+
+// 为每种类型创建分组
+for (const type of uniqueTypes) {
+  grouped[type] = todoItems.filter(item => item.type === type);
+}
+
+// grouped可能包含：
+// { system: [...], state: [...], preset: [...], manager: [...], ... }
 
 // 2. 标记核心组件（可选，供用户选择优先生成）
 // 核心组件定义：被多处引用的组件
@@ -106,43 +118,47 @@ for (const item of todoItems) {
 **任务**：使用 AskUserQuestion 工具询问补充范围
 
 ```javascript
+// 动态生成选项（基于实际发现的组件类型）
+const options = [
+  {
+    label: "全部补充",
+    description: `补充所有 ${todoItems.length} 个文档（预计Token: ${todoItems.length * 5}-${todoItems.length * 10}k）`
+  },
+  {
+    label: "只补充核心组件",
+    description: "优先补充被频繁引用的核心组件（预计Token: 30-50k, 时间: 30分钟）"
+  }
+];
+
+// 为每种组件类型添加选项
+for (const [type, items] of Object.entries(grouped)) {
+  const typeName = type === 'system' ? 'Systems' : `[${type}模式]组件`;
+  options.push({
+    label: `只补充 ${typeName}`,
+    description: `只补充 ${items.length} 个${typeName}（预计Token: ${items.length * 5}-${items.length * 10}k）`
+  });
+}
+
+options.push({
+  label: "自定义选择",
+  description: "让我选择具体要补充的文档"
+});
+
 AskUserQuestion({
   questions: [{
-    question: "发现 18 个待补充项，请选择补充范围：",
+    question: `发现 ${todoItems.length} 个待补充项，请选择补充范围：`,
     header: "补充范围",
     multiSelect: false,
-    options: [
-      {
-        label: "全部补充",
-        description: "补充所有 18 个文档（预计Token: 90-180k, 时间: 1-2小时）"
-      },
-      {
-        label: "只补充 Systems",
-        description: "只补充 2 个System文档（预计Token: 10-20k, 时间: 10-20分钟）"
-      },
-      {
-        label: "只补充 States",
-        description: "只补充 16 个State文档（预计Token: 80-160k, 时间: 1小时）"
-      },
-      {
-        label: "只补充核心组件",
-        description: "优先补充被频繁引用的核心组件（预计Token: 30-50k, 时间: 30分钟）"
-      },
-      {
-        label: "自定义选择",
-        description: "让我选择具体要补充的文档"
-      }
-    ]
+    options: options
   }]
 })
 ```
 
 **根据用户选择确定任务列表**：
-- 选项1：全部补充 → `tasksToComplete = todoItems`
-- 选项2：只补充Systems → `tasksToComplete = grouped.systems`
-- 选项3：只补充States → `tasksToComplete = grouped.states`
-- 选项4：只补充核心组件 → `tasksToComplete = todoItems.filter(item => item.priority === 'high')`
-- 选项5：自定义选择 → 展示列表，让用户勾选
+- "全部补充" → `tasksToComplete = todoItems`
+- "只补充核心组件" → `tasksToComplete = todoItems.filter(item => item.priority === 'high')`
+- "只补充 {类型}" → `tasksToComplete = grouped[对应类型]`
+- "自定义选择" → 展示列表，让用户勾选
 
 ---
 
@@ -373,12 +389,12 @@ for (const item of completedItems) {
 ## 📝 更新的文档
 
 【Systems】(2个)
-- ✅ markdown/systems/商店购买系统.md (2850字)
-- ✅ markdown/systems/队伍管理系统.md (2640字)
+- ✅ markdown/{推断路径}/XXX业务系统.md (2850字)
+- ✅ markdown/{推断路径}/YYY业务系统.md (2640字)
 
-【States】(16个)
-- ✅ markdown/states/等待阶段状态.md (1890字)
-- ✅ markdown/states/游戏进行状态.md (2120字)
+【项目特定组织】(16个)
+- ✅ markdown/{推断路径}/XXX阶段状态.md (1890字)
+- ✅ markdown/{推断路径}/YYY阶段状态.md (2120字)
 ...
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

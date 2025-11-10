@@ -545,6 +545,37 @@ async function deployWorkflow() {
     process.exit(1);
   }
 
+  // 5.5. 复制 lib/ 核心工具库（新增！）
+  log('🔧 复制核心工具库...', 'blue');
+
+  const libFiles = [
+    { src: 'lib/adaptive-doc-discovery.js', minSize: 3000 },
+    { src: 'lib/utils.js', minSize: 500 },
+    { src: 'lib/config.js', minSize: 500 },
+    { src: 'lib/metadata-schema.js', minSize: 1000 },
+    { src: 'lib/indexer.js', minSize: 2000 },
+    { src: 'lib/search-engine.js', minSize: 2000 }
+  ];
+
+  libFiles.forEach(file => {
+    const srcPath = path.join(globalDir, file.src);
+    const destPath = path.join(projectDir, file.src);
+
+    // 检查源文件是否存在（某些文件可能可选）
+    if (fs.existsSync(srcPath)) {
+      allSuccess &= copyFileWithValidation(srcPath, destPath, file.minSize);
+    } else {
+      warning(`  跳过 ${file.src} (源文件不存在)`);
+    }
+  });
+
+  console.log('');
+
+  if (!allSuccess) {
+    error('核心工具库复制失败');
+    process.exit(1);
+  }
+
   // 6. 生成 CLAUDE.md
   log('⚙️  生成定制化配置...', 'blue');
   allSuccess &= generateCustomizedCLAUDE(globalDir, projectDir);
@@ -581,7 +612,8 @@ async function deployWorkflow() {
     { path: '.claude/commands/validate-docs.md', minSize: 6000 },
     { path: 'CLAUDE.md', minSize: 10000 },
     { path: 'markdown/开发规范.md', minSize: 10000 },
-    { path: 'markdown/问题排查.md', minSize: 5000 }
+    { path: 'markdown/问题排查.md', minSize: 5000 },
+    { path: 'lib/adaptive-doc-discovery.js', minSize: 3000 }
   ];
 
   let allValid = true;
@@ -628,30 +660,37 @@ async function deployWorkflow() {
   console.log('  ✅ 命令文件: 4 个 (/cc, /discover, /validate-docs, /enhance-docs)');
   console.log('  ✅ 通用文档: 6 个 (开发规范.md, 问题排查.md等)');
   console.log('  ✅ AI 文档: 3 个');
+  console.log('  ✅ 核心工具: 6 个 (lib/目录)');
   console.log('  ✅ 配置文件: 1 个 (CLAUDE.md)');
   console.log('');
 
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'cyan');
   console.log('');
-  log('🎯 下一步（重要！）', 'yellow');
+  log('🎯 下一步（重要！）⭐', 'yellow');
   console.log('');
-  console.log('请在 Claude Code 中执行以下命令：');
+  console.log('请在 Claude Code 中按顺序执行以下命令：');
   console.log('');
-  log('  /validate-docs', 'cyan');
+  log('步骤1: /discover', 'cyan');
+  console.log('  功能: 自适应发现项目结构（5-10秒，零Token）');
+  console.log('  - 识别MODSDK官方概念（System、Component）');
+  console.log('  - 发现项目自定义模式（State、Preset、Manager等）');
+  console.log('  - 生成 .claude/discovered-patterns.json 映射文件');
   console.log('');
-  console.log('该命令将：');
-  console.log('  1. AI 自动发现项目中的所有组件（Systems/States/Presets等）');
-  console.log('  2. 智能推断规范化的中文文档名');
-  console.log('  3. 生成文档待补充清单');
-  console.log('  4. （可选）创建文档占位符');
+  log('步骤2: /validate-docs', 'cyan');
+  console.log('  功能: 文档审计与规范化（依赖步骤1的结果）');
+  console.log('  - 读取自适应发现结果');
+  console.log('  - AI智能推断规范化的中文文档名');
+  console.log('  - 检查文档覆盖率');
+  console.log('  - 生成文档待补充清单');
   console.log('');
 
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'cyan');
   console.log('');
-  console.log('📚 完整工作流:');
-  console.log('  1. /validate-docs - 发现组件并规范化文档结构');
-  console.log('  2. /enhance-docs - 批量生成高质量文档内容');
-  console.log('  3. /cc "任务描述" - 开发时自动维护文档');
+  console.log('📚 完整工作流（四段式）:');
+  console.log('  1. /discover - 自适应发现项目结构（零配置）');
+  console.log('  2. /validate-docs - 发现组件并规范化文档结构');
+  console.log('  3. /enhance-docs - 批量生成高质量文档内容');
+  console.log('  4. /cc "任务描述" - 开发时自动维护文档');
   console.log('');
 
   log('🎉 开始体验文档驱动的开发工作流吧！', 'green');

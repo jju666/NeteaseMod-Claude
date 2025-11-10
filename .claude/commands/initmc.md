@@ -368,53 +368,91 @@ def 生成NBT检查部分():
 
 **3.1.4 复制其他通用文档**：
 
-```bash
-# 创建markdown目录结构
-mkdir -p PROJECT_PATH/markdown
-mkdir -p PROJECT_PATH/markdown/ai
-mkdir -p PROJECT_PATH/markdown/systems
-mkdir -p PROJECT_PATH/tasks
+执行以下操作来复制文档和命令文件（**重要：这些是实际要执行的操作，不是伪代码**）：
 
-# 复制额外的命令文件（enhance-docs.md 和 validate-docs.md）
-工作流根目录 = 获取工作流项目根目录()  # 通过查找CLAUDE.md的位置
-命令文件列表 = ["enhance-docs.md", "validate-docs.md"]
-for 命令文件 in 命令文件列表:
-    源路径 = os.path.join(工作流根目录, ".claude/commands", 命令文件)
-    目标路径 = os.path.join(PROJECT_PATH, ".claude/commands", 命令文件)
-    命令内容 = Read(file_path=源路径)
-    Write(file_path=目标路径, content=命令内容)
+**步骤A：复制额外的命令文件** ⭐ 必须执行
 
-# 生成README.md（使用内置模板）
-模板路径 = os.path.join(TEMPLATES_DIR, "README.md.template")
-模板内容 = Read(file_path=模板路径)
-替换后内容 = 执行占位符替换(模板内容)  # 使用相同的替换逻辑
-Write(file_path=PROJECT_PATH+"/README.md", content=替换后内容)
+1. 读取全局工作流目录中的`enhance-docs.md`：
+   ```
+   Read(file_path="C:/Users/28114/.claude-modsdk-workflow/.claude/commands/enhance-docs.md")
+   ```
 
-# 复制ai/目录（4个AI补充文档，已内置）
-ai模板目录 = os.path.join(TEMPLATES_DIR, "markdown/ai")
-for ai文档 in ["任务类型决策表.md", "快速通道流程.md", "上下文管理规范.md"]:
-    模板内容 = Read(file_path=ai模板目录+"/"+ai文档)
-    替换后内容 = 模板内容.replace("{{PROJECT_PATH}}", PROJECT_PATH)
-    替换后内容 = 替换后内容.replace("{{CURRENT_DATE}}", 当前日期)
-    Write(file_path=PROJECT_PATH+"/markdown/ai/"+ai文档, content=替换后内容)
+2. 将读取的内容写入目标项目：
+   ```
+   Write(file_path="<项目路径>/.claude/commands/enhance-docs.md", content=<上一步读取的内容>)
+   ```
 
-# 复制开发规范.md（使用内置模板）
-模板路径 = os.path.join(TEMPLATES_DIR, "markdown/开发规范.md.template")
-模板内容 = Read(file_path=模板路径)
-Write(file_path=PROJECT_PATH+"/markdown/开发规范.md", content=模板内容)
+3. 读取全局工作流目录中的`validate-docs.md`：
+   ```
+   Read(file_path="C:/Users/28114/.claude-modsdk-workflow/.claude/commands/validate-docs.md")
+   ```
 
-# 复制问题排查.md（使用内置模板）
-模板路径 = os.path.join(TEMPLATES_DIR, "markdown/问题排查.md.template")
-模板内容 = Read(file_path=模板路径)
-Write(file_path=PROJECT_PATH+"/markdown/问题排查.md", content=模板内容)
+4. 将读取的内容写入目标项目：
+   ```
+   Write(file_path="<项目路径>/.claude/commands/validate-docs.md", content=<上一步读取的内容>)
+   ```
 
-# 创建空的快速开始.md、开发指南.md、项目状态.md
-Write(file_path=PROJECT_PATH+"/markdown/快速开始.md", content="# 快速开始\n\n⚠️ **待补充**\n")
-Write(file_path=PROJECT_PATH+"/markdown/开发指南.md", content="# 开发指南\n\n⚠️ **待补充**\n")
-Write(file_path=PROJECT_PATH+"/markdown/项目状态.md", content="# 项目状态\n\n⚠️ **待补充**\n")
+**步骤B：复制通用文档**
 
-# 创建tasks/README.md
-Write(file_path=PROJECT_PATH+"/tasks/README.md", content=生成tasks_readme())
+对于以下每个文件，执行Read → Write操作：
+
+全局源目录：`C:/Users/28114/.claude-modsdk-workflow/markdown/`
+
+1. **开发规范.md**：
+   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/开发规范.md`
+   - Write: `<项目路径>/markdown/开发规范.md`
+
+2. **问题排查.md**：
+   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/问题排查.md`
+   - Write: `<项目路径>/markdown/问题排查.md`
+
+3. **快速开始.md**：
+   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/快速开始.md`
+   - Write: `<项目路径>/markdown/快速开始.md`
+
+4. **开发指南.md**：
+   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/开发指南.md`
+   - Write: `<项目路径>/markdown/开发指南.md`
+
+5. **API速查.md**：
+   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/API速查.md`
+   - Write: `<项目路径>/markdown/API速查.md`
+
+6. **MODSDK核心概念.md**：
+   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/MODSDK核心概念.md`
+   - Write: `<项目路径>/markdown/MODSDK核心概念.md`
+
+**步骤C：复制AI辅助文档**
+
+1. **任务类型决策表.md**：
+   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/ai/任务类型决策表.md`
+   - Write: `<项目路径>/markdown/ai/任务类型决策表.md`
+
+2. **快速通道流程.md**：
+   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/ai/快速通道流程.md`
+   - Write: `<项目路径>/markdown/ai/快速通道流程.md`
+
+3. **上下文管理规范.md**：
+   - Read: `C:/Users/28114/.claude-modsdk-workflow/markdown/ai/上下文管理规范.md`
+   - Write: `<项目路径>/markdown/ai/上下文管理规范.md`
+
+**步骤D：创建README.md**
+
+使用Write工具创建项目README：
+```
+Write(file_path="<项目路径>/README.md", content=<根据项目信息生成的README内容>)
+```
+
+**步骤E：创建项目状态文档**
+
+```
+Write(file_path="<项目路径>/markdown/项目状态.md", content="# 项目状态\n\n⚠️ **待补充**\n")
+```
+
+**步骤F：创建tasks目录说明**
+
+```
+Write(file_path="<项目路径>/tasks/README.md", content=<生成tasks说明文档>)
 ```
 
 ---

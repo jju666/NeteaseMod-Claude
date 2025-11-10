@@ -298,14 +298,26 @@ function detectProjectType(projectDir) {
 }
 
 /**
- * 复制文件并验证
+ * 复制文件并验证（带备份保护）
  */
-function copyFileWithValidation(src, dest, minSize = 1000) {
+function copyFileWithValidation(src, dest, minSize = 1000, enableBackup = true) {
   const fileName = path.basename(dest);
 
   try {
     // 确保目标目录存在
     fs.ensureDirSync(path.dirname(dest));
+
+    // 如果目标文件已存在，且启用了备份保护
+    if (enableBackup && fs.existsSync(dest)) {
+      // 只备份用户可能修改的文件（命令文件）
+      const isCommandFile = dest.includes('.claude/commands/');
+      if (isCommandFile) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+        const backupPath = `${dest}.backup.${timestamp}`;
+        fs.copyFileSync(dest, backupPath);
+        log(`  📦 备份 ${fileName}: ${path.basename(backupPath)}`, 'yellow');
+      }
+    }
 
     // 复制文件
     fs.copyFileSync(src, dest);
@@ -379,8 +391,17 @@ function generateCustomizedCLAUDE(globalDir, projectDir) {
     const currentDate = new Date().toISOString().split('T')[0];
     content = content.replace(/\{\{CURRENT_DATE\}\}/g, currentDate);
 
-    // 写入目标文件
+    // 写入目标文件（带备份保护）
     const destPath = path.join(projectDir, 'CLAUDE.md');
+
+    // 如果文件已存在，先备份
+    if (fs.existsSync(destPath)) {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+      const backupPath = path.join(projectDir, `CLAUDE.md.backup.${timestamp}`);
+      fs.copyFileSync(destPath, backupPath);
+      log(`  📦 备份原文件: ${path.basename(backupPath)}`, 'yellow');
+    }
+
     fs.writeFileSync(destPath, content, 'utf-8');
 
     const stat = fs.statSync(destPath);
@@ -675,6 +696,11 @@ async function deployWorkflow() {
   console.log('  ✅ AI 文档: 3 个');
   console.log('  ✅ 核心工具: 6 个 (lib/目录)');
   console.log('  ✅ 配置文件: 1 个 (CLAUDE.md)');
+  console.log('');
+  console.log('💡 备份保护:');
+  console.log('  - 已自动备份现有的 CLAUDE.md 和命令文件（如有）');
+  console.log('  - 备份文件格式: 文件名.backup.YYYY-MM-DD');
+  console.log('  - 通用文档不备份（可随时覆盖）');
   console.log('');
 
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'cyan');

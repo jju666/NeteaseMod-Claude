@@ -12,6 +12,7 @@
   "bin": {
     "modsdk-deploy": "./bin/quick-deploy.js",
     "initmc": "./bin/initmc.js",
+    "uninstallmc": "./bin/uninstallmc.js",
     "merge-conflicts": "./bin/merge-conflicts.js",
     "detect-obsolete": "./bin/detect-obsolete.js"
   },

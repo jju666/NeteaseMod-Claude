@@ -209,6 +209,23 @@ function main() {
 
   console.log('✅ 文件复制完成\n');
 
+  // 在目标目录安装依赖（v16.0新增）
+  console.log('📦 在全局目录安装依赖...\n');
+  try {
+    execSync('npm install --production', {
+      cwd: TARGET_DIR,
+      stdio: 'inherit',
+      shell: true
+    });
+    console.log('\n✅ 依赖安装完成\n');
+  } catch (err) {
+    console.error('\n❌ 依赖安装失败:', err.message);
+    console.error('\n请手动执行:');
+    console.error(`   cd ${TARGET_DIR}`);
+    console.error('   npm install --production\n');
+    process.exit(1);
+  }
+
   // 平台特定安装
   if (IS_WINDOWS) {
     installWindows();

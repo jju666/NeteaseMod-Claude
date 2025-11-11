@@ -429,18 +429,219 @@ Claude将自动读取本文件并继续完成剩余工作。
    - 迁移指南-v16.0.md
    - 项目文档更新（CLAUDE.md、README.md）
 
-⏳ 阶段3: 测试和验证 - 0% 待执行
-   - 全新项目部署测试
-   - v15.x迁移测试
-   - 同步更新测试
-   - 跨平台测试
+⚠️ 阶段3: 测试和验证 - 30% 部分完成（发现重大架构问题）
+   ✅ 基础功能测试
+   ✅ 修复文件大小检查问题
+   ❌ v16.0迁移机制未测试（架构不一致）
+   ❌ 双层文档架构未测试
+   ❌ 同步更新功能未测试
 
 ⏸️ 阶段4: 文档完善 - 待开始
    - 最终文档审查
    - 发布说明
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-文档更新时间：2025-11-11
-当前状态：阶段1-2完成（100%），阶段3待测试
-预计剩余工时：1-2小时（测试验证）
+🔥 发现的重大问题（阻塞测试）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## 问题1: 架构不一致 ⚠️ 严重
+
+**现象**：
+- bin/initmc.js 调用 scripts/initmc.js（v15旧逻辑）
+- lib/init-workflow.js 包含v16.0新逻辑（迁移、双层架构等），但未被调用
+- 导致执行initmc时使用的是v15逻辑，v16.0核心功能未生效
+
+**影响**：
+- ❌ v16.0的3个核心模块（SymlinkManager、VersionChecker、MigrationV16）未被使用
+- ❌ 无法测试v15.x自动迁移功能
+- ❌ 无法测试双层文档架构（.claude/core-docs/软连接）
+- ❌ 无法测试initmc --sync同步更新
+
+**根本原因**：
+v16.0开发时创建了lib/init-workflow.js和lib/migration-v16.js等新模块，
+但没有修改bin/initmc.js的调用入口，仍在使用旧的scripts/initmc.js。
+
+**解决方案（必须）**：
+重构 bin/initmc.js，调用lib/init-workflow.js：
+
+```javascript
+#!/usr/bin/env node
+
+/**
+ * MODSDK 工作流部署命令入口 v16.0
+ */
+
+const path = require('path');
+const fs = require('fs-extra');
+
+// 查找全局工作流目录
+const workflowHome = process.env.NETEASE_CLAUDE_HOME ||
+                     path.join(require('os').homedir(), '.claude-modsdk-workflow');
+
+if (!fs.existsSync(workflowHome)) {
+  console.error('错误: 未找到全局工作流目录');
+  console.error('请先运行: npm run install-global');
+  process.exit(1);
+}
+
+// 加载v16.0核心模块
+const { deployWorkflow, syncWorkflow } = require(path.join(workflowHome, 'lib', 'init-workflow'));
+
+// 解析命令行参数
+const args = process.argv.slice(2);
+
+if (args.includes('--sync')) {
+  // 同步更新模式
+  syncWorkflow(process.cwd()).catch(err => {
+    console.error('同步失败:', err.message);
+    process.exit(1);
+  });
+} else if (args.includes('--reset')) {
+  // 强制重置模式
+  deployWorkflow(process.cwd(), { reset: true }).catch(err => {
+    console.error('部署失败:', err.message);
+    process.exit(1);
+  });
+} else {
+  // 正常部署模式（包含自动迁移检测）
+  deployWorkflow(process.cwd()).catch(err => {
+    console.error('部署失败:', err.message);
+    process.exit(1);
+  });
+}
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ 已修复的问题（会话中完成）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## 问题2: review-design.md文件大小检查过严 ✅ 已修复
+
+**现象**：
+initmc复制review-design.md时报错"文件过小 (8070 bytes)"
+
+**原因**：
+scripts/initmc.js第771行和第962行，minSize设置为10000（10KB），
+但实际文件只有8070字节（7.9KB）
+
+**修复**：
+将minSize从10000降低到7000
+
+**相关Commit**：
+- cc306c8: fix: 将markdown/README.md设置为可选验证项（v15项目兼容）
+- 26e8845: fix: 修复review-design.md复制时的文件大小检查
+- 1a9664d: fix: 调整review-design.md文件大小检查阈值并支持v16.0双层架构验证
+
+## 问题3: markdown/README.md验证失败 ✅ 已修复
+
+**现象**：
+v15项目执行initmc时验证失败，提示markdown/README.md不存在
+
+**原因**：
+scripts/initmc.js第967行，将markdown/README.md设置为必需验证项，
+但v15项目没有这个文件（v16.0新增）
+
+**修复**：
+将markdown/README.md设置为optional: true
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 测试日志（2025-11-11会话）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## 测试环境
+- 上游项目：D:\EcWork\基于Claude的MODSDK开发工作流
+- 测试项目：D:\EcWork\NetEaseMapECBedWars_备份（v15.0项目）
+- 测试命令：initmc
+- 预期行为：自动检测v15.x并迁移到v16.0
+
+## 测试结果
+
+### ✅ 成功的测试
+1. npm install - 依赖安装成功
+2. npm run install-global - 全局安装成功
+3. initmc基础执行 - 命令可运行（使用v15逻辑）
+4. 文件复制功能 - 所有文件正常复制
+5. 文件验证功能 - 所有必需文件通过验证
+
+### ❌ 失败的测试（未能执行）
+1. v15.x自动迁移 - 未测试（lib/migration-v16.js未被调用）
+2. .claude/core-docs/软连接创建 - 未测试（lib/symlink-manager.js未被调用）
+3. markdown/core/覆盖层机制 - 未测试
+4. markdown/README.md生成 - 未测试
+5. initmc --sync - 未测试
+6. 版本检测和冲突识别 - 未测试
+
+### 🔍 观察到的行为
+- initmc执行时使用scripts/initmc.js（v15逻辑）
+- 核心文档被直接复制到markdown/目录（v15行为）
+- 没有创建.claude/core-docs/目录
+- 没有生成markdown/README.md
+- 没有调用lib/migration-v16.js的迁移逻辑
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 下一会话待办事项（优先级排序）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## 必须完成（P0 - 阻塞测试）
+
+1. **重构bin/initmc.js** ⭐⭐⭐
+   - 修改调用入口，从scripts/initmc.js改为lib/init-workflow.js
+   - 支持--sync和--reset参数
+   - 预计工时：30分钟
+
+2. **验证lib/init-workflow.js的deployWorkflow函数**
+   - 确保函数签名正确
+   - 确保能正确调用lib/migration-v16.js
+   - 确保能正确调用lib/symlink-manager.js
+   - 预计工时：15分钟
+
+## 高优先级（P1 - 核心功能）
+
+3. **测试v15.x自动迁移**
+   - 在D:\EcWork\NetEaseMapECBedWars_备份执行initmc
+   - 验证文件分类（定制/未定制）
+   - 验证迁移到markdown/core/
+   - 验证备份到.backup-v15/
+   - 预计工时：20分钟
+
+4. **测试双层文档架构**
+   - 验证.claude/core-docs/软连接创建
+   - 验证markdown/README.md生成
+   - 验证.claude/workflow-manifest.json生成
+   - 预计工时：15分钟
+
+5. **测试同步更新功能**
+   - 执行initmc --sync
+   - 验证版本检测
+   - 验证软连接更新
+   - 验证废弃文件检测
+   - 预计工时：15分钟
+
+## 中优先级（P2 - 完善）
+
+6. **测试跨平台兼容性**
+   - Windows软连接降级为只读副本
+   - 验证只读标记
+   - 预计工时：10分钟
+
+7. **文档完善**
+   - 更新README.md（测试结果）
+   - 更新迁移指南
+   - 预计工时：20分钟
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📞 下一会话启动指令
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+请告知Claude：
+
+"继续v16.0双层文档架构测试，从重构bin/initmc.js开始。
+阅读D:\EcWork\基于Claude的MODSDK开发工作流\v16.0-双层文档架构实施进度.txt
+了解当前问题和待办事项。"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+文档更新时间：2025-11-11 12:45
+当前状态：阶段1-2完成，阶段3部分完成（发现架构问题）
+预计剩余工时：2-3小时（重构+测试）
+会话状态：已暂存，等待下次继续
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

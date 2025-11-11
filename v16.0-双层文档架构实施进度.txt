@@ -591,6 +591,32 @@ scripts/initmc.js第967行，将markdown/README.md设置为必需验证项，
 将markdown/README.md设置为optional: true
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## 问题4: migration-v16.js未更新CLAUDE.md ✅ 已修复 (2025-11-11)
+
+**现象**：
+- v15.x → v16.0迁移后，CLAUDE.md仍显示"v15.0"
+- 其他文件（软连接、README.md、manifest）正常
+- 用户会看到版本不一致的困惑
+
+**原因**：
+- lib/migration-v16.js只创建软连接和README，未更新CLAUDE.md
+- lib/init-workflow.js（首次部署）会生成CLAUDE.md
+- 两个流程不一致
+
+**修复**：
+- 添加 _updateClaudeMd() 方法
+- 在迁移流程的步骤8调用
+- 使用ProjectAnalyzer + DocumentGenerator生成最新CLAUDE.md
+
+**验证**：
+- ✅ 手动验证：CLAUDE.md显示"v16.0"
+- ✅ 迁移流程添加步骤8输出
+
+**相关Commit**：
+- 20ee268: docs: 记录v16.0测试结果和发现的架构问题
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📝 测试日志（2025-11-11会话）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

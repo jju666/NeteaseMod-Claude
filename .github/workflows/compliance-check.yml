@@ -1,0 +1,272 @@
+name: 文档合规检查
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'markdown/**'
+      - 'templates/**'
+      - 'docs/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'markdown/**'
+      - 'templates/**'
+      - 'docs/**'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  compliance-check:
+    runs-on: ubuntu-latest
+    name: 检查文档合规性
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # 获取完整历史，用于检查
+
+      - name: 🔍 检查禁止表述
+        run: |
+          echo "🔍 检查markdown/和templates/目录中的禁止表述..."
+
+          # 定义禁止表述列表
+          FORBIDDEN_PATTERNS=(
+            "根据反编译"
+            "逆向工程"
+            "源码分析"
+            "反编译代码"
+            "D:\\\\EcWork\\\\3\\.5"
+            "分析源码发现"
+            "反编译结果显示"
+          )
+
+          VIOLATIONS_FOUND=0
+
+          for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
+            echo "检查: $pattern"
+            if grep -r -n "$pattern" markdown/ templates/ 2>/dev/null; then
+              echo "❌ 发现违规表述: $pattern"
+              VIOLATIONS_FOUND=1
+            fi
+          done
+
+          if [ $VIOLATIONS_FOUND -eq 1 ]; then
+            echo ""
+            echo "❌ 合规检查失败！发现禁止表述。"
+            echo "请参考 INTERNAL_DOCS_POLICY.md 了解合规要求。"
+            exit 1
+          fi
+
+          echo "✅ 禁止表述检查通过"
+
+      - name: 🛡️ 检查敏感文件
+        run: |
+          echo "🛡️ 检查Git跟踪的文件中是否包含敏感内容..."
+
+          # 定义敏感文件模式
+          SENSITIVE_PATTERNS=(
+            "开发包文档分析报告"
+            "\.internal\.md$"
+            ".internal-docs"
+            "系统性检查报告"
+            "合规检查报告"
+            "修复-完成报告"
+            "检查报告索引"
+          )
+
+          SENSITIVE_FILES_FOUND=0
+
+          for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+            echo "检查: $pattern"
+            if git ls-files | grep -i "$pattern" 2>/dev/null; then
+              echo "❌ 发现敏感文件: $pattern"
+              SENSITIVE_FILES_FOUND=1
+            fi
+          done
+
+          if [ $SENSITIVE_FILES_FOUND -eq 1 ]; then
+            echo ""
+            echo "❌ 敏感文件检查失败！发现未隔离的内部文件。"
+            echo "请将这些文件添加到 .gitignore"
+            exit 1
+          fi
+
+          echo "✅ 敏感文件检查通过"
+
+      - name: 📝 检查本地路径泄露
+        run: |
+          echo "📝 检查是否存在本地路径泄露..."
+
+          # 检查Windows路径模式
+          if grep -r -n "D:\\\\[^\"]*\\\\" markdown/ templates/ 2>/dev/null | grep -v "CLAUDE.md\|README.md"; then
+            echo "❌ 发现本地Windows路径泄露"
+            echo "请移除所有本地路径引用"
+            exit 1
+          fi
+
+          # 检查Unix路径模式（排除合法的相对路径）
+          if grep -r -n "/Users/[^/]*/.*EcWork\|/home/[^/]*/.*EcWork" markdown/ templates/ 2>/dev/null; then
+            echo "❌ 发现本地Unix路径泄露"
+            echo "请移除所有本地路径引用"
+            exit 1
+          fi
+
+          echo "✅ 本地路径检查通过"
+
+      - name: 📋 检查版本号一致性
+        run: |
+          echo "📋 检查版本号一致性..."
+
+          # 提取package.json版本号
+          PACKAGE_VERSION=$(grep -oP '"version":\s*"\K[^"]+' package.json)
+          echo "package.json版本: $PACKAGE_VERSION"
+
+          # 检查CLAUDE.md版本号
+          if ! grep -q "v$PACKAGE_VERSION" CLAUDE.md; then
+            echo "⚠️ 警告: CLAUDE.md版本号可能不一致"
+            echo "请确认CLAUDE.md中的版本号为: v$PACKAGE_VERSION"
+          fi
+
+          # 检查templates/CLAUDE.md.template版本号
+          if ! grep -q "v$PACKAGE_VERSION" templates/CLAUDE.md.template; then
+            echo "⚠️ 警告: templates/CLAUDE.md.template版本号可能不一致"
+            echo "请确认模板中的版本号为: v$PACKAGE_VERSION"
+          fi
+
+          echo "✅ 版本号一致性检查完成"
+
+      - name: 📊 生成检查报告
+        if: always()
+        run: |
+          echo "📊 合规检查报告"
+          echo "================"
+          echo "检查时间: $(date)"
+          echo "Git提交: $GITHUB_SHA"
+          echo "分支: $GITHUB_REF"
+          echo ""
+          echo "检查项目:"
+          echo "  ✅ 禁止表述检查"
+          echo "  ✅ 敏感文件检查"
+          echo "  ✅ 本地路径检查"
+          echo "  ✅ 版本号一致性检查"
+          echo ""
+          echo "合规检查完成！"
+
+  # 可选：文档链接检查（防止孤岛文档）
+  link-check:
+    runs-on: ubuntu-latest
+    name: 检查文档链接完整性
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+
+      - name: 🔗 检查markdown链接
+        run: |
+          echo "🔗 检查文档链接完整性..."
+
+          # 查找所有markdown文件中的相对链接
+          find markdown/ templates/ -name "*.md" -type f | while read file; do
+            echo "检查文件: $file"
+
+            # 提取相对路径链接（排除HTTP链接）
+            grep -oP '\[.*?\]\(\K[^)]+(?=\))' "$file" 2>/dev/null | while read link; do
+              # 跳过HTTP链接和锚点
+              if [[ "$link" =~ ^https?:// ]] || [[ "$link" =~ ^# ]]; then
+                continue
+              fi
+
+              # 计算链接的绝对路径
+              dir=$(dirname "$file")
+              target=$(realpath -m "$dir/$link" 2>/dev/null || echo "$link")
+
+              # 检查文件是否存在
+              if [ ! -e "$target" ]; then
+                echo "⚠️ 警告: $file 中的链接失效: $link"
+              fi
+            done
+          done
+
+          echo "✅ 链接检查完成"
+
+  # 可选：文档质量检查
+  quality-check:
+    runs-on: ubuntu-latest
+    name: 文档质量检查
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+
+      - name: 📈 统计文档行数
+        run: |
+          echo "📈 检查超长文档（>1000行）..."
+
+          find markdown/ templates/ -name "*.md" -type f | while read file; do
+            lines=$(wc -l < "$file")
+            if [ $lines -gt 1000 ]; then
+              echo "⚠️ 警告: $file 过长（$lines 行），建议分拆"
+            fi
+          done
+
+          echo "✅ 文档行数检查完成"
+
+      - name: 📝 检查文档头部声明
+        run: |
+          echo "📝 检查核心文档是否包含标题和日期..."
+
+          # 检查关键文档是否包含版本信息
+          KEY_DOCS=(
+            "CLAUDE.md"
+            "README.md"
+            "templates/CLAUDE.md.template"
+          )
+
+          for doc in "${KEY_DOCS[@]}"; do
+            if [ -f "$doc" ]; then
+              if ! grep -q "版本\|Version\|v[0-9]\+\.[0-9]\+" "$doc"; then
+                echo "⚠️ 警告: $doc 缺少版本信息"
+              fi
+            fi
+          done
+
+          echo "✅ 文档头部检查完成"
+
+  # 可选：自动修复（仅在开发分支）
+  auto-fix:
+    runs-on: ubuntu-latest
+    name: 自动修复（可选）
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    needs: [compliance-check, link-check, quality-check]
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🔧 自动移除尾随空格
+        run: |
+          echo "🔧 自动移除markdown文件的尾随空格..."
+
+          find markdown/ templates/ -name "*.md" -type f | while read file; do
+            # 移除尾随空格（不修改文件时间戳）
+            sed -i 's/[[:space:]]*$//' "$file"
+          done
+
+          echo "✅ 尾随空格清理完成"
+
+      - name: 💾 提交修复
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          if git diff --quiet; then
+            echo "无需修复"
+          else
+            git add markdown/ templates/
+            git commit -m "chore: 自动修复文档格式问题 [skip ci]"
+            git push
+            echo "✅ 自动修复已提交"
+          fi

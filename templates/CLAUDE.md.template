@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-> 🤖 **Claude Code AI Assistant 项目参考文档 v17.1.0**
+> 🤖 **Claude Code AI Assistant 项目参考文档 v17.2.0**
 >
 > This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 >
-> **当前版本**: v17.1.0 (新增: 方案自检与专家审核流程)
+> **当前版本**: v17.2.0 (强化: 步骤2强制文档查阅机制)
 > **最后更新**: {{CURRENT_DATE}}
 
 ---

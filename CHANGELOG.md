@@ -128,24 +128,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 💥 BREAKING CHANGES - 命令系统重构
 
-#### 命令重命名（统一/mc前缀）
-从9个命令精简为7个，建立统一命名规范：
+#### 新命令体系（统一/mc前缀）
+6个核心命令，建立统一命名规范：
 
-| 旧命令 | 新命令 | 变化说明 |
-|-------|--------|----------|
-| `/cc` | `/mc` | 主命令重命名 |
-| `/review-design` | `/mc-review` | 统一前缀 |
-| `/analyze-performance` | `/mc-perf` | 统一前缀+简化 |
-| `/validate-docs` + `/enhance-docs` | `/mc-docs` | **合并为双模式命令** |
-| `/explain-why` | `/mc-why` | 统一前缀 |
-| `/discover` | `/mc-discover` | 统一前缀 |
-| `/validate-architecture` | ❌ 删除 | 功能合并到`/mc-review` |
-| `/generate-diagram` | ❌ 删除 | 功能合并到`/mc-review` |
+| 命令 | 用途 | 适用场景 |
+|------|------|----------|
+| `/mc` | 主命令：任务执行 | 所有开发任务 |
+| `/mc-review` | 方案审查与专家审核 | 复杂方案审核 |
+| `/mc-perf` | 性能分析与优化 | 性能问题排查 |
+| `/mc-docs` | 文档审计与维护 | 批量文档维护 |
+| `/mc-why` | 代码意图追溯 | 理解代码设计 |
+| `/mc-discover` | 项目结构发现 | 新项目理解 |
 
 #### mc-docs双模式设计
 - **验证模式**（默认）：`/mc-docs` - 扫描所有Systems，检查文档完整性和质量
 - **生成模式**：`/mc-docs --gen` - 批量补充缺失或低质量文档
-- 合并了原`validate-docs`和`enhance-docs`的功能，统一入口
 
 ### ✨ Added - 用户体验优化
 
@@ -201,9 +198,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ✅ 减少维护成本（删除3个冗余命令）
 
 **迁移建议**：
-- 用户需要重新学习新命令名称
-- 建议在项目中运行`initmc`重新部署以获取新命令
-- 旧命令将自动清理，不再支持
+- 在项目中运行`initmc`重新部署以获取新命令
+- 核心命令使用统一`/mc`前缀，便于记忆和使用
+- 旧命令将自动清理
 
 ---
 
@@ -223,8 +220,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **SSOT原则**：确立`markdown/`为单一真实源
 - **动态发现**：实现零维护文档索引机制
 
-#### 命令系统（v16）
-- 9个命令：cc, review-design, validate-docs, enhance-docs, discover, analyze-performance, validate-architecture, explain-why, generate-diagram
+#### 命令系统
+- v16时代的命令系统（已在v17.0重构为统一/mc前缀）
 
 ---
 

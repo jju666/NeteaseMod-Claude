@@ -76,7 +76,8 @@
 
 **1.2 检查历史上下文**（如有）
 ```bash
-dir d:/EcWork/基于Claude的MODSDK开发工作流\tasks /b  # 检查是否有相关任务
+dir tasks /b  # 检查是否有相关任务（Windows）
+ls tasks/    # 检查是否有相关任务（Linux/Mac）
 ```
 
 **1.3 微任务直接执行**
@@ -182,7 +183,7 @@ WebFetch(
 
 **3.1 标准任务（5章模板）**
 ```bash
-mkdir d:/EcWork/基于Claude的MODSDK开发工作流\tasks\[任务名]
+mkdir tasks/[任务名]
 # 创建5章精简模板
 # 父代理直接探索（不用Task）
 # 实施→验证→Git commit
@@ -190,7 +191,7 @@ mkdir d:/EcWork/基于Claude的MODSDK开发工作流\tasks\[任务名]
 
 **3.2 复杂任务（9章模板）**
 ```bash
-mkdir d:/EcWork/基于Claude的MODSDK开发工作流\tasks\[任务名]
+mkdir tasks/[任务名]
 # 创建9章完整模板
 # 可选并行探索（仅用户要求时）
 # 分阶段实施→测试→文档更新→Git commit
@@ -350,8 +351,7 @@ WebFetch(
 
 ## 🔗 关键路径
 
-- **项目根目录**: `d:/EcWork/基于Claude的MODSDK开发工作流`
-- **项目根目录**: `d:/EcWork/基于Claude的MODSDK开发工作流`
+- **项目根目录**: 当前工作目录（通过环境变量获取）
 
 ---
 

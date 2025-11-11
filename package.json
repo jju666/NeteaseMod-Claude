@@ -1,6 +1,6 @@
 {
   "name": "netease-mod-claude",
-  "version": "16.0.0",
+  "version": "16.1.0",
   "description": "AI-Powered MODSDK Development Workflow - Claude Code驱动的网易我的世界MODSDK开发工作流",
   "main": "lib/init-workflow.js",
   "scripts": {

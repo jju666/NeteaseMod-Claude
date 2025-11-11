@@ -1,0 +1,241 @@
+# Changelog
+
+All notable changes to NeteaseMod-Claude will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [16.1.0] - 2025-11-11
+
+### ✨ Added - 双重定制架构
+
+#### CLAUDE.md项目扩展区支持
+- **新增变量支持**：`{{PRESETS_DOCS_SECTION}}`、`{{QUICK_INDEX_EXTRA}}`
+- **智能合并逻辑**：自动检测项目定制内容，上游更新时保留定制
+- **迁移脚本优化**：从v16.0平滑升级
+
+#### /uninstallmc 指令
+- **一键卸载**：支持从Claude Code中执行 `/uninstallmc` 卸载工作流
+- **安全备份**：自动创建备份目录 `.backup-uninstall-[日期]/`
+- **清理范围**：删除 `.claude/`、`CLAUDE.md`、`markdown/`、`tasks/`
+
+### 🐛 Fixed
+
+- 优化官方文档查阅策略，优先使用本地软连接
+- 修复废弃文件检测的版本号歧义问题
+- 修复v16.0初始化过程中的构造函数参数传递问题
+
+### 📚 Documentation
+
+- 完善迁移指南-v16.1.md
+- 更新可选工具说明文档
+
+### 🔧 Technical
+
+- **定制化程度**：高（支持CLAUDE.md内容定制）
+- **向后兼容**：v16.0项目自动迁移
+- **职责隔离**：100%（多项目互不影响）
+
+---
+
+## [16.0.0] - 2025-11-10
+
+### ✨ Added - 双层文档架构（核心创新）
+
+#### 双层文档架构
+- **上游基线层**：`.claude/core-docs/` 软连接到上游核心文档
+- **项目覆盖层**：`markdown/core/` 支持项目定制，互不干扰
+- **智能文档路由**：AI自动选择项目定制版或上游基线
+- **自动迁移v15.x**：执行 `initmc` 自动升级
+
+#### 可选优化工具
+- **覆盖层冲突合并**：`merge-conflicts` 命令检测项目覆盖层与上游的冲突
+- **废弃文件检测**：`detect-obsolete` 命令自动清理过期文件（带备份）
+
+#### 命令行工具
+- `initmc`：一键初始化MODSDK项目工作流
+- `initmc --sync`：同步上游更新
+- `initmc --force`：强制重新初始化
+- `uninstallmc`：卸载工作流
+
+### 🔄 Changed
+
+- **文档数量优化**：下游项目从10+个文档减少到3-5个（只存差异）
+- **软连接管理**：自动创建和维护软连接
+- **迁移策略**：v15.x项目自动备份到 `.backup-docs-v15/`
+
+### 🐛 Fixed
+
+- 修复v16.0架构不一致问题，使initmc正确调用lib/init-workflow.js
+- 修复migration-v16.js迁移时未更新命令文件
+- 修复review-design.md文件大小检查阈值并支持v16.0双层架构验证
+- 将markdown/README.md设置为可选验证项（v15项目兼容）
+
+### 📚 Documentation
+
+- 新增迁移指南-v16.0.md
+- 新增可选工具说明.md
+- 更新CLAUDE.md至v16.0标准
+
+### 🚀 Performance
+
+- **自动化程度**：95%（仅覆盖层冲突需手动合并）
+- **职责隔离**：100%（多项目共用上游时互不影响）
+- **兼容性**：Windows/Linux/Mac全平台
+
+---
+
+## [15.0.0] - 2025-11-09
+
+### ✨ Added - 单层文档架构（已废弃）
+
+#### CRITICAL规范前置
+- **双端隔离原则**：禁止跨端GetSystem
+- **System生命周期**：强制在Create()中初始化
+- **模块导入规范**：使用完整路径导入
+
+#### 三步核心工作流
+- **步骤1**：理解任务与分级（2分钟）
+- **步骤2**：查阅文档（智能路由）
+- **步骤3**：执行与收尾
+
+#### 三级任务分类
+- 🟢 **微任务**：单文件<30行，直接Edit
+- 🟡 **标准任务**：3-8文件，5章模板
+- 🔴 **复杂任务**：>8文件/架构，9章模板
+
+### 📚 Documentation
+
+- 开发规范.md（1158行）
+- 问题排查.md（1122行）
+- 快速开始.md（217行）
+- 开发指南.md
+- 任务类型决策表.md
+- 快速通道流程.md
+- 上下文管理规范.md
+
+### ⚠️ Deprecated
+
+- **v15.0架构问题**：
+  - 上游更新需要手动复制
+  - 项目定制会污染原文件
+  - 多项目维护困难
+  - v16.0已完全重构解决
+
+---
+
+## [Unreleased]
+
+### 🚧 Planned
+
+#### v16.2 计划
+- [ ] npm全局安装支持：`npm install -g netease-mod-claude`
+- [ ] GitHub Actions CI/CD集成
+- [ ] 自动化测试套件
+- [ ] 多语言支持（英文版文档）
+
+#### v17.0 计划
+- [ ] Web管理界面（可视化项目配置）
+- [ ] 插件系统（支持自定义扩展）
+- [ ] 协作功能（团队共享配置）
+
+---
+
+## Version History Summary
+
+| 版本 | 发布日期 | 核心特性 | 状态 |
+|------|---------|---------|------|
+| **v16.1** | 2025-11-11 | 双重定制架构、/uninstallmc指令 | ✅ 当前版本 |
+| **v16.0** | 2025-11-10 | 双层文档架构、可选优化工具 | ✅ 稳定版 |
+| **v15.0** | 2025-11-09 | CRITICAL规范、三步工作流 | ⚠️ 已废弃 |
+
+---
+
+## Migration Guide
+
+### v15.0 → v16.0
+
+**自动迁移**：
+```bash
+cd your-modsdk-project
+initmc  # 自动检测v15.0并升级到v16.0
+```
+
+**变更**：
+- 文档从 `markdown/` 迁移到双层架构
+- 自动创建 `.claude/core-docs/` 软连接
+- 备份原文档到 `.backup-docs-v15/`
+
+详见：[迁移指南-v16.0.md](./markdown/迁移指南-v16.0.md)
+
+### v16.0 → v16.1
+
+**自动迁移**：
+```bash
+cd /path/to/NeteaseMod-Claude
+git pull origin main
+
+cd your-modsdk-project
+initmc --sync  # 同步到v16.1
+```
+
+**变更**：
+- CLAUDE.md支持项目扩展区变量
+- 新增 `/uninstallmc` Slash Command
+- 优化官方文档查阅策略
+
+详见：[迁移指南-v16.1.md](./markdown/迁移指南-v16.1.md)
+
+---
+
+## Breaking Changes
+
+### v16.0
+
+- **文档路径变更**：核心文档从 `markdown/` 移动到 `.claude/core-docs/`（软连接）
+- **CLAUDE.md格式变更**：新增"文档架构说明"章节
+- **initmc行为变更**：默认创建双层架构
+
+### v15.0
+
+- **初次发布**：建立CRITICAL规范和三步工作流
+
+---
+
+## Acknowledgments
+
+### Contributors
+
+- [@jju666](https://github.com/jju666) - 项目维护者
+- Claude Code Team - AI辅助开发工具
+
+### Special Thanks
+
+- 网易我的世界MODSDK团队 - 提供官方文档和API
+- 基岩版Wiki社区 - 提供原版机制参考
+- Claude Code用户社区 - 反馈和建议
+
+---
+
+## License
+
+MIT License - see [LICENSE](./LICENSE) for details
+
+**附加条款**：
+- 本项目专为网易我的世界（中国版）MODSDK设计
+- 使用时需遵守[网易MODSDK开发协议](https://mc.163.com/dev/)
+
+---
+
+## Links
+
+- **GitHub**: https://github.com/jju666/NeteaseMod-Claude
+- **Issues**: https://github.com/jju666/NeteaseMod-Claude/issues
+- **Documentation**: [README.md](./README.md)
+- **Quick Start**: [快速开始.md](./markdown/快速开始.md)
+
+---
+
+_Last Updated: 2025-11-11_

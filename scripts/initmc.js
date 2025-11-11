@@ -964,7 +964,7 @@ async function deployWorkflow() {
     // v16.0: 移除markdown/文档检查，改为检查.claude/core-docs/（双层架构）
     { path: '.claude/core-docs/开发规范.md', minSize: 10000, optional: true },  // 软连接，可能不存在
     { path: '.claude/core-docs/问题排查.md', minSize: 5000, optional: true },
-    { path: 'markdown/README.md', minSize: 1000 },  // v16.0: 新增导航文档检查
+    { path: 'markdown/README.md', minSize: 1000, optional: true },  // v16.0: 导航文档，v15项目可能不存在
     { path: 'lib/adaptive-doc-discovery.js', minSize: 3000 }
   ];
 

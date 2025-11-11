@@ -60,6 +60,12 @@ initmc --version
   git submodule update --init --recursive
   ```
 
+**⚠️ 重要提示**：
+- `npm run install-global` 会自动下载官方文档（约50MB）
+- 下载过程可能需要 **1-3 分钟**，取决于网络速度
+- 请耐心等待，**不要关闭终端**
+- 如果网络较慢，可能出现长时间无输出，这是正常现象
+
 ### 2. 使用npm全局安装（未来支持）
 
 ```bash

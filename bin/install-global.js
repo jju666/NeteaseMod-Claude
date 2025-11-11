@@ -267,6 +267,11 @@ function main() {
 
   // 在目标目录安装依赖（v16.0新增）
   console.log('📦 在全局目录安装依赖...\n');
+  console.log('⏳ 正在安装npm依赖包...');
+  console.log('⏳ 正在下载官方文档（Git Submodule）...');
+  console.log('   这可能需要1-3分钟，取决于网络速度');
+  console.log('   请耐心等待，不要关闭终端\n');
+
   try {
     execSync('npm install --production', {
       cwd: TARGET_DIR,

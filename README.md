@@ -62,6 +62,11 @@ npm install
 npm run install-global
 ```
 
+**📝 注意事项**：
+- 安装过程会自动下载官方文档（Git Submodule）
+- 可能需要 1-3 分钟，取决于网络速度
+- 请耐心等待，**不要关闭终端**
+
 如遇到 `EPERM: operation not permitted` 错误，请参考：[Windows权限问题解决方案](./docs/INSTALLATION.md#问题3windows软连接权限不足)
 
 ### 2. 初始化你的MODSDK项目

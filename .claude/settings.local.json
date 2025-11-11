@@ -14,7 +14,11 @@
       "Bash(git add:*)",
       "Bash(npm run install-global:*)",
       "Bash(initmc --version:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Read(//d/EcWork/NetEaseMapECBedWars_备份/**)",
+      "Bash(initmc:*)",
+      "Bash(cat:*)",
+      "Bash(npm install)"
     ],
     "deny": [],
     "ask": []

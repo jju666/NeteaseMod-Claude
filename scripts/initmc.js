@@ -768,7 +768,7 @@ async function deployWorkflow() {
   allSuccess &= copyFileWithValidation(
     path.join(globalDir, '.claude', 'commands', 'review-design.md'),
     path.join(projectDir, '.claude', 'commands', 'review-design.md'),
-    10000
+    7000  // v16.0: 降低阈值以适应review-design.md实际大小（~8KB）
   );
 
   // 生成定制化 cc.md

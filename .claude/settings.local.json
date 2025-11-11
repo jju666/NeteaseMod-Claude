@@ -23,7 +23,9 @@
       "Read(//d/EcWork/NetEaseMapECBedWars/lib/**)",
       "Bash(if not exist \"D:\\EcWork\\基于Claude的MODSDK开发工作流\\开发包文档分析报告\" mkdir \"D:\\EcWork\\基于Claude的MODSDK开发工作流\\开发包文档分析报告\")",
       "Bash(find:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Read(//c/Users/28114/.claude-modsdk-workflow/markdown/ai/**)",
+      "Read(//c/Users/28114/.claude-modsdk-workflow/templates/markdown//**)"
     ],
     "deny": [],
     "ask": []

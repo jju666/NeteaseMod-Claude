@@ -17,6 +17,7 @@ Thumbs.db
 
 # Claude Code 本地配置（不提交个人配置）
 .claude/settings.local.json
+.claude/core-docs/  # 下游产物，不应存在于上游仓库
 
 # 临时文件
 *.tmp

@@ -11,7 +11,10 @@
       "Bash(node:*)",
       "Bash(where initmc:*)",
       "Bash(if not exist \".claude\\commands\" mkdir \".claude\\commands\")",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npm run install-global:*)",
+      "Bash(initmc --version:*)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": []

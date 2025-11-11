@@ -30,3 +30,10 @@ example-project/markdown/
 
 # 脚本临时文件
 scripts/extract-vocabulary.js
+
+# 备份文件
+README.md.backup
+
+# docs目录中的Git Submodules（不提交）
+docs/modsdk-wiki/
+docs/bedrock-wiki/

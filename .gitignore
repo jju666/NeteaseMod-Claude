@@ -19,6 +19,14 @@ Thumbs.db
 .claude/settings.local.json
 .claude/core-docs/  # 下游产物，不应存在于上游仓库
 
+# Claude Code 测试遗留（防止误提交下游命令）
+.claude/discovered-patterns.json  # 由/discover生成，属于下游项目
+.claude/commands/cc.md             # 下游命令，应使用模板
+.claude/commands/discover.md       # 下游命令，应使用模板
+.claude/commands/review-design.md  # 下游命令，应使用模板
+.claude/commands/enhance-docs.md   # 下游命令，应使用模板
+.claude/commands/validate-docs.md  # 下游命令，应使用模板
+
 # 临时文件
 *.tmp
 *.bak

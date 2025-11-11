@@ -57,8 +57,8 @@ node lib/adaptive-doc-discovery.js
 
 ```json
 {
-  "timestamp": "2025-11-10T...",
-  "projectRoot": "...",
+  "timestamp": "{{CURRENT_DATE}}T...",
+  "projectRoot": "{{PROJECT_PATH}}",
   "patterns": {
     "officialConcepts": {
       "systems": [...],
@@ -169,7 +169,7 @@ function inferDocPath(className, patterns) {
 如果自动定位失败，可以修改代码：
 
 ```javascript
-const discovery = new AdaptiveDocDiscovery('/path/to/project');
+const discovery = new AdaptiveDocDiscovery('{{PROJECT_PATH}}');
 discovery.behaviorPackPath = '/custom/path/to/behavior_packs';
 await discovery.discoverProjectStructure();
 ```

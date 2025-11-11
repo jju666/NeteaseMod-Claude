@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [16.2.1] - 2025-11-11
+
+### 🐛 Fixed - 下游命令部署和文档路径修复
+
+#### 命令部署完整性
+- **discover.md部署**：修复`/discover`命令未部署到下游项目的问题
+- **review-design.md部署**：修复`/review-design`命令未部署到下游项目的问题
+- **路径映射修复**：在`lib/config.js`的`getTemplatePath()`添加这两个命令的路径映射
+
+#### 文档路径引用错误修复
+- **markdown/软连接创建**：新增`SymlinkManager.createMarkdownSymlinks()`方法
+- **双层架构实现**：在`markdown/`目录创建指向`.claude/core-docs/`的软连接
+- **路径兼容性**：解决`/cc`命令引用`markdown/开发规范.md`但实际文档在`.claude/core-docs/`的问题
+- **用户文件保护**：如果`markdown/`已有用户文件则跳过创建软连接
+
+#### 官方文档部署优化
+- **环境变量降级**：修复`_deployOfficialDocs()`依赖`NETEASE_CLAUDE_HOME`环境变量的问题
+- **自动路径推断**：使用`upstreamPath`作为降级方案，无需手动设置环境变量
+- **文档可用性**：确保官方MODSDK和基岩版Wiki文档自动部署到`.claude/docs/`
+
+### 📚 Documentation
+
+#### 命令模板改进
+- **智能降级机制**：优先读取项目定制版（`markdown/core/`），降级到上游基线（`.claude/core-docs/`）
+- **本地文档优先**：优化官方文档查阅策略，优先使用本地离线文档，降级到在线WebFetch
+- **路径引用灵活化**：移除硬编码的`markdown/`路径前缀，支持灵活的文档组织
+
+### 🎯 Impact
+
+此版本修复了工作流部署的核心问题，确保下游项目：
+- ✅ 获得完整的5个命令（从3个增加到5个）
+- ✅ /cc命令可正确访问核心工作流文档
+- ✅ 官方文档自动部署供本地快速查询
+- ✅ 支持完整的双层文档架构
+
+---
+
 ## [16.2.0] - 2025-11-11
 
 ### ✨ Added - Windows安装体验优化

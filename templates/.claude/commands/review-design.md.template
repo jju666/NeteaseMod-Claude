@@ -133,6 +133,37 @@
 
 ---
 
+#### 2.4 官方文档查阅（可选）⭐
+
+**何时需要查阅**：
+- 需要确认API的最新用法或参数
+- 怀疑方案中使用了过时或错误的API
+- 需要查询原版游戏机制（NBT、实体行为等）
+
+**查阅方式（智能降级策略）**：
+1. **优先本地离线文档**（如果 `.claude/docs/` 存在）：
+   ```python
+   # 示例：查询API用法
+   Read(".claude/docs/modsdk-wiki/docs/mcdocs/1-ModAPI/Component/actorOwnerComp.md")
+   # 优点：速度快（<1秒）、支持离线、精确引用
+   ```
+
+2. **降级在线查询**（本地不存在时）：
+   ```python
+   # 使用WebFetch在线查询
+   WebFetch(
+       url="https://raw.githubusercontent.com/EaseCation/netease-modsdk-wiki/main/docs/mcdocs/...",
+       prompt="提取关于XXX的API说明"
+   )
+   ```
+
+**注意**：
+- ✅ 只在需要确认API用法时查阅，避免不必要的查询消耗tokens
+- ✅ 优先使用本地离线文档（如已部署）
+- ✅ 查阅结果应记录在审核报告的"参考文档"章节
+
+---
+
 ### 3. 边界场景检查
 
 #### 检查点
@@ -296,9 +327,21 @@
 ### 技巧1: 对照CRITICAL规范
 
 始终将方案与CRITICAL规范对照检查，这是最容易出错的地方：
-- [开发规范.md](../../markdown/开发规范.md) 第2章
-- [CLAUDE.md](../../CLAUDE.md) CRITICAL规范部分
-- [问题排查.md](../../markdown/问题排查.md) 前5个问题
+
+**核心文档查阅路径（智能降级）**：
+1. **开发规范.md** - CRITICAL规范详细说明
+   - 优先：`markdown/core/开发规范.md`（项目定制版，如存在）
+   - 降级：`.claude/core-docs/开发规范.md`（上游基线）
+   - 重点：第2章 CRITICAL规范
+
+2. **CLAUDE.md** - CRITICAL规范快速参考
+   - 路径：[CLAUDE.md](../../CLAUDE.md)
+   - 重点：CRITICAL规范部分
+
+3. **问题排查.md** - 常见错误案例
+   - 优先：`markdown/core/问题排查.md`（项目定制版，如存在）
+   - 降级：`.claude/core-docs/问题排查.md`（上游基线）
+   - 重点：前5个问题（CRITICAL规范相关）
 
 ### 技巧2: 关注数据流
 

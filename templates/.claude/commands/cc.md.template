@@ -53,11 +53,17 @@
 
 **详细文档**（需要深入理解时查阅）：
 
-1. **markdown/开发规范.md** - 检查是否违反CRITICAL规范（最高优先级）⭐⭐⭐
+1. **开发规范.md** - 检查是否违反CRITICAL规范（最高优先级）⭐⭐⭐
+   - **查阅路径**（智能降级）：
+     1. 优先：`markdown/core/开发规范.md`（项目定制版，如存在）
+     2. 降级：`.claude/core-docs/开发规范.md`（上游基线）
    - 使用Grep搜索关键词，定位相关规范
    - 详细阅读并提取原则
 
-2. **markdown/问题排查.md** - 查找是否为已知问题
+2. **问题排查.md** - 查找是否为已知问题
+   - **查阅路径**（智能降级）：
+     1. 优先：`markdown/core/问题排查.md`（项目定制版，如存在）
+     2. 降级：`.claude/core-docs/问题排查.md`（上游基线）
    - 搜索相似问题描述
    - 如找到，直接使用解决方案
 
@@ -74,20 +80,22 @@
      - 🔍 遇到不熟悉的API：不确定API参数、返回值、使用方式
      - 🐛 需要查询最新文档：确认API是否有更新
 
-   - **查阅方式**（使用WebFetch工具）：
-     ```python
-     # 示例1：查询API用法
-     WebFetch(
-         url="https://raw.githubusercontent.com/EaseCation/netease-modsdk-wiki/main/docs/mcdocs/1-ModAPI/...",
-         prompt="提取[API名称]的使用说明、参数定义和返回值"
-     )
-
-     # 示例2：查询事件说明
-     WebFetch(
-         url="https://raw.githubusercontent.com/EaseCation/netease-modsdk-wiki/main/docs/mcdocs/1-ModAPI/...",
-         prompt="提取[事件名称]的触发时机、参数和使用示例"
-     )
-     ```
+   - **查阅方式**（智能降级策略）⭐：
+     1. **优先本地离线文档**（如果 `.claude/docs/` 存在）：
+        ```python
+        # 示例1：查询Component用法
+        Read(".claude/docs/modsdk-wiki/docs/mcdocs/1-ModAPI/Component/actorOwnerComp.md")
+        # 优点：速度快（<1秒）、支持离线、精确引用
+        ```
+     2. **降级在线查询**（本地不存在时）：
+        ```python
+        # 示例2：使用WebFetch在线查询
+        WebFetch(
+            url="https://raw.githubusercontent.com/EaseCation/netease-modsdk-wiki/main/docs/mcdocs/1-ModAPI/...",
+            prompt="提取[API名称]的使用说明、参数定义和返回值"
+        )
+        # 适用场景：本地文档未下载、需要最新版本
+        ```
 
 5. **基岩版Wiki** - 涉及原版实体/物品/NBT时查阅 ⭐
    - **GitHub仓库**: https://github.com/Bedrock-OSS/bedrock-wiki
@@ -96,22 +104,29 @@
      - 📦 NBT数据结构相关问题时
      - ⚙️ 需要了解原版游戏机制时
 
-   - **查阅方式**（使用WebFetch工具）：
-     ```python
-     # 示例：查询NBT结构
-     WebFetch(
-         url="https://raw.githubusercontent.com/Bedrock-OSS/bedrock-wiki/main/docs/nbt/...",
-         prompt="提取[物品/实体]的NBT字段定义和数据结构"
-     )
-     ```
+   - **查阅方式**（智能降级策略）⭐：
+     1. **优先本地离线文档**（如果 `.claude/docs/` 存在）：
+        ```python
+        # 示例：查询NBT结构
+        Read(".claude/docs/bedrock-wiki/docs/nbt/entity.md")
+        # 优点：速度快、支持离线
+        ```
+     2. **降级在线查询**（本地不存在时）：
+        ```python
+        WebFetch(
+            url="https://raw.githubusercontent.com/Bedrock-OSS/bedrock-wiki/main/docs/nbt/...",
+            prompt="提取[物品/实体]的NBT字段定义和数据结构"
+        )
+        ```
 
-**⚠️ 官方文档查阅策略**：
-- ✅ **优先使用本地文档**：先查阅 `markdown/` 目录中的文档
-- 🌐 **本地不足时查阅官方**：
-  - 本地文档未找到相关内容
-  - 遇到不熟悉的API或原版机制
-  - 需要确认最新的API变更
-- 📝 **记录查阅结果**：将WebFetch的查阅结果记录到核心检查点输出中
+**⚠️ 官方文档查阅策略**（三级降级）：
+1. ✅ **优先项目文档**：先查阅 `markdown/` 目录中的项目文档
+2. 📦 **次优本地离线文档**：查阅 `.claude/docs/` 中的官方文档副本（如存在）
+   - 优点：速度快（<1秒）、支持离线、精确引用
+   - 检测方式：尝试 Read 操作，失败则自动降级
+3. 🌐 **最终在线查询**：使用 WebFetch 查询 GitHub 原始文件
+   - 适用场景：本地文档未下载、需要最新版本
+- 📝 **记录查阅结果**：将查阅结果（包括来源）记录到核心检查点输出中
 
 #### 🔍 文档缺失检测 ⭐ 自学习机制
 
@@ -169,9 +184,10 @@ if 文档缺少"数据流"或"常见问题"章节:
    - [文档名:行号] [简短描述]
 
 4. 官方文档查阅（如有）:
-   - [GitHub文件路径] - [查阅的API/概念]
+   - 📦 本地离线文档：[.claude/docs/modsdk-wiki/具体路径] - [查阅的API/概念]
+   - 🌐 在线查询：[GitHub文件路径] - [查阅的API/概念]
    - 提取内容: [关键信息摘要]
-   (如未使用WebFetch查阅官方文档，可跳过此项)
+   (如未使用，可跳过此项)
 
 {{NBT_CHECK_SECTION}}
 ```

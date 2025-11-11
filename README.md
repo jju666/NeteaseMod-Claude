@@ -304,7 +304,8 @@ Claude Code按照**标准化流程**执行每个任务：
    ├─ 层级1: 项目覆盖层（markdown/core/）
    ├─ 层级2: 上游基线（.claude/core-docs/）
    ├─ 层级3: 项目文档（markdown/systems/）
-   └─ 层级4: 官方文档（在线查阅 WebFetch）
+   ├─ 层级4: 官方文档（.claude/docs/，npm自动拉取）
+   └─ 层级5: 在线查阅（WebFetch降级策略）
 
 步骤3: 执行与收尾
    ├─ 实施修改（Edit/Write）
@@ -319,10 +320,25 @@ Claude Code按照**标准化流程**执行每个任务：
 
 ### 4. 🌐 智能官方文档查阅
 
-Claude Code可以**自动在线查阅**最新官方文档，无需手动搜索：
+Claude Code采用**三级文档查阅策略**，自动选择最优文档源：
 
+```
+优先级1: 本地Git Submodule（离线可用）
+   ├─ .claude/docs/netease-modsdk-wiki/  ← npm install自动拉取
+   └─ 优势: 离线访问、速度快
+
+优先级2: 本地软连接（上游基线）
+   ├─ .claude/core-docs/  ← 工作流核心文档
+   └─ 优势: 项目定制支持
+
+优先级3: 在线查阅（降级策略）
+   ├─ WebFetch查询GitHub Raw URL
+   └─ 优势: 获取最新文档
+```
+
+**文档查阅示例**（仅在本地无法找到时触发）：
 ```python
-# AI自动执行
+# AI自动执行（降级策略）
 WebFetch(
     url="https://raw.githubusercontent.com/EaseCation/netease-modsdk-wiki/main/docs/...",
     prompt="提取NotifyToClient的参数说明和使用示例"
@@ -330,8 +346,9 @@ WebFetch(
 ```
 
 支持的文档源：
-- ✅ [网易MODSDK开发文档](https://github.com/EaseCation/netease-modsdk-wiki)
+- ✅ [网易MODSDK开发文档](https://github.com/EaseCation/netease-modsdk-wiki)（npm自动拉取）
 - ✅ [基岩版Wiki](https://github.com/Bedrock-OSS/bedrock-wiki)（NBT/实体/原版机制）
+- ✅ 本地软连接到上游核心文档（工作流文档）
 
 ---
 
@@ -677,14 +694,36 @@ git clone https://github.com/jju666/NeteaseMod-Claude.git
 # ⚠️ 警告: 文档下载失败，将使用在线查询
 ```
 
+**影响**：
+- `.claude/docs/netease-modsdk-wiki/` 目录为空
+- Claude会降级使用WebFetch在线查阅（需要联网）
+
 **解决方案**：
+
+**方式1：手动初始化子模块（推荐）**
 ```bash
-# 手动初始化子模块
 cd NeteaseMod-Claude
 git submodule update --init --recursive
 
-# 如果网络问题，可以跳过子模块
-# Claude Code会自动使用WebFetch在线查阅文档
+# 验证
+ls .claude/docs/netease-modsdk-wiki/docs
+```
+
+**方式2：使用降级策略（临时方案）**
+```bash
+# 跳过子模块初始化，Claude Code会自动降级到WebFetch
+# 优点: 可立即使用
+# 缺点: 需要联网，查阅速度较慢
+```
+
+**方式3：离线环境手动部署**
+```bash
+# 在有网络的环境准备
+git clone --recursive https://github.com/jju666/NeteaseMod-Claude.git
+tar -czf netease-mod-claude.tar.gz NeteaseMod-Claude/
+
+# 在离线环境解压
+tar -xzf netease-mod-claude.tar.gz
 ```
 
 ---
@@ -878,19 +917,21 @@ uninstallmc
 
 #### Q6：Claude Code是否需要联网？
 
-**A**：部分功能需要联网。
+**A**：可完全离线使用（推荐部署方式）。
 
 | 功能 | 是否需要联网 | 说明 |
 |-----|------------|------|
 | 读取本地文档 | ❌ 不需要 | CLAUDE.md、开发规范等 |
-| 查阅官方文档 | ✅ 需要 | WebFetch查询GitHub |
+| 查阅官方文档 | ❌ 不需要 | `.claude/docs/`已在npm install时拉取 |
 | 代码编辑 | ❌ 不需要 | Edit/Write工具 |
 | Git操作 | ❌ 不需要 | Git commit本地操作 |
+| 在线查阅（降级） | ✅ 需要 | 仅在本地文档缺失时触发 |
 
-**离线模式**：
-- 确保 `git submodule` 已初始化（包含官方文档）
-- Claude会优先使用本地文档
-- 仅在本地找不到时才使用WebFetch
+**离线模式（默认）**：
+- `npm install` 自动初始化 Git Submodule（官方文档）
+- Claude优先使用本地文档（`.claude/docs/`）
+- WebFetch仅作为降级策略（本地缺失时）
+- **95%场景可完全离线使用**
 
 ---
 

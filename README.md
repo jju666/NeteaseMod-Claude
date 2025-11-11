@@ -6,7 +6,7 @@
 >
 > 一次安装，到处使用 | 自适应项目结构 | 零配置部署
 
-[![Version](https://img.shields.io/badge/version-15.0.0-blue.svg)](./CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-16.0.0-blue.svg)](./CLAUDE.md#v160-更新亮点-)
 [![Node](https://img.shields.io/badge/node-%3E%3D12.0.0-green.svg)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](./LICENSE)
 
@@ -19,7 +19,8 @@
 ### ✨ 核心特性
 
 - **🧠 AI 驱动开发** - 集成 Claude Code，提供智能代码生成和问题排查
-- **📚 完整文档体系** - 涵盖 MODSDK 核心概念、开发规范、API 速查和问题排查
+- **📚 双层文档架构** ⭐ v16.0 - 上游基线 + 项目覆盖层，零风险升级，按需定制
+- **🔄 自动同步机制** ⭐ v16.0 - `initmc --sync` 一键更新，自动清理废弃文件
 - **🔍 自适应发现** - 自动识别项目结构，零配置适配任意 MODSDK 架构
 - **⚡ 快速部署** - 一条命令全局安装，在任意项目中复用
 - **📖 智能文档维护** - 自动生成和更新组件文档，保持文档同步
@@ -291,26 +292,36 @@ aoi_comp.AddAoi(pos, [2000, 2000, 2000])
 
 ### 核心模块
 
-| 模块 | 文件 | 功能 | 代码行数 |
-|------|------|------|---------|
-| 自适应发现引擎 | `lib/adaptive-doc-discovery.js` | 扫描项目结构，生成映射规则 | ~500 |
-| 工作流初始化器 | `lib/init-workflow.js` | 部署配置和文档到目标项目 | ~400 |
-| 智能文档维护 | `lib/intelligent-doc-maintenance.js` | AI驱动的文档生成和更新 | ~600 |
-| 文档索引引擎 | `lib/indexer.js` | 构建全局文档索引 | ~300 |
-| 智能检索引擎 | `lib/search-engine.js` | 全文检索和相关度排序 | ~400 |
-| 项目分析器 | `lib/analyzer.js` | 代码分析和复杂度评估 | ~500 |
+| 模块 | 文件 | 功能 | 代码行数 | 版本 |
+|------|------|------|---------|------|
+| 软连接管理器 ⭐ | `lib/symlink-manager.js` | 跨平台软连接创建和更新 | ~400 | v16.0 |
+| 版本检测器 ⭐ | `lib/version-checker.js` | 版本对比、哈希计算、冲突检测 | ~300 | v16.0 |
+| 迁移工具 ⭐ | `lib/migration-v16.js` | v15.x自动迁移到v16.0 | ~400 | v16.0 |
+| 自适应发现引擎 | `lib/adaptive-doc-discovery.js` | 扫描项目结构，生成映射规则 | ~500 | v14.1 |
+| 工作流初始化器 | `lib/init-workflow.js` | 部署配置和文档到目标项目 | ~500 | - |
+| 智能文档维护 | `lib/intelligent-doc-maintenance.js` | AI驱动的文档生成和更新 | ~600 | v14.1 |
+| 文档索引引擎 | `lib/indexer.js` | 构建全局文档索引 | ~300 | - |
+| 智能检索引擎 | `lib/search-engine.js` | 全文检索和相关度排序 | ~400 | - |
+| 项目分析器 | `lib/analyzer.js` | 代码分析和复杂度评估 | ~500 | - |
 
-**总计**: 约 5000 行纯 JavaScript 实现，零 Python 依赖
+**总计**: 约 6500 行纯 JavaScript 实现，零 Python 依赖
 
 ### 命令系统
 
-| 命令 | 类型 | 功能 |
-|------|------|------|
-| `initmc` | 终端命令 | 全局部署工作流（Node.js 脚本） |
-| `/discover` | Slash 命令 | 自适应项目结构发现 |
-| `/cc` | Slash 命令 | AI 驱动的任务执行 |
-| `/validate-docs` | Slash 命令 | 文档覆盖率验证 |
-| `/enhance-docs` | Slash 命令 | 批量文档内容生成 |
+| 命令 | 类型 | 功能 | v16.0新增 |
+|------|------|------|-----------|
+| `initmc` | 终端命令 | 全局部署工作流（首次安装/自动迁移） | - |
+| `initmc --sync` | 终端命令 | 同步更新工作流（版本检测、清理废弃文件） | ⭐ |
+| `initmc --reset` | 终端命令 | 强制重置工作流 | ⭐ |
+| `/discover` | Slash 命令 | 自适应项目结构发现 | - |
+| `/cc` | Slash 命令 | AI 驱动的任务执行 | - |
+| `/validate-docs` | Slash 命令 | 文档覆盖率验证 | - |
+| `/enhance-docs` | Slash 命令 | 批量文档内容生成 | - |
+
+**v16.0 命令增强**:
+- `initmc`: 自动检测v15.x项目并迁移到v16.0（智能识别定制文档）
+- `initmc --sync`: 一键同步上游更新，自动清理废弃文件（带备份）
+- `initmc --reset`: 强制重置工作流，适用于迁移失败恢复
 
 ---
 

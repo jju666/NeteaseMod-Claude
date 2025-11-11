@@ -9,7 +9,9 @@
       "Bash(findstr:*)",
       "Bash(git commit:*)",
       "Bash(node:*)",
-      "Bash(where initmc:*)"
+      "Bash(where initmc:*)",
+      "Bash(if not exist \".claude\\commands\" mkdir \".claude\\commands\")",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

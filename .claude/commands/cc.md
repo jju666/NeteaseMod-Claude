@@ -51,30 +51,54 @@
 
 ---
 
-### 📚 步骤2：查阅文档 ⭐ 核心步骤
+### 📚 步骤2：查阅文档（智能路由）⭐ 核心步骤
 
-**快速参考**（无需查阅完整文档）：
-- 🔍 **markdown/API速查.md** - 常用API代码片段，可直接复制使用 ⭐
-- 📖 **markdown/MODSDK核心概念.md** - System/Component/Event/Entity速查 ⭐
+**文档查找优先级**（v16.0双层架构）：
 
-**详细文档**（需要深入理解时查阅）：
+#### 层级1: 项目覆盖层（最高优先级）
+优先检查 `markdown/core/` 目录（项目定制版本）：
+- 如果存在，使用项目定制版本，标记为 "📝 项目定制版"
 
-1. **markdown/开发规范.md** - 检查是否违反CRITICAL规范（最高优先级）⭐⭐⭐
+#### 层级2: 上游基线（回退）
+如果项目无定制，回退到 `.claude/core-docs/`（软连接到上游）：
+- 使用上游基线版本，标记为 "📦 上游基线版本"
+
+#### 层级3: 项目特定文档
+- `markdown/systems/` - 项目System实现文档
+- `markdown/文档待补充清单.md` - 项目跟踪文档
+
+---
+
+**核心文档**（智能路由查询）：
+
+1. **开发规范.md** - 检查是否违反CRITICAL规范（最高优先级）⭐⭐⭐
+   ```python
+   # 优先读取项目定制版
+   Read("markdown/core/开发规范.md") if exists else Read(".claude/core-docs/开发规范.md")
+   ```
    - 使用Grep搜索关键词，定位相关规范
    - 详细阅读并提取原则
 
-2. **markdown/问题排查.md** - 查找是否为已知问题
+2. **问题排查.md** - 查找是否为已知问题
+   ```python
+   Read("markdown/core/问题排查.md") if exists else Read(".claude/core-docs/问题排查.md")
+   ```
    - 搜索相似问题描述
    - 如找到，直接使用解决方案
 
-3. **Systems文档** - 系统实现文档
+3. **API速查.md** - 常用API代码片段，可直接复制使用 ⭐
+   ```python
+   Read("markdown/core/API速查.md") if exists else Read(".claude/core-docs/API速查.md")
+   ```
+
+4. **MODSDK核心概念.md** - System/Component/Event/Entity速查 ⭐
+   ```python
+   Read("markdown/core/MODSDK核心概念.md") if exists else Read(".claude/core-docs/MODSDK核心概念.md")
+   ```
+
+5. **Systems文档** - 系统实现文档（项目特定）
    - 路径：`markdown/systems/`
    - 查阅相关系统的技术文档
-
-
-3. **Systems文档** - 系统实现文档
-   - 路径: `markdown/systems/`
-   - 查阅对应系统的技术文档
 
 ---
 
@@ -194,16 +218,18 @@ if 文档缺少"数据流"或"常见问题"章节:
 
 ---
 
-### 🚦 核心检查点（步骤2→3）
+### 🚦 核心检查点（步骤2→3）⭐ v16.0更新
 
 **必须输出以下格式**：
 
 ```
 ✅ 检查点完成:
 
-1. 已查阅文档:
-   - [文档名 - 章节名] (第X-Y行)
-   - [文档名 - 章节名] (第X-Y行)
+1. 已查阅文档（标注文档类型）:
+   - 📝 [项目定制版] markdown/core/开发规范.md - 第1章 (第20-35行)
+   - 📦 [上游基线] .claude/core-docs/问题排查.md - 问题5 (第102-118行)
+   - 📂 [项目特定] markdown/systems/战斗系统.md - 数据流 (第45-67行)
+   - 🌐 [官方文档] MODSDK Wiki - NotifyToClient API说明
 
 2. 提取的关键原则:
    ⛔ 禁止: [具体禁止事项，必须来自文档]

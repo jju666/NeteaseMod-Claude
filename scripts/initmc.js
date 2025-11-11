@@ -883,7 +883,69 @@ async function deployWorkflow() {
     process.exit(1);
   }
 
-  // 8. 最终验证
+  // 8. 部署官方文档（Git Submodule）
+  log('📚 部署官方文档...', 'blue');
+
+  const globalDocsPath = path.join(globalDir, 'docs');
+  const projectDocsPath = path.join(projectDir, '.claude', 'docs');
+
+  if (!fs.existsSync(globalDocsPath)) {
+    console.log('');
+    warning('官方文档未下载，将使用在线查询（WebFetch）');
+    info('如需本地文档加速查询，请在工作流目录执行：');
+    console.log(`  cd ${globalDir}`);
+    console.log('  git submodule update --init --recursive');
+    console.log('');
+  } else {
+    // 检查文档子模块是否完整
+    const modsdkWikiPath = path.join(globalDocsPath, 'modsdk-wiki');
+    const bedrockWikiPath = path.join(globalDocsPath, 'bedrock-wiki');
+    const hasModsdkWiki = fs.existsSync(modsdkWikiPath) && fs.readdirSync(modsdkWikiPath).length > 1;
+    const hasBedrockWiki = fs.existsSync(bedrockWikiPath) && fs.readdirSync(bedrockWikiPath).length > 1;
+
+    if (!hasModsdkWiki && !hasBedrockWiki) {
+      console.log('');
+      warning('官方文档子模块为空，跳过部署');
+      info('请执行 git submodule update --init --recursive');
+      console.log('');
+    } else {
+      // 创建软链接（Windows使用junction）
+      try {
+        // 删除旧的软链接（如果存在）
+        if (fs.existsSync(projectDocsPath)) {
+          fs.removeSync(projectDocsPath);
+        }
+
+        // 创建软链接
+        fs.symlinkSync(globalDocsPath, projectDocsPath, 'junction');
+
+        console.log('');
+        success('已部署官方文档到 .claude/docs/（软链接）');
+        console.log('📁 包含文档：');
+        if (hasModsdkWiki) {
+          console.log('  - MODSDK Wiki (modsdk-wiki/)');
+        }
+        if (hasBedrockWiki) {
+          console.log('  - Bedrock Wiki (bedrock-wiki/)');
+        }
+        info('⚡ /cc 指令将优先查询本地文档（速度提升10x）');
+        console.log('');
+      } catch (err) {
+        if (err.code === 'EEXIST') {
+          console.log('');
+          success('官方文档已存在');
+          console.log('');
+        } else {
+          console.log('');
+          warning(`软链接创建失败: ${err.message}`);
+          info('将使用在线查询（WebFetch）');
+          console.log('');
+        }
+      }
+    }
+  }
+
+  // 9. 最终验证
   log('🔍 验证部署结果...', 'blue');
 
   const filesToVerify = [

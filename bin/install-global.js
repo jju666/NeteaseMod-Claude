@@ -78,6 +78,11 @@ function copyDirRecursive(src, dest) {
       continue;
     }
 
+    // 跳过符号链接（避免Windows权限问题）
+    if (entry.isSymbolicLink()) {
+      continue;
+    }
+
     if (entry.isDirectory()) {
       copyDirRecursive(srcPath, destPath);
     } else {

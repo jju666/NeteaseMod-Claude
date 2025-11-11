@@ -40,47 +40,17 @@
 
 ### ⛔ 规范1: 双端隔离原则
 
-**禁止:**
-- ❌ 服务端代码中GetSystem获取客户端系统
-  ```python
-  # ❌ 错误示例(在ServerSystem中)
-  shop_client = self.GetSystem("ShopClientSystem")  # 运行时错误!
-  ```
-- ❌ 客户端代码中GetSystem获取服务端系统
+**核心**: 客户端和服务器运行在**独立进程**中，禁止跨端GetSystem，必须使用NotifyToClient/NotifyToServer通信。
 
-**应该:**
-- ✅ 使用NotifyToClient(服务端→客户端)
-- ✅ 使用NotifyToServer(客户端→服务端)
-
-**为什么?**
-- 客户端和服务器是**独立进程**,不是同一进程的不同线程
-- 无法共享内存或全局变量
-- 跨端GetSystem返回None (因为目标System在另一个进程中)
+**详见**: [开发规范.md - 双端隔离原则](../../markdown/core/开发规范.md#21-双端隔离原则-) | 备用: [.claude/core-docs/开发规范.md](../.claude/core-docs/开发规范.md#21-双端隔离原则-)
 
 ---
 
 ### ⛔ 规范2: System生命周期限制
 
-**禁止:**
-- ❌ 在__init__中调用GetComponent/GetEntity
+**核心**: 禁止在`__init__`中调用GetComponent/GetEntity（注册表未就绪），必须在`__init__`中手动调用`Create()`，并在`Create()`中初始化组件和事件。
 
-**应该:**
-- ✅ 在__init__中手动调用Create()
-- ✅ 在Create中初始化组件和事件
-  ```python
-  def __init__(self, namespace, systemName):
-      super(MySystem, self).__init__(namespace, systemName)
-      self.comp = None  # 只声明
-      self.Create()      # 手动调用Create
-
-  def Create(self):
-      self.comp = self.GetComponent(...)  # 安全访问
-  ```
-
-**为什么?**
-- System初始化分为多个阶段: 实例化 → Component注册 → Create()
-- `__init__`时Component注册表未就绪,API调用会失败
-- 必须在`Create()`之后才能安全调用GetComponent等API
+**详见**: [开发规范.md - System生命周期](../../markdown/core/开发规范.md#22-system生命周期限制-) | 备用: [.claude/core-docs/开发规范.md](../.claude/core-docs/开发规范.md#22-system生命周期限制-)
 
 ---
 

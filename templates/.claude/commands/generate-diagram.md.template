@@ -1,0 +1,476 @@
+# /generate-diagram - 自动生成System架构图
+
+## 命令说明
+
+自动分析项目中的System代码，生成Mermaid架构图，帮助理解System之间的关系和数据流。
+
+## 执行流程
+
+### 第1步：扫描项目System
+
+使用Glob工具搜索项目中的所有System文件：
+
+```python
+# 扫描服务端System
+Glob("behavior_packs/{{PROJECT_NAME}}/*/server/*ServerSystem.py")
+
+# 扫描客户端System
+Glob("behavior_packs/{{PROJECT_NAME}}/*/client/*ClientSystem.py")
+```
+
+### 第2步：分析System代码
+
+对每个System文件，提取以下信息：
+
+#### 2.1 基础信息
+
+```python
+# 读取System文件内容
+class ShopServerSystem(ServerSystem):
+    def __init__(self, namespace, systemName):
+        ...
+
+# 提取信息：
+- System名称: ShopServerSystem
+- System类型: ServerSystem（服务端）
+- 文件路径: behavior_packs/{{PROJECT_NAME}}/shop/server/ShopServerSystem.py
+```
+
+#### 2.2 Component依赖
+
+```python
+# 分析代码中创建的Component
+self.extraDataComp = serverApi.GetEngineCompFactory().CreateExtraData(...)
+self.itemComp = serverApi.GetEngineCompFactory().CreateItem(...)
+
+# 提取信息：
+- 使用的Component: ExtraData, Item
+```
+
+#### 2.3 事件监听
+
+```python
+# 分析ListenForEvent调用
+self.ListenForEvent('ShopModNamespace', 'ShopModClientSystem',
+                    'PurchaseRequestEvent', self, self.OnPurchaseRequest)
+
+# 提取信息：
+- 监听的事件: PurchaseRequestEvent
+- 来源System: ShopModClientSystem
+```
+
+#### 2.4 事件通知
+
+```python
+# 分析NotifyToClient/NotifyToServer调用
+self.NotifyToClient(playerId, 'PurchaseResultEvent', {...})
+
+# 提取信息：
+- 发送的事件: PurchaseResultEvent
+- 目标: Client（客户端）
+```
+
+---
+
+### 第3步：生成Mermaid架构图
+
+根据分析结果，生成以下类型的架构图：
+
+#### 图1：System总览图
+
+```mermaid
+graph TB
+    subgraph "服务端System"
+        ShopServerSystem[ShopServerSystem<br/>商城服务端]
+        VIPServerSystem[VIPServerSystem<br/>VIP服务端]
+        AchievementServerSystem[AchievementServerSystem<br/>成就服务端]
+    end
+
+    subgraph "客户端System"
+        ShopClientSystem[ShopClientSystem<br/>商城客户端]
+        VIPClientSystem[VIPClientSystem<br/>VIP客户端]
+        AchievementClientSystem[AchievementClientSystem<br/>成就客户端]
+    end
+
+    ShopClientSystem -->|PurchaseRequest| ShopServerSystem
+    ShopServerSystem -->|PurchaseResult| ShopClientSystem
+
+    VIPClientSystem -->|QueryVIPStatus| VIPServerSystem
+    VIPServerSystem -->|VIPStatusUpdate| VIPClientSystem
+
+    AchievementServerSystem -->|AchievementUnlocked| AchievementClientSystem
+
+    style ShopServerSystem fill:#ffe0b2
+    style VIPServerSystem fill:#ffe0b2
+    style AchievementServerSystem fill:#ffe0b2
+    style ShopClientSystem fill:#e1f5ff
+    style VIPClientSystem fill:#e1f5ff
+    style AchievementClientSystem fill:#e1f5ff
+```
+
+---
+
+#### 图2：单个System详细架构图
+
+**示例：ShopServerSystem详细图**
+
+```mermaid
+graph TD
+    A[ShopServerSystem] --> B[监听事件]
+    A --> C[使用Component]
+    A --> D[发送事件]
+
+    B --> B1[PurchaseRequestEvent<br/>来自ShopClientSystem]
+    B --> B2[PlayerJoinServerEvent<br/>来自引擎]
+
+    C --> C1[ExtraData<br/>存储玩家数据]
+    C --> C2[Item<br/>发放道具]
+    C --> C3[Game<br/>获取游戏时间]
+
+    D --> D1[PurchaseResultEvent<br/>发送到ShopClientSystem]
+
+    style A fill:#ff9800,color:#fff
+    style B fill:#e1f5ff
+    style C fill:#c8e6c9
+    style D fill:#fff9c4
+```
+
+---
+
+#### 图3：数据流向图
+
+**示例：商城购买流程**
+
+```mermaid
+sequenceDiagram
+    participant Player as 玩家
+    participant Client as ShopClientSystem
+    participant Server as ShopServerSystem
+    participant ExtraData as ExtraData组件
+    participant Item as Item组件
+
+    Player->>Client: 点击购买按钮
+    Client->>Server: NotifyToServer(PurchaseRequestEvent)
+    Server->>Server: 验证商品ID
+    Server->>ExtraData: GetExtraData(playerId, "shop_data")
+    ExtraData-->>Server: 返回玩家数据
+    Server->>Server: 检查余额
+    alt 余额充足
+        Server->>ExtraData: SetExtraData(新余额)
+        Server->>Item: SpawnItemToPlayerInv(道具)
+        Item-->>Server: 发放成功
+        Server->>Client: NotifyToClient(PurchaseResultEvent, success)
+        Client->>Player: 显示"购买成功"
+    else 余额不足
+        Server->>Client: NotifyToClient(PurchaseResultEvent, fail)
+        Client->>Player: 显示"余额不足"
+    end
+```
+
+---
+
+### 第4步：生成Markdown文档
+
+将生成的架构图保存到文档文件：
+
+**文件路径**：`markdown/diagrams/architecture.md`
+
+**文件内容**：
+
+```markdown
+# System架构图
+
+> 🤖 **自动生成于**: {{CURRENT_DATE}}
+> **项目名称**: {{PROJECT_NAME}}
+
+---
+
+## 1. System总览
+
+以下是项目中所有System的总览图：
+
+{插入总览Mermaid图}
+
+---
+
+## 2. 服务端System详细架构
+
+### 2.1 ShopServerSystem（商城服务端）
+
+{插入ShopServerSystem详细图}
+
+**功能说明**：
+- 处理商品购买请求
+- 验证玩家余额和商品库存
+- 发放道具并扣除货币
+
+**关键事件**：
+- 监听: `PurchaseRequestEvent`（来自ShopClientSystem）
+- 发送: `PurchaseResultEvent`（发送到ShopClientSystem）
+
+**使用的Component**：
+- `ExtraData`: 存储玩家余额和购买历史
+- `Item`: 发放道具到玩家背包
+- `Game`: 获取游戏时间
+
+---
+
+### 2.2 VIPServerSystem（VIP服务端）
+
+{插入VIPServerSystem详细图}
+
+...
+
+---
+
+## 3. 客户端System详细架构
+
+...
+
+---
+
+## 4. 数据流向图
+
+### 4.1 商城购买流程
+
+{插入商城购买流程序列图}
+
+...
+```
+
+---
+
+### 第5步：输出结果
+
+向用户输出以下信息：
+
+```
+✅ System架构图已生成！
+
+📊 **统计信息**：
+- 服务端System: 3个
+- 客户端System: 3个
+- 监听的事件: 8个
+- 发送的事件: 6个
+- 使用的Component: 10个
+
+📁 **生成文件**：
+- markdown/diagrams/architecture.md
+
+💡 **使用建议**：
+1. 查看总览图，理解System之间的关系
+2. 查看详细图，了解每个System的职责
+3. 查看数据流向图，理解业务流程
+
+🔗 **下一步**：
+- 使用 /validate-architecture 验证架构设计
+- 使用 /enhance-docs 为System添加文档注释
+```
+
+---
+
+## 代码分析技巧
+
+### 技巧1：识别System类型
+
+```python
+# 通过继承关系判断System类型
+class ShopServerSystem(ServerSystem):  # 服务端System
+class ShopClientSystem(ClientSystem):  # 客户端System
+```
+
+### 技巧2：提取事件依赖
+
+```python
+# 提取ListenForEvent调用
+# 模式: self.ListenForEvent(namespace, systemName, eventName, ...)
+import re
+
+pattern = r"ListenForEvent\(['\"]([^'\"]+)['\"],\s*['\"]([^'\"]+)['\"],\s*['\"]([^'\"]+)['\"]"
+matches = re.findall(pattern, systemCode)
+
+for namespace, systemName, eventName in matches:
+    print("监听事件:", eventName, "来自:", systemName)
+```
+
+### 技巧3：提取Component使用
+
+```python
+# 提取CreateXxx调用
+# 模式: CreateExtraData(...), CreateItem(...), etc.
+import re
+
+pattern = r"Create([A-Z][a-zA-Z]+)\("
+matches = re.findall(pattern, systemCode)
+
+components = set(matches)
+print("使用的Component:", components)
+```
+
+---
+
+## 示例对话
+
+### 示例1：生成完整架构图
+
+**用户**：
+```
+/generate-diagram
+```
+
+**AI输出**：
+
+```
+🔍 **扫描项目System**...
+
+发现以下System：
+- behavior_packs/MyMod/shop/server/ShopServerSystem.py
+- behavior_packs/MyMod/shop/client/ShopClientSystem.py
+- behavior_packs/MyMod/vip/server/VIPServerSystem.py
+- behavior_packs/MyMod/vip/client/VIPClientSystem.py
+- behavior_packs/MyMod/achievement/server/AchievementServerSystem.py
+- behavior_packs/MyMod/achievement/client/AchievementClientSystem.py
+
+📊 **分析System代码**...
+
+✅ ShopServerSystem分析完成
+  - 监听事件: PurchaseRequestEvent, PlayerJoinServerEvent
+  - 发送事件: PurchaseResultEvent
+  - 使用Component: ExtraData, Item, Game
+
+✅ ShopClientSystem分析完成
+  - 监听事件: PurchaseResultEvent
+  - 发送事件: PurchaseRequestEvent
+  - 使用Component: 无
+
+✅ VIPServerSystem分析完成
+  ...
+
+🎨 **生成Mermaid架构图**...
+
+✅ 生成System总览图
+✅ 生成ShopServerSystem详细图
+✅ 生成ShopClientSystem详细图
+✅ 生成VIPServerSystem详细图
+✅ 生成VIPClientSystem详细图
+✅ 生成AchievementServerSystem详细图
+✅ 生成AchievementClientSystem详细图
+✅ 生成商城购买流程序列图
+
+📁 **保存到文件**: markdown/diagrams/architecture.md
+
+---
+
+✅ **System架构图已生成！**
+
+📊 **统计信息**：
+- 服务端System: 3个（ShopServerSystem, VIPServerSystem, AchievementServerSystem）
+- 客户端System: 3个（ShopClientSystem, VIPClientSystem, AchievementClientSystem）
+- 监听的事件: 8个
+- 发送的事件: 6个
+- 使用的Component: 10个（ExtraData, Item, Game, Attr, Pos等）
+
+📁 **生成文件**：
+- [markdown/diagrams/architecture.md](../../markdown/diagrams/architecture.md)
+
+💡 **使用建议**：
+1. 查看总览图，理解System之间的关系
+2. 查看详细图，了解每个System的职责
+3. 查看数据流向图，理解业务流程
+4. 将架构图分享给团队成员，提升协作效率
+
+🔗 **下一步**：
+- 使用 /validate-architecture 验证架构设计是否符合CRITICAL规范
+- 使用 /enhance-docs 为System添加详细文档注释
+- 使用 /review-design 让我审查System的设计质量
+```
+
+---
+
+### 示例2：生成特定System的架构图
+
+**用户**：
+```
+/generate-diagram ShopServerSystem
+```
+
+**AI输出**：
+
+```
+🔍 **分析ShopServerSystem**...
+
+📂 文件路径: behavior_packs/MyMod/shop/server/ShopServerSystem.py
+
+📊 **分析结果**：
+
+**监听的事件**：
+1. PurchaseRequestEvent（来自ShopClientSystem）
+2. PlayerJoinServerEvent（来自引擎）
+
+**发送的事件**：
+1. PurchaseResultEvent（发送到ShopClientSystem）
+
+**使用的Component**：
+1. ExtraData - 存储玩家商城数据（余额、购买历史）
+2. Item - 发放道具到玩家背包
+3. Game - 获取游戏时间
+
+**关键方法**：
+1. OnPlayerJoin(args) - 初始化玩家商城数据
+2. OnPurchaseRequest(args) - 处理购买请求
+3. _GetPlayerShopData(playerId) - 获取玩家数据
+4. _SendPurchaseResult(playerId, success, message) - 通知客户端结果
+
+---
+
+🎨 **生成架构图**：
+
+{显示ShopServerSystem详细Mermaid图}
+
+📁 **保存到文件**: markdown/diagrams/ShopServerSystem.md
+
+✅ 完成！
+```
+
+---
+
+## 注意事项
+
+### 1. 代码分析限制
+
+⚠️ **仅分析Python代码结构**，不执行代码逻辑
+⚠️ 无法分析动态创建的事件监听（如循环中的ListenForEvent）
+⚠️ 无法识别间接的Component使用（如通过工具函数创建）
+
+### 2. 图表复杂度控制
+
+如果项目System数量过多（>10个），建议：
+- 按模块分组生成多个架构图
+- 仅生成关键System的详细图
+- 使用折叠/展开语法简化图表
+
+### 3. 文件保存位置
+
+**默认路径**：`markdown/diagrams/architecture.md`
+
+**自定义路径**：用户可以指定输出路径
+```
+/generate-diagram --output=docs/architecture.md
+```
+
+---
+
+## 完成标准
+
+生成的架构图必须包含：
+1. ✅ System总览图（所有System的关系）
+2. ✅ 每个System的详细架构图
+3. ✅ 关键业务流程的序列图
+4. ✅ 统计信息（System数量、事件数量、Component数量）
+5. ✅ 保存到Markdown文档文件
+
+---
+
+**命令类型**: 代码分析命令
+**预期执行时间**: 30-60秒（取决于System数量）
+**输出格式**: Mermaid + Markdown文档

@@ -495,7 +495,7 @@ class Script_NeteaseMod(object):
 
 ### 相关引擎源码
 
-参考：`D:\EcWork\3.5\mod\common\minecraftMod.py` 的 `ImportModMain` 函数
+参考：网易MOD SDK引擎源代码中的 `ImportModMain` 函数实现
 
 [⬆️ 返回目录](#目录)
 

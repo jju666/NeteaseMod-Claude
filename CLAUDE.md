@@ -108,88 +108,128 @@ aoi_comp.AddAoi(pos, [2000, 2000, 2000])  # 遵守限制
 
 ### 🔍 步骤1: 理解任务与分级（2分钟）
 
-**1.1 判断任务级别**
+**1.1 判断任务模式**（新增）⭐
+识别用户需求类型，选择对应文档探索策略：
+- 🐛 **Bug修复** → 逆向追踪数据流 + 查问题排查.md
+  - 关键词：报错、bug、不工作、返回None
+  - 策略：识别错误类型 → 追踪数据流 → 验证规范 → 修复
+
+- 🆕 **新功能** → 正向设计数据流 + 查事件/API索引
+  - 关键词：添加、实现、创建、新功能
+  - 策略：需求分析 → 设计数据流 → 生成方案 → 用户审阅
+
+- 🔍 **代码理解** → 反向查询文档
+  - 关键词：这段代码、为什么、如何工作
+  - 策略：提取元素 → 查询索引 → 绘制数据流
+
+- ⚡ **性能优化** → 识别瓶颈 + 查最佳实践
+  - 关键词：优化、卡顿、延迟、性能
+  - 策略：识别瓶颈 → 查优化文档 → 提供方案
+
+详见：[任务模式策略表.md](./markdown/ai/任务模式策略表.md)
+
+**1.2 判断任务级别**
 ```
 <30行单文件? → 🟢 微任务 → 执行快速通道
 3-8个文件?   → 🟡 标准任务 → 5章模板
 >8个文件?     → 🔴 复杂任务 → 9章模板
 ```
 
-**1.2 检查历史上下文**（如有）
+**1.3 检查历史上下文**（如有）
 ```bash
 dir {{PROJECT_ROOT}}/tasks /b  # 检查是否有相关任务
 ```
 
-**1.3 微任务直接执行**
+**1.4 微任务直接执行**
 - 跳过步骤2-3，直接Edit+Git commit
 - 参考：[快速通道流程.md](./markdown/ai/快速通道流程.md)
 
 ---
 
-### 📚 步骤2: 查阅文档（仅标准/复杂任务）
+### 📚 步骤2: 查阅文档（模式驱动）⭐
 
-**2.1 智能搜索相关文档**
-```python
-# 不要浏览列表，直接搜索
-Grep("关键词", path="markdown/", output_mode="files_with_matches")
+**2.1 根据任务模式选择查询策略**
+
+**🐛 Bug修复模式**:
+```
+1. 优先查阅: 问题排查.md → 开发规范.md（CRITICAL规范）
+2. 逆向追踪数据流:
+   - Grep查找用户代码中的API调用
+   - 查Api索引表验证端别
+3. 验证CRITICAL规范（双端隔离、生命周期、序列化）
 ```
 
-**2.2 优先级**
+**🆕 新功能实现模式**:
+```
+1. 设计事件流: 查事件索引表 → 读取事件文档
+2. 设计API调用: 查Api索引表 → 定位组件/接口文档
+3. 生成数据流方案 → 提交用户审阅（使用AskUserQuestion）
+```
 
-**快速参考**（无需查阅完整文档）：
-- 🔍 **API速查.md** - 常用API代码片段，可直接复制使用 ⭐
-- 📖 **MODSDK核心概念.md** - System/Component/Event/Entity速查 ⭐
+**🔍 代码理解模式**:
+```
+1. 提取代码中的API/事件 → 查索引表
+2. 反向查询每个元素的文档
+3. 绘制数据流图
+```
 
-**详细文档**（需要深入理解时查阅）：
-1. **开发规范.md** - CRITICAL规范，防止90%错误 ⭐⭐⭐
-2. **问题排查.md** - 已知问题和调试技巧
-3. **Systems文档** - 系统实现文档
-   - 路径: `markdown/systems/`
-   - 查阅对应系统的技术文档
+**⚡ 性能优化模式**:
+```
+1. 查开发规范.md第10章（性能优化）
+2. 查网易引擎限制
+3. 查官方文档寻找优化API
+```
 
-4. **官方MODSDK文档** - 遇到不熟悉API时查阅 ⭐
-   - **优先查询本地文档**（如果 `.claude/docs/modsdk-wiki/` 存在）：
-     ```python
-     # 使用 Grep 在本地文档中搜索（速度快 <1秒）
-     Grep("NotifyToClient", path=".claude/docs/modsdk-wiki/", output_mode="content", -C=5)
-     ```
+---
 
-   - **降级到在线查询**（本地文档不存在或未找到时）：
-     ```python
-     WebFetch(
-         url="https://raw.githubusercontent.com/EaseCation/netease-modsdk-wiki/main/docs/...",
-         prompt="提取关于[API名称]的使用说明、参数和返回值"
-     )
-     ```
+**2.2 索引优先查询（通用）⭐**
 
-   - 仓库：https://github.com/EaseCation/netease-modsdk-wiki
+无论哪种模式，查询API/事件时都优先使用索引：
 
-5. **基岩版Wiki** - 涉及原版实体/物品/NBT时查阅 ⭐
-   - **优先查询本地文档**（如果 `.claude/docs/bedrock-wiki/` 存在）：
-     ```python
-     # 使用 Grep 在本地文档中搜索
-     Grep("entity.*nbt", path=".claude/docs/bedrock-wiki/", output_mode="content", -C=5)
-     ```
+**API查询（3步法）**:
+```python
+# Step 1: 查索引表
+Grep("NotifyToClient",
+     path="docs/modsdk-wiki/docs/mcdocs/1-ModAPI/接口/Api索引表.md",
+     output_mode="content")
+# 返回: | NotifyToClient | 服务端 | 路径: 接口/通用/事件.md
 
-   - **降级到在线查询**（本地文档不存在或未找到时）：
-     ```python
-     WebFetch(
-         url="https://raw.githubusercontent.com/Bedrock-OSS/bedrock-wiki/main/docs/...",
-         prompt="提取[物品/实体]的NBT字段定义和数据结构"
-     )
-     ```
+# Step 2: 读取具体文档
+Read("docs/modsdk-wiki/docs/mcdocs/1-ModAPI/接口/通用/事件.md")
 
-   - 仓库：https://github.com/Bedrock-OSS/bedrock-wiki
+# Step 3: 提取参数和示例
+```
 
-**⚠️ 官方文档查阅策略**：
-- ✅ **优先使用本地文档**（`.claude/docs/` 目录）：速度快、支持离线
-- 🔍 **本地查询示例**：使用 Grep 工具搜索关键词
-- 🌐 **降级到在线查询**：本地文档不存在或未找到时使用 WebFetch
-- 📝 **自动部署**：执行 `initmc` 后自动创建本地文档软链接
+**事件查询（同理）**:
+```python
+Grep("ServerPlayerTryTouchEvent",
+     path="docs/modsdk-wiki/docs/mcdocs/1-ModAPI/事件/事件索引表.md",
+     output_mode="content")
+```
 
-**2.3 核心检查点**（必须输出）
+---
+
+**2.3 分区搜索（索引失败时降级）**
+
+当索引表中未找到时，使用分区搜索：
+
+| 关键词类型 | 推荐搜索目录 |
+|-----------|-------------|
+| NotifyToClient/NotifyToServer | `docs/modsdk-wiki/.../接口/通用/` |
+| GetComponent/RegisterComponent | `docs/modsdk-wiki/.../接口/世界/` |
+| Entity/Mob管理 | `docs/modsdk-wiki/.../接口/实体/` |
+| ServerPlayerEvent | `docs/modsdk-wiki/.../事件/玩家.md` |
+| NBT/Tags/Data | `docs/bedrock-wiki/docs/nbt/` |
+| 原版实体定义 | `docs/bedrock-wiki/docs/entities/` |
+
+详见：[官方文档查询指南.md](./markdown/官方文档查询指南.md)
+
+---
+
+**2.4 核心检查点**（必须输出）
 ```
 ✅ 已查阅文档: [列出]
+🎯 任务模式: [Bug修复/新功能/代码理解/性能优化]
 🎯 提取原则: [⛔禁止/✅应该/📚原因]
 📄 文档依据: [引用行号]
 🌐 官方文档查阅: [如有]
@@ -197,9 +237,109 @@ Grep("关键词", path="markdown/", output_mode="files_with_matches")
 
 ---
 
-### 🔧 步骤3: 执行与收尾
+### 🔧 步骤3: 方案验证与实施⭐
 
-**3.1 标准任务（5章模板）**
+**3.0 方案自检（新增，必须执行）**
+
+设计方案后，立即执行自检清单：
+
+```markdown
+📋 MODSDK方案自检清单
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ 1. CRITICAL规范检查（内存检查）
+   ├─ [ ] 是否跨端GetSystem？
+   ├─ [ ] 是否在__init__中调用API？
+   ├─ [ ] EventData中是否使用tuple？
+   └─ [ ] AOI范围是否超过2000？
+
+✅ 2. 双端隔离验证（内存检查）
+   ├─ [ ] 服务端System只调用服务端API？
+   ├─ [ ] 客户端System只调用客户端API？
+   └─ [ ] 双端通信使用Notify方法？
+
+✅ 3. 事件/API存在性验证（查询索引表）
+   ├─ [ ] 查事件索引表确认事件存在
+   ├─ [ ] 查Api索引表确认API存在
+   └─ [ ] 验证端别标记匹配
+
+✅ 4. 数据流完整性（逻辑检查）
+   ├─ [ ] 事件监听→处理→输出是否闭环？
+   ├─ [ ] 是否缺少关键步骤？
+   └─ [ ] 是否有循环依赖？
+
+✅ 5. 最佳实践遵循（逻辑检查）
+   ├─ [ ] 命名规范符合？
+   ├─ [ ] 是否考虑性能优化？
+   ├─ [ ] 是否需要错误处理？
+   └─ [ ] 是否考虑边界情况？
+```
+
+详见：[方案自检清单.md](./markdown/ai/方案自检清单.md)
+
+**自检后处理**：
+```
+自检结果
+├─ ✅ 全部通过 → 进入3.1判断是否需要专家审核
+├─ ⚠️ 有警告 → 标注风险点，询问用户
+└─ ❌ 有错误 → 自动修正方案 → 重新自检
+```
+
+---
+
+**3.1 条件触发：专家审核子代理**⭐
+
+符合以下**任一条件**时，启动MODSDK专家审核子代理：
+
+**强制触发条件**：
+- ✅ 任务级别 = 🔴 复杂任务
+- ✅ 用户明确要求审核
+
+**智能触发条件（标准任务）**：
+- ✅ 2轮以上Bug修复未成功
+- ✅ 实现功能设计模块跨越过多（>5个System交互）
+- ✅ 自检发现严重警告（如：可能的性能问题、复杂的循环依赖）
+
+**子代理职责（深度审核）**：
+1. 需求覆盖率分析
+2. 技术方案审查（CRITICAL规范/架构合理性/API选择）
+3. 边界场景检查（错误处理/并发/性能/兼容性）
+4. 实现细节审查（代码框架完整性/命名规范）
+
+**触发方式**：
+```python
+# 使用Task工具启动子代理
+Task(
+    subagent_type="general-purpose",
+    description="MODSDK方案深度审核",
+    prompt="""
+    读取 .claude/commands/review-design.md 的审核指引，
+    对以下方案进行深度审核：
+
+    ## 用户需求
+    {原始需求}
+
+    ## 设计方案
+    {父代理的方案}
+
+    ## 自检结果
+    {自检清单输出}
+
+    请按照审核指引，输出完整的审核报告。
+    """,
+    model="sonnet"  # 使用sonnet保证审核质量
+)
+```
+
+**审核后处理**：
+```
+审核评分 ≥ 8分 → 方案通过，继续实施
+审核评分 6-7分 → 根据建议调整方案
+审核评分 < 6分 → 重新设计方案
+```
+
+---
+
+**3.2 标准任务（5章模板）**
 ```bash
 mkdir {{PROJECT_ROOT}}/tasks/[中文任务名]  # 必须创建tasks目录⭐
 # 命名示例：修复NPC名称显示、添加计分板系统

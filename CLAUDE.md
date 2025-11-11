@@ -42,9 +42,12 @@ NeteaseMod-Claude/
 │   └── ...
 ├── templates/              # 下游项目模板（会部署）
 │   └── CLAUDE.md.template # ⭐ MODSDK开发指南
-├── markdown/               # 工作流知识库（不直接部署）
-│   ├── ai/                # AI工作流文档
-│   └── systems/           # 示例文档
+├── markdown/               # 工作流知识库（四层分类 v16.4+）
+│   ├── 核心工作流文档/    # L1必读：开发规范、问题排查、快速开始、官方文档查询指南
+│   ├── 概念参考/          # L1速查：MODSDK核心概念、API速查
+│   ├── 深度指南/          # L2进阶：9个完整参考文档（ECS架构、事件系统等）
+│   ├── ai/                # L3 AI工作流：任务模式策略、快速通道流程等
+│   └── systems/           # L4模板：系统文档模板
 └── docs/                   # 官方文档（Git Submodule）
 ```
 
@@ -61,7 +64,7 @@ graph TB
     subgraph "🔷 上游工作流（C:/Users/YourName/.claude-modsdk-workflow/）"
         A[bin/<br/>initmc.js<br/>CLI工具] --> B[lib/<br/>generator.js<br/>文档生成器]
         B --> C[templates/<br/>CLAUDE.md.template<br/>.claude/commands/]
-        D[markdown/<br/>开发规范.md<br/>问题排查.md<br/>核心知识库]
+        D[markdown/<br/>核心工作流文档/<br/>概念参考/<br/>深度指南/<br/>ai/]
         E[docs/<br/>modsdk-wiki/<br/>bedrock-wiki/<br/>Git Submodule]
     end
 
@@ -295,7 +298,7 @@ graph TD
 
 | 上游工作流 | 下游项目 | 访问方式 | 用途 |
 |-----------|---------|---------|------|
-| `C:/Users/.../.claude-modsdk-workflow/markdown/开发规范.md` | `.claude/core-docs/开发规范.md` | 软连接/只读副本 | 上游基线 |
+| `C:/Users/.../.claude-modsdk-workflow/markdown/核心工作流文档/开发规范.md` | `.claude/core-docs/核心工作流文档/开发规范.md` | 软连接/只读副本 | 上游基线 |
 | - | `markdown/core/开发规范.md` | 直接文件 | 项目定制版（优先） |
 | `C:/Users/.../docs/modsdk-wiki/` | `.claude/docs/modsdk-wiki/` | 软连接 | 本地离线文档 |
 | - | `markdown/systems/ShopSystem.md` | 直接文件 | 项目特定文档 |
@@ -305,9 +308,9 @@ graph TD
 ```
 1. 尝试：markdown/core/开发规范.md（项目定制版）
    ↓ 不存在
-2. 降级：.claude/core-docs/开发规范.md（上游基线，软连接）
+2. 降级：.claude/core-docs/核心工作流文档/开发规范.md（上游基线，软连接）
    ↓ 软连接指向
-3. 实际：C:/Users/.../.claude-modsdk-workflow/markdown/开发规范.md
+3. 实际：C:/Users/.../.claude-modsdk-workflow/markdown/核心工作流文档/开发规范.md
 ```
 
 **关键点**：
@@ -584,7 +587,7 @@ node "%USERPROFILE%\.claude-modsdk-workflow\bin\initmc.js" %*
 
 ## 🎯 任务执行策略
 
-执行开发任务前，请参考 [任务模式策略表](./markdown/ai/任务模式策略表.md) 判断任务类型并选择相应策略。
+执行开发任务前，请参考 [任务模式策略表](markdown/ai/任务模式策略表.md) 判断任务类型并选择相应策略。
 
 **核心策略**：
 - 🟢 **微任务**（<30行单文件）：快速通道，直接修改

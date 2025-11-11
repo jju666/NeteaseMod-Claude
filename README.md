@@ -316,10 +316,31 @@ aoi_comp.AddAoi(pos, [2000, 2000, 2000])
 
 ## 🌐 官方资源
 
+### 📚 内置文档（Git Submodule）
+
+工作流内置了官方文档，通过 Git Submodule 管理：
+
 - **网易 MODSDK 文档**: https://github.com/EaseCation/netease-modsdk-wiki
 - **基岩版 Wiki**: https://github.com/Bedrock-OSS/bedrock-wiki
 
-> 💡 Claude Code 会自动使用 WebFetch 查询在线文档，保证信息最新
+**自动部署**：
+```bash
+# 1. 安装工作流时自动下载文档
+npm install  # 自动执行 git submodule update --init --recursive
+
+# 2. 初始化下游项目时自动部署
+initmc  # 自动创建 .claude/docs/ 软链接
+```
+
+**查询策略**（智能降级）：
+1. **优先查询本地文档**（`.claude/docs/`）- 速度快（<1秒）、支持离线
+2. **降级到在线查询**（本地文档不存在时）- 使用 WebFetch（5-10秒）
+
+**手动更新文档**：
+```bash
+cd /path/to/NeteaseMod-Claude
+git submodule update --remote  # 更新到最新版本
+```
 
 ---
 

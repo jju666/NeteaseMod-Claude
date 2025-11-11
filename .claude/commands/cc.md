@@ -72,10 +72,46 @@
    - 查阅相关系统的技术文档
 
 
-5. **Systems文档** - 系统实现文档
+3. **Systems文档** - 系统实现文档
    - 路径: `markdown/systems/`
    - 查阅对应系统的技术文档
 
+---
+
+### 🔍 智能文档查询（优先级顺序）
+
+#### 优先级1：本地官方文档（自动检测）⚡
+
+**如果 `.claude/docs/` 目录存在**（由 `initmc` 自动部署），优先查询本地文档：
+
+**MODSDK API 查询**：
+```bash
+# 在 .claude/docs/modsdk-wiki/ 中搜索API
+Grep("NotifyToClient", path=".claude/docs/modsdk-wiki/", output_mode="content", -C=5)
+
+# 示例：查询组件API
+Grep("SetAttr", path=".claude/docs/modsdk-wiki/", output_mode="content", -C=5)
+```
+
+**基岩版实体/NBT 查询**：
+```bash
+# 在 .claude/docs/bedrock-wiki/ 中搜索
+Grep("entity.*nbt", path=".claude/docs/bedrock-wiki/", output_mode="content", -C=5)
+
+# 示例：查询实体组件
+Grep("minecraft:health", path=".claude/docs/bedrock-wiki/", output_mode="content", -C=5)
+```
+
+**优势**：
+- ⚡ **速度快**：本地查询 <1秒（vs WebFetch 5-10秒）
+- 🌐 **离线可用**：无需网络连接
+- 📖 **完整内容**：可查看完整文档上下文
+
+---
+
+#### 优先级2：在线官方文档（降级策略）
+
+**如果本地文档不存在或未找到结果**，使用 WebFetch 在线查询：
 
 4. **官方MODSDK文档** - 遇到不熟悉的API时查阅 ⭐
    - **GitHub仓库**: https://github.com/EaseCation/netease-modsdk-wiki

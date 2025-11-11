@@ -1,0 +1,7 @@
+[submodule "docs/modsdk-wiki"]
+	path = docs/modsdk-wiki
+	url = https://github.com/EaseCation/netease-modsdk-wiki.git
+
+[submodule "docs/bedrock-wiki"]
+	path = docs/bedrock-wiki
+	url = https://github.com/Bedrock-OSS/bedrock-wiki.git

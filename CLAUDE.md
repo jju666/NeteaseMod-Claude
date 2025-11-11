@@ -148,9 +148,13 @@ Grep("关键词", path="markdown/", output_mode="files_with_matches")
    - 查阅对应系统的技术文档
 
 4. **官方MODSDK文档** - 遇到不熟悉API时查阅 ⭐
-   - 仓库：https://github.com/EaseCation/netease-modsdk-wiki
-   - 使用WebFetch工具在线获取最新文档
-   - 示例：
+   - **优先查询本地文档**（如果 `.claude/docs/modsdk-wiki/` 存在）：
+     ```python
+     # 使用 Grep 在本地文档中搜索（速度快 <1秒）
+     Grep("NotifyToClient", path=".claude/docs/modsdk-wiki/", output_mode="content", -C=5)
+     ```
+
+   - **降级到在线查询**（本地文档不存在或未找到时）：
      ```python
      WebFetch(
          url="https://raw.githubusercontent.com/EaseCation/netease-modsdk-wiki/main/docs/...",
@@ -158,15 +162,30 @@ Grep("关键词", path="markdown/", output_mode="files_with_matches")
      )
      ```
 
-5. **基岩版Wiki** - 涉及原版实体/物品/NBT时查阅 ⭐
-   - 仓库：https://github.com/Bedrock-OSS/bedrock-wiki
-   - 查阅NBT结构、实体属性、原版机制
-   - 使用WebFetch工具获取文档
+   - 仓库：https://github.com/EaseCation/netease-modsdk-wiki
 
-**⚠️ 何时查阅官方文档**：
-- ❌ **文档不足时**：本地文档未找到相关信息
-- 🔍 **遇到不熟悉API时**：不确定API参数、返回值、使用方式
-- 🐛 **遇到原版机制问题时**：NBT结构、实体行为、游戏规则
+5. **基岩版Wiki** - 涉及原版实体/物品/NBT时查阅 ⭐
+   - **优先查询本地文档**（如果 `.claude/docs/bedrock-wiki/` 存在）：
+     ```python
+     # 使用 Grep 在本地文档中搜索
+     Grep("entity.*nbt", path=".claude/docs/bedrock-wiki/", output_mode="content", -C=5)
+     ```
+
+   - **降级到在线查询**（本地文档不存在或未找到时）：
+     ```python
+     WebFetch(
+         url="https://raw.githubusercontent.com/Bedrock-OSS/bedrock-wiki/main/docs/...",
+         prompt="提取[物品/实体]的NBT字段定义和数据结构"
+     )
+     ```
+
+   - 仓库：https://github.com/Bedrock-OSS/bedrock-wiki
+
+**⚠️ 官方文档查阅策略**：
+- ✅ **优先使用本地文档**（`.claude/docs/` 目录）：速度快、支持离线
+- 🔍 **本地查询示例**：使用 Grep 工具搜索关键词
+- 🌐 **降级到在线查询**：本地文档不存在或未找到时使用 WebFetch
+- 📝 **自动部署**：执行 `initmc` 后自动创建本地文档软链接
 
 **2.3 核心检查点**（必须输出）
 ```

@@ -765,6 +765,12 @@ async function deployWorkflow() {
     6000
   );
 
+  allSuccess &= copyFileWithValidation(
+    path.join(globalDir, '.claude', 'commands', 'review-design.md'),
+    path.join(projectDir, '.claude', 'commands', 'review-design.md'),
+    10000
+  );
+
   // 生成定制化 cc.md
   allSuccess &= generateCustomizedCC(globalDir, projectDir);
 
@@ -953,6 +959,7 @@ async function deployWorkflow() {
     { path: '.claude/commands/discover.md', minSize: 5000 },
     { path: '.claude/commands/enhance-docs.md', minSize: 5000 },
     { path: '.claude/commands/validate-docs.md', minSize: 6000 },
+    { path: '.claude/commands/review-design.md', minSize: 10000 },
     { path: 'CLAUDE.md', minSize: 10000 },
     { path: 'markdown/开发规范.md', minSize: 10000 },
     { path: 'markdown/问题排查.md', minSize: 5000 },
@@ -1000,7 +1007,7 @@ async function deployWorkflow() {
   console.log('');
 
   console.log('📊 部署内容:');
-  console.log('  ✅ 命令文件: 4 个 (/cc, /discover, /validate-docs, /enhance-docs)');
+  console.log('  ✅ 命令文件: 5 个 (/cc, /discover, /validate-docs, /enhance-docs, /review-design)');
   console.log('  ✅ 通用文档: 6 个 (开发规范.md, 问题排查.md等)');
   console.log('  ✅ AI 文档: 3 个');
   console.log('  ✅ 核心工具: 6 个 (lib/目录)');

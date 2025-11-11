@@ -92,16 +92,25 @@ function copyDirRecursive(src, dest) {
 function installWindows() {
   console.log('\n📦 Windows安装模式\n');
 
-  // 创建 initmc.cmd（唯一的部署命令）
-  const cmdContent = `@echo off
+  // 创建 initmc.cmd（部署命令）
+  const initCmdContent = `@echo off
 node "%USERPROFILE%\\.claude-modsdk-workflow\\bin\\initmc.js" %*
 `;
 
-  const cmdPath = path.join(os.homedir(), 'initmc.cmd');
-  fs.writeFileSync(cmdPath, cmdContent);
+  const initCmdPath = path.join(os.homedir(), 'initmc.cmd');
+  fs.writeFileSync(initCmdPath, initCmdContent);
+
+  // 创建 uninstallmc.cmd（卸载命令）⭐ v16.0
+  const uninstallCmdContent = `@echo off
+node "%USERPROFILE%\\.claude-modsdk-workflow\\bin\\uninstallmc.js" %*
+`;
+
+  const uninstallCmdPath = path.join(os.homedir(), 'uninstallmc.cmd');
+  fs.writeFileSync(uninstallCmdPath, uninstallCmdContent);
 
   console.log('✅ 已创建命令脚本:');
-  console.log(`   ${cmdPath}\n`);
+  console.log(`   ${initCmdPath}`);
+  console.log(`   ${uninstallCmdPath}\n`);
 
   // 检查PATH中是否包含用户目录
   const userPath = process.env.PATH.split(';');
@@ -129,19 +138,27 @@ function installUnix() {
   console.log('\n📦 Unix/Linux/Mac安装模式\n');
 
   const shellConfig = path.join(os.homedir(), '.bashrc');
-  const aliasLine = `\n# MODSDK Workflow Generator\nalias initmc="node ~/.claude-modsdk-workflow/bin/initmc.js"\n`;
+  const aliasLines = `\n# MODSDK Workflow Generator
+alias initmc="node ~/.claude-modsdk-workflow/bin/initmc.js"
+alias uninstallmc="node ~/.claude-modsdk-workflow/bin/uninstallmc.js"
+`;
 
   // 检查是否已添加
   if (fs.existsSync(shellConfig)) {
     const content = fs.readFileSync(shellConfig, 'utf8');
-    if (content.includes('initmc')) {
+    if (content.includes('initmc') && content.includes('uninstallmc')) {
       console.log('✅ Alias已存在于 ~/.bashrc\n');
     } else {
-      fs.appendFileSync(shellConfig, aliasLine);
-      console.log('✅ 已添加alias到 ~/.bashrc\n');
+      // 如果只有旧的 initmc，先移除旧版本
+      let newContent = content;
+      if (content.includes('alias initmc=') && !content.includes('uninstallmc')) {
+        newContent = content.replace(/# MODSDK Workflow Generator\nalias initmc=.*\n/g, '');
+      }
+      fs.writeFileSync(shellConfig, newContent + aliasLines);
+      console.log('✅ 已更新alias到 ~/.bashrc\n');
     }
   } else {
-    fs.writeFileSync(shellConfig, aliasLine);
+    fs.writeFileSync(shellConfig, aliasLines);
     console.log('✅ 已创建 ~/.bashrc 并添加alias\n');
   }
 
@@ -150,9 +167,14 @@ function installUnix() {
     const zshConfig = path.join(os.homedir(), '.zshrc');
     if (fs.existsSync(zshConfig)) {
       const content = fs.readFileSync(zshConfig, 'utf8');
-      if (!content.includes('initmc')) {
-        fs.appendFileSync(zshConfig, aliasLine);
-        console.log('✅ 已添加alias到 ~/.zshrc（Mac）\n');
+      if (!content.includes('initmc') || !content.includes('uninstallmc')) {
+        // 移除旧版本
+        let newContent = content;
+        if (content.includes('alias initmc=') && !content.includes('uninstallmc')) {
+          newContent = content.replace(/# MODSDK Workflow Generator\nalias initmc=.*\n/g, '');
+        }
+        fs.writeFileSync(zshConfig, newContent + aliasLines);
+        console.log('✅ 已更新alias到 ~/.zshrc（Mac）\n');
       }
     }
   }
@@ -162,7 +184,8 @@ function installUnix() {
 
   console.log('📝 使用方法:');
   console.log('   cd your-modsdk-project');
-  console.log('   initmc\n');
+  console.log('   initmc       # 部署工作流');
+  console.log('   uninstallmc  # 卸载工作流\n');
 }
 
 /**

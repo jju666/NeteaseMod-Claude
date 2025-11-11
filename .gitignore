@@ -46,3 +46,16 @@ README.md.backup
 # docs目录中的Git Submodules（不提交）
 docs/modsdk-wiki/
 docs/bedrock-wiki/
+
+# 内部分析报告（仅供内部参考，不公开发布）
+开发包文档分析报告/
+*.internal.md
+.internal-docs/
+
+# 检查报告（临时生成的分析报告）
+工作流系统性检查报告-*.md
+文档体系冗余孤岛检查报告-*.md
+文档优化建议-*.md
+检查报告索引.md
+文档法律合规检查报告-*.md
+立即执行修复-完成报告.md

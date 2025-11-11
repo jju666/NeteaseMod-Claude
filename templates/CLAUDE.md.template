@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-> 🤖 **Claude Code AI Assistant 项目参考文档 v16.2**
+> 🤖 **Claude Code AI Assistant 项目参考文档 v16.2.1**
 >
 > This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 >
-> **当前版本**: v16.2 (Windows安装体验优化)
+> **当前版本**: v16.2.1 (增加架构原理深度解释)
 > **最后更新**: {{CURRENT_DATE}}
 
 ---
@@ -52,7 +52,10 @@
 - ✅ 使用NotifyToClient(服务端→客户端)
 - ✅ 使用NotifyToServer(客户端→服务端)
 
-**原因:** Server和Client进程分离，跨端GetSystem返回None
+**为什么?**
+- 客户端和服务器是**独立进程**,不是同一进程的不同线程
+- 无法共享内存或全局变量
+- 跨端GetSystem返回None (因为目标System在另一个进程中)
 
 ---
 
@@ -74,7 +77,10 @@
       self.comp = self.GetComponent(...)  # 安全访问
   ```
 
-**原因:** __init__时游戏未初始化，实体/组件未注册
+**为什么?**
+- System初始化分为多个阶段: 实例化 → Component注册 → Create()
+- `__init__`时Component注册表未就绪,API调用会失败
+- 必须在`Create()`之后才能安全调用GetComponent等API
 
 ---
 
@@ -456,14 +462,84 @@ WebFetch(
 
 ---
 
+## 🏗️ 架构原理速查
+
+**System初始化流程**:
+```
+加载Mod → 创建System(__init__) → 注册Component → Create() → Update循环
+             ⚠️ API不可用              ✅ API可用
+```
+
+**ECS性能优化关键**:
+- **RegisterView视图过滤**: 10-100倍性能提升
+- **GetNeedUpdate增量更新**: 仅处理变化的Entity
+- **Replicated自动同步**: 减少手动NotifyToClient
+
+**双端隔离机制**:
+- 客户端和服务器是**独立进程**(不是线程)
+- 无法共享内存或全局变量
+- 数据同步: 事件系统 或 Component复制
+
+**事件系统优化**:
+- 事件名会被引擎自动压缩为整数索引
+- 减少网络带宽消耗,开发者无需手动实现
+
+---
+
+## 📚 学习路径导航
+
+### 🟢 新手路径 (3天)
+1. [快速开始.md](markdown/快速开始.md) - 创建第一个System
+2. [开发规范.md](markdown/开发规范.md) - 理解CRITICAL规则
+3. [MODSDK核心概念.md](markdown/MODSDK核心概念.md) - 掌握基础API
+
+### 🟡 进阶路径 (1周)
+1. [深入理解ECS架构.md](markdown/深入理解ECS架构.md) - 掌握架构原理
+2. [API速查.md](markdown/API速查.md) - 快速查询API
+3. 参考 `markdown/systems/` 中的真实System案例
+
+### 🔴 高级路径 (2周)
+1. 设计复杂的多System协作架构
+2. 优化性能 (视图过滤、降频、ExtraData)
+3. 实现完整的数据持久化方案
+
+**快速定位文档**:
+- 遇到CRITICAL错误 → `markdown/开发规范.md` 的"为什么"章节
+- 不理解ECS架构 → `markdown/深入理解ECS架构.md` 的VIP案例
+- 性能问题 → `markdown/开发规范.md` 的性能优化章节
+
+---
+
+## ❓ 核心原理FAQ
+
+### Q1: 为什么双端代码必须严格隔离?
+**A**: 客户端和服务器是**独立进程**,不是同一进程的不同线程。它们无法共享内存或全局变量,必须通过事件系统或Component复制来同步数据。
+
+### Q2: 为什么不能在`__init__`中调用GetComponent?
+**A**: System初始化分为多个阶段。`__init__`时引擎的Component注册尚未完成,必须在`Create()`之后才能安全调用API。
+
+### Q3: 为什么要使用RegisterView而不是遍历所有Entity?
+**A**: RegisterView + GetNeedUpdate可以实现**10-100倍性能提升**。它只返回包含指定Component且数据发生变化的Entity,避免无意义的遍历。
+
+### Q4: 什么时候使用事件,什么时候使用Component同步?
+**A**:
+- **事件**: 一次性通知、用户操作、游戏事件(如玩家攻击)
+- **Component同步**: 持续变化的状态数据(如血量、位置、VIP等级)
+
+### Q5: 为什么子目录必须用绝对导入?
+**A**: 网易引擎将Mod根目录添加到sys.path,但子目录不会自动添加。使用绝对导入(如`from MyMod.modConfig import ...`)可以确保Python正确解析模块路径,且符合引擎的模块白名单限制。
+
+---
+
 **记住**:
 1. 微任务优先，能直接Edit就不创建tasks
 2. 默认顺序执行，除非用户要求并行
 3. 遵循CRITICAL规范避免90%错误
-4. 优先查阅CLAUDE.md项目扩展区的项目特定规范
-5. 本地文档不足时，使用WebFetch查阅官方资源
+4. 理解"为什么"比记住"怎么做"更重要 ⭐ **NEW**
+5. 优先查阅CLAUDE.md项目扩展区的项目特定规范
+6. 本地文档不足时，使用WebFetch查阅官方资源
 
-<!-- ==================== 工作流内容 END v16.1 ==================== -->
+<!-- ==================== 工作流内容 END v16.2.1 ==================== -->
 
 <!-- ==================== 项目扩展区 START ==================== -->
 <!-- 用户可编辑：添加项目特定规范 -->
@@ -500,7 +576,7 @@ WebFetch(
 <!-- 自动生成，升级时更新 -->
 
 **文档元数据**：
-- 工作流版本：v16.1
+- 工作流版本：v16.2.1 (架构原理深度解释)
 - 上游仓库：基于Claude的MODSDK开发工作流
 - 生成时间：{{CURRENT_DATE}}
 

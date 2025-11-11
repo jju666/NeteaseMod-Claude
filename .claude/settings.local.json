@@ -18,7 +18,9 @@
       "Read(//d/EcWork/NetEaseMapECBedWars_备份/**)",
       "Bash(initmc:*)",
       "Bash(cat:*)",
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Read(//d/EcWork/NetEaseMapECBedWars/**)",
+      "Read(//d/EcWork/NetEaseMapECBedWars/lib/**)"
     ],
     "deny": [],
     "ask": []

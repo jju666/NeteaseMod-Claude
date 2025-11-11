@@ -287,6 +287,33 @@ function main() {
     process.exit(1);
   }
 
+  // 修复：确保ai文档被正确复制（修复BUG）
+  console.log('📝 验证核心文档完整性...\n');
+  const aiSourceDir = path.join(SOURCE_DIR, 'markdown', 'ai');
+  const aiTargetDir = path.join(TARGET_DIR, 'markdown', 'ai');
+
+  if (fs.existsSync(aiSourceDir)) {
+    const aiFiles = fs.readdirSync(aiSourceDir).filter(f => f.endsWith('.md'));
+    const targetFiles = fs.existsSync(aiTargetDir) ? fs.readdirSync(aiTargetDir).filter(f => f.endsWith('.md')) : [];
+
+    if (aiFiles.length > targetFiles.length) {
+      console.log(`⚠️  检测到ai文档不完整(${targetFiles.length}/${aiFiles.length}),正在修复...`);
+      fs.mkdirSync(aiTargetDir, { recursive: true });
+
+      for (const file of aiFiles) {
+        const srcFile = path.join(aiSourceDir, file);
+        const destFile = path.join(aiTargetDir, file);
+        if (!fs.existsSync(destFile)) {
+          fs.copyFileSync(srcFile, destFile);
+          console.log(`   ✅ 复制: ${file}`);
+        }
+      }
+      console.log('✅ ai文档修复完成\n');
+    } else {
+      console.log(`✅ ai文档完整(${aiFiles.length}个文件)\n`);
+    }
+  }
+
   // 平台特定安装
   if (IS_WINDOWS) {
     installWindows();

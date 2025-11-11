@@ -11,7 +11,9 @@
   },
   "bin": {
     "modsdk-deploy": "./bin/quick-deploy.js",
-    "initmc": "./bin/initmc.js"
+    "initmc": "./bin/initmc.js",
+    "merge-conflicts": "./bin/merge-conflicts.js",
+    "detect-obsolete": "./bin/detect-obsolete.js"
   },
   "keywords": [
     "modsdk",

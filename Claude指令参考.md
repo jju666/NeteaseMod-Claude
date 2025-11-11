@@ -1,6 +1,6 @@
 # Claude指令参考
 
-> **基于Claude的MODSDK开发工作流 - 指令速查手册**
+> **基于Claude的MODSDK开发工作流 - 指令速查手册 (v17.0)**
 >
 > 快速查找常用命令和使用示例
 
@@ -8,49 +8,146 @@
 
 ## 🎯 核心指令
 
-### /cc - 执行任务
+### /mc - MODSDK开发主命令 ⭐
 
 **语法**:
 ```bash
-/cc [任务描述]
+/mc [任务描述]
 ```
 
-**功能**: Claude Code的核心指令，用于执行任何开发任务
+**功能**: 适用90%场景的核心命令，自动执行标准工作流
+
+**适用场景**:
+- BUG修复
+- 新功能开发
+- 代码调整
+- 性能优化
+- 代码理解
 
 **示例**:
 ```bash
 # 修复BUG
-/cc 修复System初始化错误，日志显示GetComponent返回None
+/mc 商店购买时返回None错误
+/mc 修复System初始化错误，日志显示GetComponent返回None
 
 # 添加功能
-/cc 添加玩家伤害事件监听，实现伤害统计
+/mc 添加VIP系统，玩家购买后获得移动速度加成
+/mc 添加玩家伤害事件监听，实现伤害统计
 
 # 优化代码
-/cc 优化Update方法，减少tick中的计算开销
+/mc 优化经验系统的性能
+/mc 优化Update方法，减少tick中的计算开销
 
-# 配置调整
-/cc 将配置文件中的玩家初始生命值调整为40
-
-# 文档查询
-/cc 解释双端隔离原则的实现方式
+# 代码理解
+/mc 解释ShopServerSystem的代码逻辑
+/mc 解释双端隔离原则的实现方式
 ```
 
 ---
 
-## 🔄 工作流管理指令
+## 🛠️ 专项工具指令
 
-### /discover - 自适应项目结构发现 ⭐ v16.0
+### /mc-review - 深度审查方案设计
 
 **语法**:
 ```bash
-/discover
+/mc-review
+```
+
+**功能**: 对当前方案进行深度审查，输出评分和优化建议
+
+**检查项**:
+- CRITICAL规范遵守情况
+- 架构合理性
+- API选择正确性
+- 边界场景处理
+
+**输出**:
+- 评分(X/10)
+- 严重问题列表
+- 优化建议
+- 架构图
+
+---
+
+### /mc-perf - 性能问题分析
+
+**语法**:
+```bash
+/mc-perf
+```
+
+**功能**: 扫描项目代码，识别性能问题
+
+**扫描项**:
+- RegisterView缺失（CRITICAL）
+- 高频Update方法
+- 频繁RPC调用
+- 其他性能反模式
+
+**输出**:
+- 性能分析报告
+- 优化代码示例
+- 预期性能提升
+
+---
+
+### /mc-docs - 文档管理（双模式）
+
+**默认模式（验证）**:
+```bash
+/mc-docs
+```
+- 扫描所有Systems
+- 检查文档完整性和质量
+- 输出覆盖率报告和质量评分
+
+**生成模式**:
+```bash
+/mc-docs --gen
+```
+- 批量补充缺失文档
+- 提升低质量文档
+- 自动生成完整内容（1500-3000字）
+
+---
+
+### /mc-why - 规范原理深度解释
+
+**语法**:
+```bash
+/mc-why [规范名称]
+```
+
+**功能**: 深度解释某条CRITICAL规范的原理
+
+**输出**:
+- 架构原理
+- 错误示例
+- 正确做法
+- 扩展阅读
+
+**示例**:
+```bash
+/mc-why 为什么必须双端隔离?
+/mc-why 为什么不能在__init__中调用API?
+/mc-why System生命周期是怎样的?
+```
+
+---
+
+### /mc-discover - 项目结构发现
+
+**语法**:
+```bash
+/mc-discover
 ```
 
 **功能**: 自动扫描项目代码，发现组件类型和文档组织模式
 
 **执行流程**:
-1. 自动扫描项目代码，识别所有 Python 类
-2. 识别 MODSDK 官方概念（System、Component）
+1. 扫描项目代码，识别所有Python类
+2. 识别MODSDK官方概念（System、Component）
 3. 推断项目自定义模式（State、Preset、Manager等）
 4. 生成组件→文档路径映射规则
 5. 输出到 `.claude/discovered-patterns.json`
@@ -59,98 +156,23 @@
 
 ---
 
-### /validate-docs - 文档完整性验证
-
-**语法**:
-```bash
-/validate-docs
-```
-
-**功能**: 验证文档覆盖率，生成待补充清单
-
-**依赖**: 需要先执行 `/discover`
-
-**执行流程**:
-1. 读取自适应发现结果（`.claude/discovered-patterns.json`）
-2. AI智能推断中文文档名
-3. 检查文档覆盖率
-4. 生成 `markdown/文档待补充清单.md`
-
----
-
-### /enhance-docs - 批量文档内容生成
-
-**语法**:
-```bash
-/enhance-docs
-```
-
-**功能**: 批量补充文档内容（非占位符）
-
-**依赖**: 需要先执行 `/validate-docs`
-
-**执行流程**:
-1. 读取文档待补充清单
-2. AI深度分析源代码
-3. 生成完整文档内容（1500-3000字）
-4. 自动更新待补充清单
-
----
-
-### /uninstallmc - 卸载项目工作流 ⭐ v16.0
-
-**语法**:
-```bash
-/uninstallmc
-```
-
-**功能**: 从当前项目中移除所有由 `initmc` 部署的工作流文件
-
-**执行流程**:
-1. 扫描项目中的工作流文件
-2. 输出文件清单并询问用户确认
-3. 自动备份到 `.backup-uninstall-YYYY-MM-DD/`
-4. 删除工作流文件
-5. 保留用户文件（tasks/、markdown/systems/ 等）
-
-**终端命令版本**:
-```bash
-# 预览模式（仅查看将删除的文件）
-uninstallmc --dry-run
-
-# 执行卸载
-uninstallmc
-
-# 同时删除 CLAUDE.md
-uninstallmc --remove-claude-md
-```
-
-**安全机制**:
-- ✅ 自动备份所有删除的文件
-- ✅ 保留用户代码和文档
-- ✅ 交互式确认，防止误删
-- ✅ 支持从备份恢复
-
----
-
 ## 📝 指令速查表
 
-| 指令 | 类型 | 功能 | 示例 |
-|------|------|------|------|
-| `initmc` | 终端命令 | 全局部署工作流 | `initmc` |
-| `initmc --sync` | 终端命令 | 同步更新工作流 ⭐ v16.0 | `initmc --sync` |
-| `initmc --reset` | 终端命令 | 强制重置工作流 ⭐ v16.0 | `initmc --reset` |
-| `uninstallmc` | 终端命令 | 卸载项目工作流 ⭐ v16.0 | `uninstallmc` |
-| `uninstallmc --dry-run` | 终端命令 | 预览卸载文件清单 | `uninstallmc --dry-run` |
-| `/discover` | Slash命令 | 自适应项目结构发现 | `/discover` |
-| `/cc [任务]` | Slash命令 | 执行任务 | `/cc 修复BUG` |
-| `/validate-docs` | Slash命令 | 验证文档完整性 | `/validate-docs` |
-| `/enhance-docs` | Slash命令 | 批量生成文档内容 | `/enhance-docs` |
-| `/uninstallmc` | Slash命令 | 卸载项目工作流（交互式） | `/uninstallmc` |
+| 指令 | 类型 | 功能 | 适用场景 |
+|------|------|------|----------|
+| `initmc` | 终端命令 | 部署工作流 | 初始化/升级项目 |
+| `uninstallmc` | 终端命令 | 卸载工作流 | 移除工作流文件 |
+| `/mc [任务]` | Slash命令 | MODSDK开发主命令 | 90%开发场景 ⭐ |
+| `/mc-review` | Slash命令 | 深度审查方案 | 设计审核 |
+| `/mc-perf` | Slash命令 | 性能分析 | 性能优化 |
+| `/mc-docs` | Slash命令 | 验证文档 | 文档管理 |
+| `/mc-docs --gen` | Slash命令 | 生成文档 | 批量补充文档 |
+| `/mc-why <规范>` | Slash命令 | 解释规范原理 | 学习MODSDK |
+| `/mc-discover` | Slash命令 | 发现项目结构 | 项目分析 |
 
 ---
 
-## 📋 任务类型指令示例
+## 📋 任务类型示例
 
 ### 🟢 微任务（<30行单文件）
 
@@ -158,56 +180,56 @@ uninstallmc --remove-claude-md
 
 ```bash
 # 配置调整
-/cc 将玩家初始生命值改为20
+/mc 将玩家初始生命值改为20
 
 # 文案修改
-/cc 修改玩家加入提示为"欢迎来到服务器！"
+/mc 修改玩家加入提示为"欢迎来到服务器！"
 
 # 参数调整
-/cc 调整重生时间为5秒
+/mc 调整重生时间为5秒
 
 # 颜色修改
-/cc 将聊天框提示颜色改为红色
+/mc 将聊天框提示颜色改为红色
 ```
 
 ---
 
 ### 🟡 标准任务（3-8个文件）
 
-**特点**: 创建5章模板，记录开发过程
+**特点**: 创建任务文档，记录开发过程
 
 ```bash
 # 事件监听
-/cc 添加玩家死亡事件监听，记录死亡次数
+/mc 添加玩家死亡事件监听，记录死亡次数
 
 # 实体交互
-/cc 创建自定义NPC，点击后打开对话界面
+/mc 创建自定义NPC，点击后打开对话界面
 
 # 组件使用
-/cc 使用AttrComp实现玩家血量显示
+/mc 使用AttrComp实现玩家血量显示
 
 # 功能扩展
-/cc 为玩家系统添加经验值功能
+/mc 为玩家系统添加经验值功能
 ```
 
 ---
 
 ### 🔴 复杂任务（>8个文件或架构级）
 
-**特点**: 创建9章完整模板，可选并行探索
+**特点**: 完整任务管理，并行探索
 
 ```bash
 # 新系统开发
-/cc 添加计分板系统，支持多种统计类型
+/mc 添加计分板系统，支持多种统计类型
 
 # 架构重构
-/cc 重构玩家系统，分离数据层和表现层
+/mc 重构玩家系统，分离数据层和表现层
 
 # 性能优化
-/cc 全面优化tick性能，减少50%CPU占用
+/mc 全面优化tick性能，减少50%CPU占用
 
 # 复杂功能
-/cc 实现队伍系统，支持创建、加入、退出、PVP设置
+/mc 实现队伍系统，支持创建、加入、退出、PVP设置
 ```
 
 ---
@@ -218,79 +240,89 @@ uninstallmc --remove-claude-md
 
 ```bash
 # 查看错误日志
-/cc 查看最近的错误日志，分析原因
+/mc 查看最近的错误日志，分析原因
 
 # 调试代码
-/cc 帮我调试System初始化错误
+/mc 帮我调试System初始化错误
 
 # 性能分析
-/cc 分析Update方法的性能瓶颈
+/mc-perf
 
 # 验证规范
-/cc 检查代码是否违反CRITICAL规范
+/mc 检查代码是否违反CRITICAL规范
 ```
 
 ### 代码审查
 
 ```bash
 # 审查代码质量
-/cc 审查PlayerSystem的代码质量
+/mc-review
 
 # 检查双端隔离
-/cc 检查是否有跨端GetSystem调用
+/mc 检查是否有跨端GetSystem调用
 
 # 验证生命周期
-/cc 验证所有System的生命周期是否正确
+/mc 验证所有System的生命周期是否正确
 ```
 
 ---
 
-## 📚 文档指令示例
+## 📚 文档管理示例
+
+### 文档验证
+
+```bash
+# 检查文档覆盖率
+/mc-docs
+
+# 生成缺失文档
+/mc-docs --gen
+```
 
 ### 查询文档
 
 ```bash
 # 查阅规范
-/cc 解释双端隔离原则
+/mc-why 双端隔离原则
 
 # 查询API
-/cc NotifyToClient的参数和用法是什么？
+/mc NotifyToClient的参数和用法是什么？
 
 # 学习示例
-/cc 给我一个事件监听的完整示例
+/mc 给我一个事件监听的完整示例
 
 # 查阅系统文档
-/cc 查看PlayerSystem的实现文档
+/mc 查看PlayerSystem的实现文档
 ```
 
 ---
 
-## 🎨 代码生成指令示例
+## 🎨 代码生成示例
 
 ### 创建System
 
 ```bash
 # 基础System
-/cc 创建一个PlayerSystem，监听玩家加入游戏事件
+/mc 创建一个PlayerSystem，监听玩家加入游戏事件
 
 # 双端System
-/cc 创建商店系统，包含Server端和Client端
+/mc 创建商店系统，包含Server端和Client端
 
 # 带组件的System
-/cc 创建自定义血量显示系统，使用HealthComponent
+/mc 创建自定义血量显示系统，使用HealthComponent
 ```
 
 ### 创建事件监听
 
 ```bash
 # 玩家事件
-/cc 监听玩家死亡事件，记录死亡位置
+/mc 监听玩家死亡事件，记录死亡位置
 
 # 实体事件
-/cc 监听实体受伤事件，实现伤害统计
+/mc 监听实体受伤事件，实现伤害统计
 
 # 方块事件
-/cc 监听方块破坏事件，实现方块保护
+/mc 监听方块破坏事件，实现方块保护
 ```
 
 ---
@@ -301,24 +333,24 @@ uninstallmc --remove-claude-md
 
 ```bash
 # 方式1: 一次提交多个任务
-/cc 1. 修复System初始化错误
+/mc 1. 修复System初始化错误
     2. 添加玩家加入事件监听
     3. 更新配置文件
 
 # 方式2: 逐个执行（推荐）
-/cc 修复System初始化错误
+/mc 修复System初始化错误
 # 等待完成后
-/cc 添加玩家加入事件监听
+/mc 添加玩家加入事件监听
 ```
 
 ### 2. 模糊描述
 
 ```bash
 # Claude会自动推断需求
-/cc 玩家生命值太低了
+/mc 玩家生命值太低了
 # → Claude会查找配置文件并调整生命值
 
-/cc 玩家加入时显示欢迎消息
+/mc 玩家加入时显示欢迎消息
 # → Claude会创建事件监听和消息发送逻辑
 ```
 
@@ -326,9 +358,9 @@ uninstallmc --remove-claude-md
 
 ```bash
 # Claude会自动查找相关历史
-/cc 参考玩家系统的实现，创建一个队伍系统
+/mc 参考玩家系统的实现，创建一个队伍系统
 
-/cc 按照之前的方式，添加新的自定义组件
+/mc 按照之前的方式，添加新的自定义组件
 ```
 
 ---
@@ -339,33 +371,51 @@ uninstallmc --remove-claude-md
 
 ```bash
 # ❌ 不好
-/cc 改一下配置
+/mc 改一下配置
 
 # ✅ 好
-/cc 将玩家初始生命值从20改为40
+/mc 将玩家初始生命值从20改为40
 ```
 
 ### 2. 分解复杂任务
 
 ```bash
 # ❌ 不好
-/cc 实现完整的经济系统
+/mc 实现完整的经济系统
 
 # ✅ 好
-/cc 第一步：创建货币存储系统
+/mc 第一步：创建货币存储系统
 # 完成后
-/cc 第二步：实现货币获取和消耗功能
+/mc 第二步：实现货币获取和消耗功能
 ```
 
 ### 3. 引用具体位置
 
 ```bash
 # ❌ 不好
-/cc 修复那个错误
+/mc 修复那个错误
 
 # ✅ 好
-/cc 修复PlayerSystem.py第123行的GetComponent返回None错误
+/mc 修复PlayerSystem.py第123行的GetComponent返回None错误
 ```
+
+---
+
+## 🔄 v17.0命令对照表
+
+**从v16升级的用户请注意命令变化**：
+
+| v16命令 | v17命令 | 说明 |
+|---------|---------|------|
+| `/cc` | `/mc` | 主命令重命名 |
+| `/review-design` | `/mc-review` | 统一前缀 |
+| `/analyze-performance` | `/mc-perf` | 简化+统一前缀 |
+| `/validate-docs` | `/mc-docs` | 合并为默认模式 |
+| `/enhance-docs` | `/mc-docs --gen` | 合并为生成模式 |
+| `/explain-why` | `/mc-why` | 统一前缀 |
+| `/discover` | `/mc-discover` | 统一前缀 |
+| `/validate-architecture` | `/mc-review` | 功能合并 |
+| `/generate-diagram` | `/mc-review` | 功能合并 |
 
 ---
 
@@ -373,11 +423,11 @@ uninstallmc --remove-claude-md
 
 - **[README.md](./README.md)** - 项目简介和快速上手
 - **[CLAUDE.md](./CLAUDE.md)** - AI工作流完整配置
-- **[快速开始.md](./markdown/快速开始.md)** - 5分钟入门
-- **[开发规范.md](./markdown/开发规范.md)** - CRITICAL规范
-- **[问题排查.md](./markdown/问题排查.md)** - 调试技巧
+- **[markdown/核心工作流文档/快速开始.md](./markdown/核心工作流文档/快速开始.md)** - 5分钟入门
+- **[markdown/核心工作流文档/开发规范.md](./markdown/核心工作流文档/开发规范.md)** - CRITICAL规范
+- **[markdown/核心工作流文档/问题排查.md](./markdown/核心工作流文档/问题排查.md)** - 调试技巧
 - **[快速参考.md](./快速参考.md)** - 技术架构和高级配置
 
 ---
 
-_最后更新: 2025-11-11 | 文档版本: v3.0 (精简版)_
+_最后更新: 2025-11-11 | 文档版本: v17.0.0_

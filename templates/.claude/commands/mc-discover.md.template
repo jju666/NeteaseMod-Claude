@@ -1,4 +1,4 @@
-# /discover - 自适应项目结构发现
+# /mc-discover - 自适应项目结构发现
 
 自动扫描MODSDK项目，发现组件类型和文档组织方式。
 
@@ -53,7 +53,7 @@ node lib/adaptive-doc-discovery.js
 
 ### 步骤3：自动生成配置
 
-发现结果会保存到 `.claude/discovered-patterns.json`，供其他工具使用：
+发现结果会保存到 `.claude/mc-discovered-patterns.json`，供其他工具使用：
 
 ```json
 {
@@ -86,13 +86,13 @@ node lib/adaptive-doc-discovery.js
 
 ## 🔄 与其他工具的集成
 
-### /validate-docs集成
+### /mc-docs集成
 
-`/validate-docs` 会自动读取发现结果：
+`/mc-docs` 会自动读取发现结果：
 
 ```javascript
 // 1. 读取discovered-patterns.json
-const patterns = JSON.parse(fs.readFileSync('.claude/discovered-patterns.json'));
+const patterns = JSON.parse(fs.readFileSync('.claude/mc-discovered-patterns.json'));
 
 // 2. 动态搜索组件
 for (const [type, pattern] of Object.entries(patterns.customPatterns)) {
@@ -107,9 +107,9 @@ for (const [type, pattern] of Object.entries(patterns.customPatterns)) {
 }
 ```
 
-### /enhance-docs集成
+### /mc-docs --gen集成
 
-`/enhance-docs` 会使用发现的映射规则：
+`/mc-docs --gen` 会使用发现的映射规则：
 
 ```javascript
 // 根据类名推断文档路径
@@ -191,18 +191,18 @@ if (count >= 2) {  // 改为2
 
 1. **首次部署工作流时运行**
    ```bash
-   /discover  # 了解项目结构
+   /mc-discover  # 了解项目结构
    ```
 
 2. **添加新组件类型后重新运行**
    - 如果项目开始使用新的组织模式（如Manager、Controller）
-   - 重新运行/discover更新映射规则
+   - 重新运行/mc-discover更新映射规则
 
 3. **与文档维护工具配合使用**
    ```bash
-   /discover          # 步骤1：发现项目结构
-   /validate-docs     # 步骤2：验证文档完整性
-   /enhance-docs      # 步骤3：补充文档内容
+   /mc-discover          # 步骤1：发现项目结构
+   /mc-docs     # 步骤2：验证文档完整性
+   /mc-docs --gen      # 步骤3：补充文档内容
    ```
 
 ---
@@ -236,5 +236,5 @@ if (count >= 2) {  // 改为2
 ## 📚 参考
 
 - **核心代码**: `lib/adaptive-doc-discovery.js`
-- **输出文件**: `.claude/discovered-patterns.json`
+- **输出文件**: `.claude/mc-discovered-patterns.json`
 - **CLAUDE.md**: 自适应机制说明

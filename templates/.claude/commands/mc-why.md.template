@@ -1,4 +1,4 @@
-# /explain-why - 深度解释开发规范原理
+# /mc-why - 深度解释开发规范原理
 
 ## 命令说明
 
@@ -96,7 +96,7 @@
 
 **用户**：
 ```
-/explain-why 为什么必须双端隔离？
+/mc-why 为什么必须双端隔离？
 ```
 
 **AI输出**：
@@ -295,7 +295,7 @@ class ShopServerSystem(ServerSystem):
 
 **用户**：
 ```
-/explain-why 为什么要使用RegisterView？
+/mc-why 为什么要使用RegisterView？
 ```
 
 **AI输出**：

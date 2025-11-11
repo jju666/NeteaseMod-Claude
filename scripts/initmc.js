@@ -337,13 +337,13 @@ function copyFileWithValidation(src, dest, minSize = 1000, enableBackup = true) 
 }
 
 /**
- * 生成定制化的 cc.md
+ * 生成定制化的 mc.md
  */
 function generateCustomizedCC(globalDir, projectDir) {
-  const templatePath = path.join(globalDir, '.claude', 'commands', 'cc.md');
+  const templatePath = path.join(globalDir, '.claude', 'commands', 'mc.md');
 
   if (!fs.existsSync(templatePath)) {
-    error('找不到 cc.md 模板文件');
+    error('找不到 mc.md 模板文件');
     return false;
   }
 
@@ -356,15 +356,15 @@ function generateCustomizedCC(globalDir, projectDir) {
     content = content.replace(/D:\/EcWork\/NetEaseMapECBedWars_备份/g, normalizedPath);
 
     // 写入目标文件
-    const destPath = path.join(projectDir, '.claude', 'commands', 'cc.md');
+    const destPath = path.join(projectDir, '.claude', 'commands', 'mc.md');
     fs.ensureDirSync(path.dirname(destPath));
     fs.writeFileSync(destPath, content, 'utf-8');
 
     const stat = fs.statSync(destPath);
-    log(`  ✅ cc.md - ${(stat.size / 1024).toFixed(1)} KB (定制化)`, 'green');
+    log(`  ✅ mc.md - ${(stat.size / 1024).toFixed(1)} KB (定制化)`, 'green');
     return true;
   } catch (err) {
-    error(`生成 cc.md 失败: ${err.message}`);
+    error(`生成 mc.md 失败: ${err.message}`);
     return false;
   }
 }
@@ -771,7 +771,7 @@ async function deployWorkflow() {
     7000  // v16.0: 降低阈值以适应review-design.md实际大小（~8KB）
   );
 
-  // 生成定制化 cc.md
+  // 生成定制化 mc.md
   allSuccess &= generateCustomizedCC(globalDir, projectDir);
 
   console.log('');
@@ -934,7 +934,7 @@ async function deployWorkflow() {
         if (hasBedrockWiki) {
           console.log('  - Bedrock Wiki (bedrock-wiki/)');
         }
-        info('⚡ /cc 指令将优先查询本地文档（速度提升10x）');
+        info('⚡ /mc 指令将优先查询本地文档（速度提升10x）');
         console.log('');
       } catch (err) {
         if (err.code === 'EEXIST') {
@@ -955,7 +955,7 @@ async function deployWorkflow() {
   log('🔍 验证部署结果...', 'blue');
 
   const filesToVerify = [
-    { path: '.claude/commands/cc.md', minSize: 10000 },
+    { path: '.claude/commands/mc.md', minSize: 10000 },
     { path: '.claude/commands/discover.md', minSize: 5000 },
     { path: '.claude/commands/enhance-docs.md', minSize: 5000 },
     { path: '.claude/commands/validate-docs.md', minSize: 6000 },
@@ -1013,7 +1013,7 @@ async function deployWorkflow() {
   console.log('');
 
   console.log('📊 部署内容:');
-  console.log('  ✅ 命令文件: 5 个 (/cc, /discover, /validate-docs, /enhance-docs, /review-design)');
+  console.log('  ✅ 命令文件: 5 个 (/mc, /mc-discover, /mc-docs, /mc-review, /mc-perf, /mc-why)');
   console.log('  ✅ 通用文档: 6 个 (开发规范.md, 问题排查.md等)');
   console.log('  ✅ AI 文档: 3 个');
   console.log('  ✅ 核心工具: 6 个 (lib/目录)');
@@ -1051,7 +1051,7 @@ async function deployWorkflow() {
   console.log('  1. /discover - 自适应发现项目结构（零配置）');
   console.log('  2. /validate-docs - 发现组件并规范化文档结构');
   console.log('  3. /enhance-docs - 批量生成高质量文档内容');
-  console.log('  4. /cc "任务描述" - 开发时自动维护文档');
+  console.log('  4. /mc "任务描述" - 开发时自动维护文档');
   console.log('');
 
   // 根据不同场景输出不同提示

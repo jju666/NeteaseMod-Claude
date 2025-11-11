@@ -155,7 +155,7 @@ function createLightweightCLAUDE() {
 
 > 🤖 **MODSDK AI辅助工作流 - 轻量级配置**
 >
-> 已就绪！使用 \`/cc\` 命令开始开发。
+> 已就绪！使用 \`/mc\` 命令开始开发。
 
 ---
 
@@ -164,14 +164,14 @@ function createLightweightCLAUDE() {
 ### 核心命令
 
 \`\`\`bash
-# 最常用：快速任务执行器
-/cc "创建一个玩家加入事件监听System"
-/cc "修复System初始化错误"
-/cc "搜索 双端通信实现"
+# 最常用：MODSDK开发主命令（90%场景）
+/mc "创建一个玩家加入事件监听System"
+/mc "修复System初始化错误"
+/mc "搜索 双端通信实现"
 
 # 文档管理
-/enhance-docs       # 批量补充文档
-/validate-docs      # 验证文档完整性
+/mc-docs --gen     # 批量补充文档
+/mc-docs           # 验证文档完整性
 
 # 可选：生成完整文档
 /initmc            # 生成完整的markdown/文档库和项目分析
@@ -181,7 +181,7 @@ function createLightweightCLAUDE() {
 
 ## 📚 工作流程
 
-使用 \`/cc\` 命令时，AI会自动：
+使用 \`/mc\` 命令时，AI会自动：
 1. **理解任务** - 分析任务类型和复杂度
 2. **查阅文档** - 搜索相关开发规范和已知问题
 3. **执行收尾** - 实施方案并更新文档
@@ -333,18 +333,18 @@ function main() {
   console.log('   文档目录: markdown/ ✅\n');
 
   console.log('🎯 可用命令（重启Claude Code后生效）:');
-  console.log('   /cc <任务描述>   - 快速任务执行器 ⭐');
-  console.log('   /enhance-docs     - 批量补充文档');
-  console.log('   /validate-docs    - 验证文档完整性');
-  console.log('   /initmc           - 生成完整文档（可选）\n');
+  console.log('   /mc <任务描述>   - MODSDK开发主命令 ⭐');
+  console.log('   /mc-docs --gen   - 批量补充文档');
+  console.log('   /mc-docs         - 验证文档完整性');
+  console.log('   /initmc          - 生成完整文档（可选）\n');
 
   console.log('📝 使用说明:');
   console.log('   1. 重启Claude Code');
-  console.log('   2. 直接使用 /cc 开始开发（推荐）');
+  console.log('   2. 直接使用 /mc 开始开发（推荐）');
   console.log('   3. 或运行 /initmc 生成完整文档（可选）\n');
 
   console.log('💡 提示:');
-  console.log('   - /cc 命令已包含核心开发规范，可直接使用');
+  console.log('   - /mc 命令已包含核心开发规范，可直接使用');
   console.log('   - /initmc 会生成详细的系统文档和分析报告');
   console.log('   - 首次运行 /initmc 需要3-15分钟');
 }

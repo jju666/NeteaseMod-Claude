@@ -259,16 +259,32 @@ tar -xzf netease-mod-claude.tar.gz
 
 **症状**：
 ```bash
-initmc
-# ❌ 错误: 无法创建软连接，权限不足
+npm run install-global
+# ❌ 错误: EPERM: operation not permitted, copyfile ...
 ```
 
 **解决方案**：
 
-**方式1：以管理员身份运行PowerShell**
+**方式1：以管理员身份运行PowerShell（推荐）**
 ```powershell
-# 右键 PowerShell → "以管理员身份运行"
-initmc
+# 1. 右键点击 "Windows PowerShell" → "以管理员身份运行"
+
+# 2. 切换到项目目录（⚠️ 注意：路径中有空格时必须使用引号）
+cd "D:\EcWork\基于Claude的MODSDK开发工作流"
+
+# 3. 运行安装命令
+npm install
+npm run install-global
+```
+
+**⚠️ 常见错误**：
+```powershell
+# ❌ 错误示例（路径有空格时不加引号）
+cd D:\EcWork\基于Claude的MODSDK开发工作流
+# 结果：只切换到 D:\EcWork\，导致找不到 package.json
+
+# ✅ 正确示例（使用引号）
+cd "D:\EcWork\基于Claude的MODSDK开发工作流"
 ```
 
 **方式2：启用开发者模式（Windows 10+）**

@@ -228,9 +228,37 @@ function main() {
   console.log(`   源: ${SOURCE_DIR}`);
   console.log(`   目标: ${TARGET_DIR}\n`);
 
-  copyDirRecursive(SOURCE_DIR, TARGET_DIR);
-
-  console.log('✅ 文件复制完成\n');
+  try {
+    copyDirRecursive(SOURCE_DIR, TARGET_DIR);
+    console.log('✅ 文件复制完成\n');
+  } catch (err) {
+    // 检测是否为Windows权限错误
+    if (IS_WINDOWS && err.code === 'EPERM') {
+      console.error('\n❌ 安装失败：权限不足\n');
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.error('⚠️  Windows需要管理员权限来创建符号链接\n');
+      console.error('解决方案（任选其一）：\n');
+      console.error('方案1：以管理员身份运行（推荐）');
+      console.error('   1. 关闭当前终端');
+      console.error('   2. 右键点击 "Windows PowerShell" → "以管理员身份运行"');
+      console.error('   3. 切换到项目目录（注意使用引号处理空格）:');
+      console.error(`      cd "${SOURCE_DIR}"`);
+      console.error('   4. 重新运行: npm run install-global\n');
+      console.error('方案2：启用开发者模式（Windows 10+）');
+      console.error('   1. 设置 → 更新和安全 → 开发者选项');
+      console.error('   2. 打开"开发人员模式"');
+      console.error('   3. 重启终端后重试\n');
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+      console.error('详细说明：./docs/INSTALLATION.md#问题3windows软连接权限不足\n');
+      process.exit(1);
+    } else {
+      // 其他错误
+      console.error('\n❌ 文件复制失败:', err.message);
+      console.error('错误代码:', err.code);
+      console.error('错误路径:', err.path || '未知\n');
+      process.exit(1);
+    }
+  }
 
   // 在目标目录安装依赖（v16.0新增）
   console.log('📦 在全局目录安装依赖...\n');

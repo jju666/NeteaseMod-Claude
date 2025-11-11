@@ -46,6 +46,24 @@ npm run install-global
 initmc --version
 ```
 
+**⚠️ Windows用户特别注意**：
+
+由于需要创建符号链接，Windows系统需要**管理员权限**：
+
+```powershell
+# 1. 以管理员身份打开PowerShell
+#    右键点击 "Windows PowerShell" → "以管理员身份运行"
+
+# 2. 切换到项目目录（注意使用引号）
+cd "D:\EcWork\基于Claude的MODSDK开发工作流"
+
+# 3. 运行安装命令
+npm install
+npm run install-global
+```
+
+如遇到 `EPERM: operation not permitted` 错误，请参考：[Windows权限问题解决方案](./docs/INSTALLATION.md#问题3windows软连接权限不足)
+
 ### 2. 初始化你的MODSDK项目
 
 ```bash

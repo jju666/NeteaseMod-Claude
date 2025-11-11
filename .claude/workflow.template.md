@@ -22,7 +22,8 @@
 - ✅ 使用NotifyToClient(服务端→客户端)
 - ✅ 使用NotifyToServer(客户端→服务端)
 
-**原因:** Server和Client进程分离，跨端GetSystem返回None
+**原因:** 双端进程分离，跨端调用返回None
+详见：[问题排查.md](./markdown/问题排查.md#问题1)
 
 ---
 
@@ -44,7 +45,8 @@
       self.comp = self.GetComponent(...)  # 安全访问
   ```
 
-**原因:** __init__时游戏未初始化，实体/组件未注册
+**原因:** __init__阶段游戏未初始化，API不可用
+详见：[问题排查.md](./markdown/问题排查.md#问题2)
 
 ---
 
@@ -66,7 +68,8 @@ data["position"] = (100, 64, 100)  # tuple不支持序列化!
 data["position"] = [100, 64, 100]  # 使用list
 ```
 
-**原因:** EventData序列化机制不支持tuple类型
+**原因:** 序列化机制不支持tuple，必须使用list
+详见：[问题排查.md](./markdown/问题排查.md#问题3)
 
 ---
 
@@ -89,7 +92,8 @@ aoi_comp.AddAoi(pos, [3000, 3000, 3000])  # 超过2000限制!
 aoi_comp.AddAoi(pos, [2000, 2000, 2000])  # 遵守限制
 ```
 
-**原因:** 引擎硬性限制，无法突破
+**原因:** 引擎硬性限制，每维度≤2000格
+详见：[问题排查.md](./markdown/问题排查.md#问题9)
 
 ---
 
@@ -232,6 +236,11 @@ mkdir {{PROJECT_ROOT}}/tasks/[中文任务名]  # 必须创建tasks目录
 ---
 
 ## 📚 文档导航
+
+### 快速参考
+- **[API速查.md](./markdown/API速查.md)** - 常用API代码片段，可直接复制使用 ⭐
+- **[MODSDK核心概念.md](./markdown/MODSDK核心概念.md)** - System/Component/Event/Entity核心概念速查 ⭐
+- **[Claude指令参考.md](./Claude指令参考.md)** - 所有Claude指令的完整说明
 
 ### 核心文档
 - **[开发规范.md](./markdown/开发规范.md)** - 防止90%错误

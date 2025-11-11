@@ -95,10 +95,15 @@ ls tasks/    # 检查是否有相关任务（Linux/Mac）
 
 **目标**：快速定位工作区域，避免盲目搜索
 
-**1️⃣ 查阅Systems文档（最高优先级）**
+**1️⃣ 查阅项目文档（最高优先级）**
 ```python
-# 所有任务类型都必须先查阅Systems文档
-Read("markdown/systems/[相关系统].md")
+# 所有任务类型都必须先查阅项目文档
+# 根据项目类型自动选择：
+# - System架构项目: markdown/systems/[系统名].md
+# - 模块化项目: markdown/modules/[模块名].md
+# - 其他架构: markdown/[相关文档].md
+
+Read("markdown/[项目文档目录]/[相关模块].md")
 
 # 提取关键信息：
 # - 文件路径
@@ -121,7 +126,7 @@ Grep(pattern="[模糊关键词]", output_mode="content")
 
 **输出检查点**：
 ```
-📂 已查阅Systems文档: [列出文件名]
+📂 已查阅项目文档: [列出文件名]
 🎯 定位到的代码位置: [文件路径:行号]
 🔍 搜索策略: [文档定向/关键词搜索/盲目搜索]
 ```
@@ -174,7 +179,7 @@ WebFetch(
 
 **允许编辑（可写）:**
 - ✅ `markdown/core/` (项目覆盖层)
-- ✅ `markdown/systems/` (项目System文档)
+- ✅ `markdown/` (项目技术文档，根据项目类型自适应)
 - ✅ `markdown/文档待补充清单.md` (项目跟踪)
 - ✅ `tasks/` (任务历史)
 
@@ -212,7 +217,8 @@ mkdir tasks/[任务名]
 **3.3 任务完成后（所有任务级别）** ⭐
 
 **必须执行**：
-1. **更新Systems文档**
+1. **更新项目文档**
+   - 根据项目类型更新对应文档（systems/modules/其他）
    - 补充新增的类/函数/配置位置
    - 更新文件结构（如有变化）
    - 标记文档最后更新时间
@@ -286,8 +292,11 @@ mkdir tasks/[任务名]
 - **✅ 允许编辑，仅影响当前项目**
 
 **📂 项目特定层（可编辑）**
-- 位置：`markdown/systems/`、`markdown/文档待补充清单.md`
-- 内容：项目自己的System文档和跟踪清单
+- 位置：`markdown/`（根据项目类型自适应）
+  - System架构项目：`markdown/systems/`
+  - 模块化项目：`markdown/modules/`
+  - 其他架构：`markdown/[自定义目录]/`
+- 内容：项目自己的技术文档和跟踪清单
 - **✅ 完全由项目自主维护**
 
 ### 核心文档（智能路由）
@@ -297,7 +306,10 @@ mkdir tasks/[任务名]
 - **[AI工作流文档]** - 任务类型决策表、快速通道流程、上下文管理规范
 
 ### 项目文档（直接读取）
-- **[markdown/systems/](./markdown/systems/)** - 系统实现文档
+- **[markdown/](./markdown/)** - 项目技术文档（根据项目类型自适应）
+  - System架构项目：`markdown/systems/`
+  - 模块化项目：`markdown/modules/`
+  - 其他架构：`markdown/[自定义]/`
 - **[markdown/文档待补充清单.md](./markdown/文档待补充清单.md)** - 文档覆盖率跟踪
 {{PRESETS_DOCS_SECTION}}
 ### 文档更新机制

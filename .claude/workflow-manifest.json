@@ -1,0 +1,16 @@
+{
+  "version": "16.0.0",
+  "createdAt": "2025-11-11T06:23:05.689Z",
+  "baselineHashes": {
+    "开发规范.md": "38a000bc5928f2ca228970d517a52897ad561196fe9adbe7fef588d671311d1e",
+    "问题排查.md": "c7bf66d15f8deda33fce41783c835a438e0d33cda21f1f51fdf8e6e29c7dad42",
+    "快速开始.md": "832b49ec2b089b71713d42c47a624bf063f2bbd176a1f67657faa79093c036d4",
+    "MODSDK核心概念.md": "6f6247b022f492ca58c384f6f76e70004e50268cbc9d7ede4511e28ba12ce7e4",
+    "API速查.md": "29473db276612598ace0ca4b5232fee2ee4855c20759469707e413761fc2a69d",
+    "官方文档查询指南.md": "c0bb38f20a33f67d0d1c4ca32acda750837018f7f4015c23568c106a9991d3b8",
+    "迁移指南-v15.0.md": "bd93074eed456955478320a5d09fb7146264c42c62bf16ca2e2e879a3cac1b5a"
+  },
+  "obsoleteFiles": [],
+  "installedAt": "2025-11-11T06:23:05.689Z",
+  "updatedAt": "2025-11-11T06:23:05.689Z"
+}

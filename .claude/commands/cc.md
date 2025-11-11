@@ -1,16 +1,15 @@
-# /cc
+# /cc - Claude Code 标准工作流任务执行
 
+## 描述
 按照 CLAUDE.md 中的标准工作流程（理解任务 → 查阅文档 → 执行与收尾）分析并执行指定的工作任务。
 
 ## 用法
-
-```bash
+```
 /cc <任务描述>
 ```
 
 ## 示例
-
-```bash
+```
 /cc 修复System初始化错误
 /cc 添加新功能模块
 /cc 优化代码性能
@@ -21,11 +20,9 @@
 
 ## 任务执行指令
 
-你现在需要按照 [CLAUDE.md](../../CLAUDE.md) 中定义的标准工作流程执行以下任务。
+你现在需要按照 [CLAUDE.md](../../CLAUDE.md) 中定义的标准工作流程执行以下任务：
 
-**⚠️ 重要提示**：
-- 如果用户提供了任务描述，请执行该任务
-- 如果用户未提供任务描述，请提示："请提供任务描述，例如：/cc 修复System初始化错误"
+**用户任务**：{{ARGUMENTS}}
 
 ---
 
@@ -33,7 +30,7 @@
 
 ### 🎯 步骤1：理解任务
 
-1. **检查历史上下文**：查看 `{{PROJECT_ROOT}}/tasks/` 目录，判断是否为继续任务
+1. **检查历史上下文**：查看 `d:/EcWork/基于Claude的MODSDK开发工作流/tasks/` 目录，判断是否为继续任务
 
 2. **识别任务类型**：
    - **微任务**：单文件、<30行、无需探索 → 直接执行
@@ -43,7 +40,7 @@
 
 3. **理解问题现象**：
    - ⚠️ **如果任务描述中提到"日志"或"错误"**，则按以下优先级查阅日志文件：
-     - `{{PROJECT_ROOT}}/日志.log` - 主日志文件
+     - `d:/EcWork/基于Claude的MODSDK开发工作流/日志.log` - 主日志文件
    - 使用 Grep/Read 查看相关代码
    - 分析调用链和数据流
 
@@ -51,91 +48,31 @@
 
 ---
 
-### 📚 步骤2：查阅文档（智能路由）⭐ 核心步骤
+### 📚 步骤2：查阅文档 ⭐ 核心步骤
 
-**文档查找优先级**（v16.0双层架构）：
+**快速参考**（无需查阅完整文档）：
+- 🔍 **markdown/API速查.md** - 常用API代码片段，可直接复制使用 ⭐
+- 📖 **markdown/MODSDK核心概念.md** - System/Component/Event/Entity速查 ⭐
 
-#### 层级1: 项目覆盖层（最高优先级）
-优先检查 `markdown/core/` 目录（项目定制版本）：
-- 如果存在，使用项目定制版本，标记为 "📝 项目定制版"
+**详细文档**（需要深入理解时查阅）：
 
-#### 层级2: 上游基线（回退）
-如果项目无定制，回退到 `.claude/core-docs/`（软连接到上游）：
-- 使用上游基线版本，标记为 "📦 上游基线版本"
-
-#### 层级3: 项目特定文档
-- `markdown/systems/` - 项目System实现文档
-- `markdown/文档待补充清单.md` - 项目跟踪文档
-
----
-
-**核心文档**（智能路由查询）：
-
-1. **开发规范.md** - 检查是否违反CRITICAL规范（最高优先级）⭐⭐⭐
-   ```python
-   # 优先读取项目定制版
-   Read("markdown/core/开发规范.md") if exists else Read(".claude/core-docs/开发规范.md")
-   ```
+1. **markdown/开发规范.md** - 检查是否违反CRITICAL规范（最高优先级）⭐⭐⭐
    - 使用Grep搜索关键词，定位相关规范
    - 详细阅读并提取原则
 
-2. **问题排查.md** - 查找是否为已知问题
-   ```python
-   Read("markdown/core/问题排查.md") if exists else Read(".claude/core-docs/问题排查.md")
-   ```
+2. **markdown/问题排查.md** - 查找是否为已知问题
    - 搜索相似问题描述
    - 如找到，直接使用解决方案
 
-3. **API速查.md** - 常用API代码片段，可直接复制使用 ⭐
-   ```python
-   Read("markdown/core/API速查.md") if exists else Read(".claude/core-docs/API速查.md")
-   ```
-
-4. **MODSDK核心概念.md** - System/Component/Event/Entity速查 ⭐
-   ```python
-   Read("markdown/core/MODSDK核心概念.md") if exists else Read(".claude/core-docs/MODSDK核心概念.md")
-   ```
-
-5. **Systems文档** - 系统实现文档（项目特定）
+3. **Systems文档** - 系统实现文档
    - 路径：`markdown/systems/`
    - 查阅相关系统的技术文档
 
----
 
-### 🔍 智能文档查询（优先级顺序）
+5. **Systems文档** - 系统实现文档
+   - 路径: `markdown/systems/`
+   - 查阅对应系统的技术文档
 
-#### 优先级1：本地官方文档（自动检测）⚡
-
-**如果 `.claude/docs/` 目录存在**（由 `initmc` 自动部署），优先查询本地文档：
-
-**MODSDK API 查询**：
-```bash
-# 在 .claude/docs/modsdk-wiki/ 中搜索API
-Grep("NotifyToClient", path=".claude/docs/modsdk-wiki/", output_mode="content", -C=5)
-
-# 示例：查询组件API
-Grep("SetAttr", path=".claude/docs/modsdk-wiki/", output_mode="content", -C=5)
-```
-
-**基岩版实体/NBT 查询**：
-```bash
-# 在 .claude/docs/bedrock-wiki/ 中搜索
-Grep("entity.*nbt", path=".claude/docs/bedrock-wiki/", output_mode="content", -C=5)
-
-# 示例：查询实体组件
-Grep("minecraft:health", path=".claude/docs/bedrock-wiki/", output_mode="content", -C=5)
-```
-
-**优势**：
-- ⚡ **速度快**：本地查询 <1秒（vs WebFetch 5-10秒）
-- 🌐 **离线可用**：无需网络连接
-- 📖 **完整内容**：可查看完整文档上下文
-
----
-
-#### 优先级2：在线官方文档（降级策略）
-
-**如果本地文档不存在或未找到结果**，使用 WebFetch 在线查询：
 
 4. **官方MODSDK文档** - 遇到不熟悉的API时查阅 ⭐
    - **GitHub仓库**: https://github.com/EaseCation/netease-modsdk-wiki
@@ -218,18 +155,16 @@ if 文档缺少"数据流"或"常见问题"章节:
 
 ---
 
-### 🚦 核心检查点（步骤2→3）⭐ v16.0更新
+### 🚦 核心检查点（步骤2→3）
 
 **必须输出以下格式**：
 
 ```
 ✅ 检查点完成:
 
-1. 已查阅文档（标注文档类型）:
-   - 📝 [项目定制版] markdown/core/开发规范.md - 第1章 (第20-35行)
-   - 📦 [上游基线] .claude/core-docs/问题排查.md - 问题5 (第102-118行)
-   - 📂 [项目特定] markdown/systems/战斗系统.md - 数据流 (第45-67行)
-   - 🌐 [官方文档] MODSDK Wiki - NotifyToClient API说明
+1. 已查阅文档:
+   - [文档名 - 章节名] (第X-Y行)
+   - [文档名 - 章节名] (第X-Y行)
 
 2. 提取的关键原则:
    ⛔ 禁止: [具体禁止事项，必须来自文档]
@@ -370,25 +305,6 @@ if 本次修复了BUG:
    更新"待补充文档数量"和"已补充文档数量"
    ```
 
-   **文档维护摘要输出**：
-   ```
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   📚 文档自动维护完成
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-   已更新文档：
-   - ✅ markdown/systems/商店购买系统.md
-     - 新增章节：数据流分析
-     - 新增常见问题：购买验证失败的解决方案
-
-   - ✅ markdown/问题排查.md
-     - 新增问题：EventData序列化失败（第127行）
-
-   文档覆盖率：18/20 (90%) → 20/20 (100%)
-
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   ```
-
    **② DEBUG清理**：
    ```bash
    # 搜索临时调试代码
@@ -431,7 +347,7 @@ if 本次修复了BUG:
 
 ## 📂 核心路径参考
 
-- **项目根目录**: `{{PROJECT_ROOT}}`
+- **项目根目录**: `d:/EcWork/基于Claude的MODSDK开发工作流`
 
 ---
 

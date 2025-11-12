@@ -4,7 +4,7 @@
 >
 > 本文档指导 Claude Code 在本仓库中进行工作流的开发和维护工作。
 >
-> **当前版本**: v17.3.0
+> **当前版本**: v18.0.0
 > **最后更新**: 2025-11-12
 > **文档状态**: ✅ 完整技术文档
 
@@ -86,14 +86,14 @@
 
 | 项目 | 版本 | 说明 |
 |------|------|------|
-| **当前版本** | v17.2.0 | 强化步骤2强制文档查阅机制 |
+| **当前版本** | v18.0.0 | 下游CLAUDE.md完全解耦 + 智能文档路由 |
 | **最后更新** | 2025-11-12 | 本文档编写日期 |
 | **Node.js要求** | >=12.0.0 | 见 [package.json:42](package.json#L42) |
 | **核心依赖** | fs-extra, glob | 见 [package.json:44-47](package.json#L44-L47) |
 
 **版本号定义位置**:
-- [lib/config.js:29](lib/config.js#L29) - `const VERSION = '17.2.0';`
-- [package.json:3](package.json#L3) - `"version": "17.2.0"`
+- [lib/config.js:29](lib/config.js#L29) - `const VERSION = '18.0.0';`
+- [package.json:3](package.json#L3) - `"version": "18.0.0"`
 - 本文档顶部版本声明
 
 **重要提醒**: 修改版本号时必须同步更新这3个位置！详见 [3.4 版本发布检查清单](#34-版本发布检查清单)。
@@ -168,14 +168,14 @@ graph LR
     style G fill:#9c27b0,color:#fff
 ```
 
-#### 职责边界表
+#### 职责边界表（v18.0更新）
 
 | 目录/文件 | 上游职责 | 下游职责 | 部署方式 |
 |----------|---------|---------|---------|
 | **markdown/** | ✅ 维护核心文档 | ❌ 只读引用 | 软连接到 `.claude/core-docs/` |
-| **templates/** | ✅ 维护模板 | ❌ 不可见 | 通过 `initmc` 生成 |
+| **templates/** | ✅ 维护命令模板 | ❌ 不可见 | 通过 `initmc` 生成 |
 | **lib/, bin/** | ✅ 维护代码 | ❌ 不可见 | 全局安装 |
-| **CLAUDE.md** | ✅ 维护模板 | ✅ 可编辑项目扩展区 | 从模板生成 |
+| **CLAUDE.md** | ✅ 维护最小化模板 | ✅ **完全由用户管理** ⭐ v18.0 | 仅首次生成最小模板 |
 | **markdown/core/** | ❌ 不维护 | ✅ 项目定制文档 | 下游创建 |
 | **markdown/systems/** | ❌ 不维护 | ✅ 项目System文档 | 下游生成 |
 
@@ -423,7 +423,7 @@ D:\YourProject\                 用户的MODSDK项目
 │   │   ├─ 核心工作流文档/ → [软连接到上游 markdown/核心工作流文档/]
 │   │   ├─ 概念参考/ → [软连接到上游 markdown/概念参考/]
 │   │   ├─ 深度指南/ → [软连接到上游 markdown/深度指南/]
-│   │   └─ ai/ → [软连接到上游 markdown/ai/]
+│   │   └─ AI策略文档/ → [软连接到上游 markdown/AI策略文档/]
 │   │
 │   ├─ docs/                    官方文档软连接（可选）
 │   │   ├─ modsdk-wiki/ → [软连接到上游 docs/modsdk-wiki/]
@@ -1869,7 +1869,7 @@ templates/
 ❌ templates/markdown/开发规范.md.template (1157行, 过时版本)
 ❌ templates/markdown/问题排查.md.template (39KB)
 ❌ templates/markdown/快速开始.md.template (4.6KB)
-❌ templates/markdown/ai/ (缺少文件)
+❌ templates/markdown/AI策略文档/ (缺少文件)
 ```
 
 **迁移路径**:
@@ -3733,7 +3733,7 @@ detectObsoleteFiles(fromVersion, toVersion) {
       'markdown/API速查.md',
       'markdown/官方文档查询指南.md',
       'markdown/迁移指南-v15.0.md',
-      'markdown/ai' // 目录
+      'markdown/AI策略文档' // 目录
     ];
 
     obsolete.push(...v16CoreFiles);
@@ -4057,7 +4057,7 @@ sequenceDiagram
 │   │   ├─ 核心工作流文档/ → [上游 markdown/核心工作流文档/]
 │   │   ├─ 概念参考/ → [上游 markdown/概念参考/]
 │   │   ├─ 深度指南/ → [上游 markdown/深度指南/]
-│   │   └─ ai/ → [上游 markdown/ai/]
+│   │   └─ AI策略文档/ → [上游 markdown/AI策略文档/]
 │   │
 │   ├─ docs/                          ← 软连接到上游（可选）
 │   │   ├─ modsdk-wiki/ → [上游 docs/modsdk-wiki/]

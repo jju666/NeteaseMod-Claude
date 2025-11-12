@@ -812,9 +812,9 @@ async function deployWorkflow() {
   log('🤖 复制 AI 辅助文档...', 'blue');
 
   const aiDocsToCopy = [
-    { src: 'markdown/ai/任务类型决策表.md', minSize: 2000 },
-    { src: 'markdown/ai/快速通道流程.md', minSize: 2000 },
-    { src: 'markdown/ai/上下文管理规范.md', minSize: 2000 }
+    { src: 'markdown/AI策略文档/任务类型决策表.md', minSize: 2000 },
+    { src: 'markdown/AI策略文档/快速通道流程.md', minSize: 2000 },
+    { src: 'markdown/AI策略文档/上下文管理规范.md', minSize: 2000 }
   ];
 
   aiDocsToCopy.forEach(doc => {

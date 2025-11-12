@@ -106,7 +106,7 @@ Grep("System", path="markdown/核心工作流文档/", output_mode="content", -C
 Grep("性能", path="markdown/深度指南/", output_mode="files_with_matches")
 
 # 搜索AI工作流文档
-Grep("任务模式", path="markdown/ai/", output_mode="content")
+Grep("任务模式", path="markdown/AI策略文档/", output_mode="content")
 ```
 
 ### 使用Glob工具查找文档

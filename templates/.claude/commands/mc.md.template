@@ -25,7 +25,42 @@
 
 ## 📋 工作流程提醒
 
-### 🎯 步骤1：理解任务
+### 🎯 步骤0：理解项目上下文（新增步骤）⭐
+
+在开始执行任务前，**必须**先理解本项目的基本情况和特定规范。
+
+#### 0.1 读取项目指导文档
+
+```
+Read ../../CLAUDE.md
+```
+
+**理解目标**：
+- 📌 项目基本信息（项目名称、类型、路径）
+- 🎯 项目特定规范（团队约定、自定义架构、命名规范等）
+- 📝 项目背景和特殊说明
+
+**输出**（简短总结）：
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ 步骤0检查点：项目上下文理解
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+项目：{{PROJECT_NAME}}
+类型：{{PROJECT_TYPE}}
+特殊规范：（如有，列出关键点）
+
+⚠️ 确认检查点输出完成后，才能进入步骤1！
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+#### 0.2 项目特定规范优先级
+
+⚠️ **重要**：如果项目CLAUDE.md中定义了与MODSDK开发相关的特殊规范，**优先遵循项目规范**。
+
+---
+
+### 🎯 步骤1：理解任务（2分钟）
 
 1. **检查历史上下文**：查看 `{{PROJECT_PATH}}/tasks/` 目录，判断是否为继续任务
 
@@ -107,20 +142,21 @@
      - 🐛 需要查询最新文档：确认API是否有更新
 
    - **查阅方式**（智能降级策略）⭐：
-     1. **优先本地离线文档**（如果 `.claude/docs/` 存在）：
+     1. **优先全局离线文档**（推荐）：
         ```python
         # 示例1：查询Component用法
-        Read(".claude/docs/modsdk-wiki/docs/mcdocs/1-ModAPI/Component/actorOwnerComp.md")
+        Read("{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/Component/actorOwnerComp.md")
         # 优点：速度快（<1秒）、支持离线、精确引用
+        # 路径说明：{{GLOBAL_DOCS_PATH}} = ~/.claude-modsdk-workflow/docs/
         ```
-     2. **降级在线查询**（本地不存在时）：
+     2. **降级在线查询**（全局文档不存在时）：
         ```python
         # 示例2：使用WebFetch在线查询
         WebFetch(
             url="https://raw.githubusercontent.com/EaseCation/netease-modsdk-wiki/main/docs/mcdocs/1-ModAPI/...",
             prompt="提取[API名称]的使用说明、参数定义和返回值"
         )
-        # 适用场景：本地文档未下载、需要最新版本
+        # 适用场景：全局文档未下载、需要最新版本
         ```
 
 5. **基岩版Wiki** - 涉及原版实体/物品/NBT时查阅 ⭐
@@ -131,13 +167,14 @@
      - ⚙️ 需要了解原版游戏机制时
 
    - **查阅方式**（智能降级策略）⭐：
-     1. **优先本地离线文档**（如果 `.claude/docs/` 存在）：
+     1. **优先全局离线文档**（推荐）：
         ```python
         # 示例：查询NBT结构
-        Read(".claude/docs/bedrock-wiki/docs/nbt/entity.md")
+        Read("{{GLOBAL_DOCS_PATH}}/bedrock-wiki/docs/nbt/entity.md")
         # 优点：速度快、支持离线
+        # 路径说明：{{GLOBAL_DOCS_PATH}} = ~/.claude-modsdk-workflow/docs/
         ```
-     2. **降级在线查询**（本地不存在时）：
+     2. **降级在线查询**（全局文档不存在时）：
         ```python
         WebFetch(
             url="https://raw.githubusercontent.com/Bedrock-OSS/bedrock-wiki/main/docs/nbt/...",
@@ -147,11 +184,12 @@
 
 **⚠️ 官方文档查阅策略**（三级降级）：
 1. ✅ **优先项目文档**：先查阅 `markdown/` 目录中的项目文档
-2. 📦 **次优本地离线文档**：查阅 `.claude/docs/` 中的官方文档副本（如存在）
+2. 📦 **次优全局离线文档**：查阅 `{{GLOBAL_DOCS_PATH}}/` 中的官方文档（推荐）
    - 优点：速度快（<1秒）、支持离线、精确引用
    - 检测方式：尝试 Read 操作，失败则自动降级
+   - 路径说明：{{GLOBAL_DOCS_PATH}} = ~/.claude-modsdk-workflow/docs/
 3. 🌐 **最终在线查询**：使用 WebFetch 查询 GitHub 原始文件
-   - 适用场景：本地文档未下载、需要最新版本
+   - 适用场景：全局文档未下载、需要最新版本
 - 📝 **记录查阅结果**：将查阅结果（包括来源）记录到核心检查点输出中
 
 #### 🔍 文档缺失检测 ⭐ 自学习机制
@@ -220,7 +258,7 @@ if 文档缺少"数据流"或"常见问题"章节:
    - MODSDK核心概念.md:72 - Part初始化流程说明
 
 4. 🌐 官方文档查阅（如有）:
-   - 📦 本地离线文档：[.claude/docs/modsdk-wiki/具体路径] - [查阅的API/概念]
+   - 📦 全局离线文档：[{{GLOBAL_DOCS_PATH}}/modsdk-wiki/具体路径] - [查阅的API/概念]
    - 🌐 在线查询：[GitHub文件路径] - [查阅的API/概念]
    - 提取内容: [关键信息摘要]
    (如未使用官方文档，可跳过此项)
@@ -260,7 +298,7 @@ else:  # 微任务
 
 #### 2.5.1 执行自检清单
 
-**参考文档**: `.claude/core-docs/ai/方案自检清单.md`
+**参考文档**: `.claude/core-docs/AI策略文档/方案自检清单.md`
 
 **5项检查**（内存检查为主，最多2次Grep查询）:
 
@@ -291,11 +329,11 @@ if ServerSystem调用客户端API or ClientSystem调用服务端API:
 # 检查3: 事件/API存在性验证（可选：查询索引表）⭐
 # 如果对事件/API不熟悉，执行以下查询（每个<150 tokens）：
 for event_name in 方案中的事件列表:
-    Grep(event_name, path=".claude/docs/modsdk-wiki/.../事件索引表.md", output_mode="content")
+    Grep(event_name, path="{{GLOBAL_DOCS_PATH}}/modsdk-wiki/.../事件索引表.md", output_mode="content")
     # 验证: 事件存在? 端别匹配?
 
 for api_name in 方案中的API列表:
-    Grep(api_name, path=".claude/docs/modsdk-wiki/.../Api索引表.md", output_mode="content")
+    Grep(api_name, path="{{GLOBAL_DOCS_PATH}}/modsdk-wiki/.../Api索引表.md", output_mode="content")
     # 验证: API存在? 端别匹配?
 
 # 检查4: 数据流完整性（逻辑检查）

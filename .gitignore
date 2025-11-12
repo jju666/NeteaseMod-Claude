@@ -59,3 +59,7 @@ docs/bedrock-wiki/
 检查报告索引.md
 文档法律合规检查报告-*.md
 立即执行修复-完成报告.md
+
+# Windows保留设备名（防止误提交）
+nul
+NUL

@@ -18,14 +18,18 @@ Thumbs.db
 # Claude Code 本地配置（不提交个人配置）
 .claude/settings.local.json
 .claude/core-docs/  # 下游产物，不应存在于上游仓库
+.claude/workflow-manifest.json  # 下游版本追踪文件
 
-# Claude Code 测试遗留（防止误提交下游命令）
+# Claude Code 下游命令（防止误提交，应使用templates/）
+.claude/commands/*  # 所有下游命令文件
+!.claude/commands/uninstallmc.md  # 例外：uninstallmc是上游命令，需要保留
+
+# Claude Code 下游Hook（防止误提交，应使用templates/）
+.claude/hooks/  # 所有下游Hook脚本，上游只维护templates/.claude/hooks/
+
+# Claude Code 测试遗留（防止误提交下游产物）
 .claude/discovered-patterns.json  # 由/discover生成，属于下游项目
-.claude/commands/cc.md             # 下游命令，应使用模板
-.claude/commands/discover.md       # 下游命令，应使用模板
-.claude/commands/review-design.md  # 下游命令，应使用模板
-.claude/commands/enhance-docs.md   # 下游命令，应使用模板
-.claude/commands/validate-docs.md  # 下游命令，应使用模板
+.claude/doc-index.json  # 下游文档索引
 
 # 临时文件
 *.tmp

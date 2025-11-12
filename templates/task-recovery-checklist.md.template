@@ -1,0 +1,259 @@
+# Task Recovery Checklist
+
+> **Task ID**: {{TASK_ID}}
+> **Task Description**: {{DESCRIPTION}}
+> **Created At**: {{CREATED_AT}}
+> **Recovery Initiated At**: {{RECOVERY_AT}}
+
+---
+
+## Purpose
+
+This checklist guides Claude Code to fully recover task context after context loss/compression. Follow these 5 steps sequentially to restore complete task state.
+
+---
+
+## Step 1: Recover Task Basic Information
+
+**Objective**: Understand what task we are working on and its current status
+
+**Actions**:
+1. Read task context document
+   ```bash
+   Read("{{PROJECT_PATH}}/tasks/{{TASK_ID}}/context.md")
+   ```
+
+2. Extract key information:
+   - Task ID: {{TASK_ID}}
+   - Description: {{DESCRIPTION}}
+   - Task Type: [Micro/Standard/Complex]
+   - Current Status: [In Progress/Blocked/Testing]
+   - Current Round: [Extract from status.json]
+
+3. Read task status (machine-readable)
+   ```bash
+   Read("{{PROJECT_PATH}}/tasks/{{TASK_ID}}/status.json")
+   ```
+
+**Output Checkpoint**:
+```markdown
+### Step 1 Complete: Task Overview
+
+- Task ID: {{TASK_ID}}
+- Description: {{DESCRIPTION}}
+- Task Type: [Type]
+- Current Round: [Round Number]
+- Last Updated: [Timestamp]
+```
+
+---
+
+## Step 2: Recover Modification History
+
+**Objective**: Understand what has been done and what was the last state
+
+**Actions**:
+1. Read complete change log
+   ```bash
+   Read("{{PROJECT_PATH}}/tasks/{{TASK_ID}}/change-log.md")
+   ```
+
+2. Extract modification rounds:
+   - Round 1: [File] - [What Changed] - [Result: Success/Failed]
+   - Round 2: [File] - [What Changed] - [Result: Success/Failed]
+   - ...
+   - Round N (Latest): [Details]
+
+3. Identify last modification state:
+   - Which files were modified?
+   - What was the last test result?
+   - What was the next planned action?
+
+**Output Checkpoint**:
+```markdown
+### Step 2 Complete: Modification History Summary
+
+**Total Rounds**: [N]
+
+**Latest Round (Round N)**:
+- Modified Files:
+  - [File1:Lines] - [Change Description]
+  - [File2:Lines] - [Change Description]
+- Test Result: [Success/Failed]
+- Failure Reason (if failed): [Reason]
+
+**Cumulative Modified Files**:
+- [File1] (Modified in Round X, Y)
+- [File2] (Modified in Round Z)
+```
+
+---
+
+## Step 3: Recover File Status
+
+**Objective**: Verify current state of modified files matches change log
+
+**Actions**:
+1. For each modified file in change-log.md, read current state:
+   ```bash
+   Read("{{PROJECT_PATH}}/[FilePath]")
+   ```
+
+2. Quick verification:
+   - Does the file contain the changes mentioned in change-log.md?
+   - Are there any unexpected changes (not in log)?
+
+3. If expert review exists, read solution.md:
+   ```bash
+   if [ -f "{{PROJECT_PATH}}/tasks/{{TASK_ID}}/solution.md" ]; then
+       Read("{{PROJECT_PATH}}/tasks/{{TASK_ID}}/solution.md")
+       # Extract expert recommendations
+   fi
+   ```
+
+**Output Checkpoint**:
+```markdown
+### Step 3 Complete: File Status Verification
+
+**Modified Files Status**:
+- [File1:Lines] - ✅ Changes verified / ⚠️ Unexpected changes detected
+- [File2:Lines] - ✅ Changes verified
+
+**Expert Review Status**:
+- Expert review exists: [Yes/No]
+- If yes, review score: [X/10]
+- Critical issues flagged: [Count]
+```
+
+---
+
+## Step 4: Understand Failure Reason (If Applicable)
+
+**Objective**: If the last round failed, understand why and what to fix
+
+**Actions**:
+1. If last test result was "Failed", extract failure details:
+   - Error message from change-log.md
+   - User feedback from change-log.md
+   - What was expected vs. what happened
+
+2. Read related logs (if mentioned):
+   ```bash
+   # If change-log mentions checking logs
+   Read("{{PROJECT_PATH}}/logs/[LogFile]")
+   ```
+
+3. Identify root cause:
+   - Code logic issue?
+   - Missing implementation?
+   - CRITICAL rule violation?
+   - Integration issue?
+
+**Output Checkpoint**:
+```markdown
+### Step 4 Complete: Failure Analysis (If Applicable)
+
+**Last Round Status**: [Success/Failed]
+
+**If Failed**:
+- Error Message: [Message]
+- User Feedback: [Feedback]
+- Root Cause Analysis:
+  - Category: [Code Logic/Missing Feature/Rule Violation/Integration]
+  - Specific Issue: [Description]
+  - Files Affected: [Files]
+
+**If Success**:
+- Current task status: [Needs Testing/Needs User Confirmation/Complete]
+```
+
+---
+
+## Step 5: Output Recovery Report
+
+**Objective**: Synthesize all recovered information into actionable next steps
+
+**Actions**:
+1. Combine information from Steps 1-4
+2. Determine next action based on current state
+3. Output complete recovery report
+
+**Output Format**:
+```markdown
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Context Recovery Complete
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## Task Summary
+- **Task ID**: {{TASK_ID}}
+- **Description**: {{DESCRIPTION}}
+- **Type**: [Micro/Standard/Complex]
+- **Current Round**: [N]
+- **Status**: [In Progress/Blocked/Testing]
+
+## Progress Snapshot
+**Completed Rounds**: [N-1 rounds]
+**Latest Action**: [What was done in Round N]
+**Test Result**: [Success/Failed]
+**Modified Files**: [Count] files modified
+
+## Current State Analysis
+[Summary of current code state based on change-log]
+
+## Next Steps (Recommended Action)
+
+**Option A - Continue Implementation** (if last round succeeded):
+1. [Next logical step based on task description]
+2. [Implementation approach]
+3. [Files to modify]
+
+**Option B - Fix Failure** (if last round failed):
+1. Root Cause: [Issue identified in Step 4]
+2. Fix Approach: [How to fix]
+3. Files to Modify: [Files]
+
+**Option C - Test Current State** (if implementation complete but untested):
+1. Testing approach: [How to test]
+2. Expected outcome: [What should happen]
+3. User should verify: [What user needs to check]
+
+## Documentation References
+[List any docs that need to be reviewed for next steps]
+
+## Expert Review Notes (If Applicable)
+[Key points from solution.md if it exists]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
+## Recovery Success Criteria
+
+✅ Recovery is successful if:
+1. Task ID and description clearly understood
+2. Complete modification history extracted (all N rounds)
+3. Current file states verified
+4. Failure reason identified (if last round failed)
+5. Next action clearly determined
+6. Recovery report output to user
+
+❌ Recovery fails if:
+- context.md or change-log.md missing
+- Unable to determine current round
+- Modified files don't match change log
+- Next action unclear
+
+---
+
+## Notes
+
+- This checklist should be executed **before any code exploration or modification**
+- AI must output checkpoints for Steps 1-4 to ensure completeness
+- AI must output final recovery report (Step 5) to user
+- User should confirm recovery report accuracy before proceeding
+
+---
+
+**Template Version**: v1.0 (Hook Plan 3 - Phase 1)
+**Last Updated**: {{CURRENT_DATE}}

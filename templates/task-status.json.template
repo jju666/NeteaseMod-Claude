@@ -1,0 +1,12 @@
+{
+  "taskId": "{{TASK_ID}}",
+  "description": "{{TASK_DESC}}",
+  "taskType": "{{TASK_TYPE}}",
+  "status": "in_progress",
+  "currentRound": 1,
+  "createdAt": "{{CREATED_AT}}",
+  "updatedAt": "{{UPDATED_AT}}",
+  "modifiedFiles": [],
+  "testResults": [],
+  "nextAction": "{{NEXT_ACTION}}"
+}

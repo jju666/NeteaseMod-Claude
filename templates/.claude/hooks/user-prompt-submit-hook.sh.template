@@ -1,0 +1,163 @@
+#!/usr/bin/env bash
+# templates/.claude/hooks/user-prompt-submit-hook.sh.template
+# NeteaseMod-Claude 工作流 - Hook Plan 3（任务隔离与上下文恢复）
+# 部署到: downstream_project/.claude/hooks/user-prompt-submit-hook.sh
+# {{PROJECT_PATH}} 占位符将被 initmc 替换
+
+set -e
+
+USER_MESSAGE="$1"
+PROJECT_PATH="{{PROJECT_PATH}}"
+
+# 状态文件路径（使用占位符）
+STATE_FILE="$PROJECT_PATH/.claude/.task-mode.json"
+TASKS_DIR="$PROJECT_PATH/tasks"
+
+# 读取当前任务模式状态
+TASK_MODE=false
+TASK_ID=""
+DOCS_READ_COUNT=0
+
+if [ -f "$STATE_FILE" ]; then
+    if command -v jq &> /dev/null; then
+        TASK_MODE=$(cat "$STATE_FILE" | jq -r '.taskMode // false')
+        TASK_ID=$(cat "$STATE_FILE" | jq -r '.taskId // ""')
+        DOCS_READ_COUNT=$(cat "$STATE_FILE" | jq -r '.docsReadCount // 0')
+    else
+        # jq 不可用时的降级方案
+        TASK_MODE=$(grep -o '"taskMode":[^,}]*' "$STATE_FILE" | grep -o 'true\|false' || echo "false")
+        TASK_ID=$(grep -o '"taskId":"[^"]*"' "$STATE_FILE" | cut -d'"' -f4 || echo "")
+        DOCS_READ_COUNT=$(grep -o '"docsReadCount":[0-9]*' "$STATE_FILE" | grep -o '[0-9]*' || echo "0")
+    fi
+fi
+
+# ========== 功能1: 上下文恢复检测 (Hook Plan 3) ==========
+# 检测关键词：继续、恢复、上下文压缩/丢失等
+if [ "$TASK_MODE" = "true" ] && [ -n "$TASK_ID" ]; then
+    # 检查恢复关键词（中文 + 英文）
+    if echo "$USER_MESSAGE" | grep -iE "(继续|恢复|上下文.*(压缩|丢失)|context.*(lost|compress|丢失)|resume|restore|继续任务)" > /dev/null; then
+        RECOVERY_CHECKLIST="$TASKS_DIR/$TASK_ID/recovery-checklist.md"
+
+        if [ -f "$RECOVERY_CHECKLIST" ]; then
+            echo "========================================"
+            echo "检测到上下文恢复请求 (Hook Plan 3)"
+            echo "========================================"
+            echo ""
+            echo "任务ID: $TASK_ID"
+            echo ""
+            echo "⚠️ 警告：继续任务前必须先恢复上下文！"
+            echo ""
+            echo "请按以下步骤操作："
+            echo ""
+            echo "1. 读取恢复检查清单："
+            echo "   Read(\"$RECOVERY_CHECKLIST\")"
+            echo ""
+            echo "2. 执行恢复步骤："
+            echo "   - 步骤1: 恢复任务基本信息（读取 context.md）"
+            echo "   - 步骤2: 恢复修改历史（读取 change-log.md）"
+            echo "   - 步骤3: 恢复文件状态（读取所有修改过的文件）"
+            echo "   - 步骤4: 理解失败原因（分析上一轮记录）"
+            echo "   - 步骤5: 输出恢复报告（必须！）"
+            echo ""
+            echo "3. 输出恢复报告后才能继续执行任务"
+            echo ""
+            echo "========================================"
+
+            # 退出hook，让AI读取恢复检查清单
+            exit 0
+        else
+            # 恢复检查清单未找到，显示错误
+            echo "========================================"
+            echo "❌ 错误：恢复失败 - 找不到检查清单"
+            echo "========================================"
+            echo ""
+            echo "任务ID: $TASK_ID"
+            echo "预期路径: $RECOVERY_CHECKLIST"
+            echo ""
+            echo "可能原因："
+            echo "1. 任务目录不完整（缺少 recovery-checklist.md）"
+            echo "2. 任务ID错误（状态文件损坏）"
+            echo ""
+            echo "建议操作："
+            echo "1. 检查任务目录是否存在: ls -la $TASKS_DIR/$TASK_ID/"
+            echo "2. 如果任务目录不存在，可能需要重新创建任务"
+            echo ""
+            echo "========================================"
+            exit 1
+        fi
+    fi
+fi
+
+# ========== 功能2: 检测 /mc 命令 -> 创建任务目录 (Hook Plan 2 base) ==========
+if echo "$USER_MESSAGE" | grep -E '^/mc\s' > /dev/null; then
+    # 提取任务描述
+    TASK_DESCRIPTION=$(echo "$USER_MESSAGE" | sed -E 's|^/mc\s+"?([^"]+)"?.*|\1|')
+
+    # 生成任务ID（简化版本，实际ID由AI生成）
+    TASK_NUMBER=$(ls -d "$TASKS_DIR/task-"* 2>/dev/null | wc -l | tr -d ' ')
+    TASK_NUMBER=$((TASK_NUMBER + 1))
+    TASK_NUMBER_PADDED=$(printf "%03d" "$TASK_NUMBER")
+
+    # 简化任务描述（限制30字符）
+    TASK_DESC_SHORT=$(echo "$TASK_DESCRIPTION" | sed 's/[^a-zA-Z0-9\u4e00-\u9fa5]//g' | cut -c1-30)
+    NEW_TASK_ID="task-${TASK_NUMBER_PADDED}-${TASK_DESC_SHORT}"
+
+    echo "========================================"
+    echo "检测到 /mc 命令：开始新任务"
+    echo "========================================"
+    echo ""
+    echo "任务描述: $TASK_DESCRIPTION"
+    echo "建议任务ID: $NEW_TASK_ID"
+    echo ""
+    echo "📋 提醒事项："
+    echo "1. 进入任务模式后，修改日志将自动追踪"
+    echo "2. 在步骤1中，立即创建任务目录（包括 recovery-checklist.md 和 status.json）"
+    echo "3. 任务完成后，发送包含"完成"的消息触发归档提示"
+    echo ""
+    echo "========================================"
+
+    # 不退出，让AI继续执行 /mc 命令
+fi
+
+# ========== 功能3: 检测"完成"信号 -> 提示归档 (Hook Plan 2 base) ==========
+if [ "$TASK_MODE" = "true" ] && echo "$USER_MESSAGE" | grep -iE "(已完成|完成了|修复成功|已修复|done|finished|completed)" > /dev/null; then
+    echo "========================================"
+    echo "检测到任务完成信号"
+    echo "========================================"
+    echo ""
+    echo "任务ID: $TASK_ID"
+    echo ""
+    echo "💡 建议操作："
+    echo ""
+    echo "1. 文档更新（如果有标记为"待补充"的文档）："
+    echo "   - 检查 document-todo-list.md"
+    echo "   - 自动补充 <= 2 个缺失文档"
+    echo ""
+    echo "2. DEBUG 清理（如果代码中有调试输出）："
+    echo "   - 检查 print(\"[DEBUG]...\")"
+    echo "   - 清理或注释调试代码"
+    echo ""
+    echo "3. 归档任务："
+    echo "   - 提取经验教训和最佳实践"
+    echo "   - 更新知识库（如果触发了专家审核，提取审核见解）"
+    echo "   - 将任务目录移至 tasks/completed/"
+    echo ""
+    echo "是否归档此任务？[是/否]"
+    echo ""
+    echo "========================================"
+
+    # 不退出，等待用户回复
+fi
+
+# ========== 功能4: 任务模式状态显示（调试信息）==========
+# 如果启用了调试模式，输出状态信息
+if [ "${DEBUG_HOOK:-false}" = "true" ]; then
+    echo "[调试] user-prompt-submit-hook.sh 状态："
+    echo "  - 任务模式: $TASK_MODE"
+    echo "  - 任务ID: $TASK_ID"
+    echo "  - 文档读取计数: $DOCS_READ_COUNT"
+    echo "  - 状态文件: $STATE_FILE"
+fi
+
+# Hook执行完成，继续处理用户消息
+exit 0

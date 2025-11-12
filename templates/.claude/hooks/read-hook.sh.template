@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# templates/.claude/hooks/read-hook.sh.template
+# NeteaseMod-Claude 工作流 - 文档阅读追踪
+# 部署到: downstream_project/.claude/hooks/read-hook.sh
+# {{PROJECT_PATH}} 占位符将被 initmc 替换
+
+set -e
+
+FILE_PATH="$1"
+PROJECT_PATH="{{PROJECT_PATH}}"
+
+# 状态文件路径
+STATE_FILE="$PROJECT_PATH/.claude/.task-mode.json"
+
+# 如果状态文件不存在则初始化
+if [ ! -f "$STATE_FILE" ]; then
+    mkdir -p "$(dirname "$STATE_FILE")"
+    echo '{"taskMode":false,"taskId":"","docsReadCount":0}' > "$STATE_FILE"
+fi
+
+# 读取当前状态
+TASK_MODE=false
+DOCS_READ_COUNT=0
+
+if command -v jq &> /dev/null; then
+    TASK_MODE=$(cat "$STATE_FILE" | jq -r '.taskMode // false')
+    DOCS_READ_COUNT=$(cat "$STATE_FILE" | jq -r '.docsReadCount // 0')
+else
+    # jq 不可用时的降级方案
+    TASK_MODE=$(grep -o '"taskMode":[^,}]*' "$STATE_FILE" | grep -o 'true\|false' || echo "false")
+    DOCS_READ_COUNT=$(grep -o '"docsReadCount":[0-9]*' "$STATE_FILE" | grep -o '[0-9]*' || echo "0")
+fi
+
+# ========== 文档阅读计数追踪 ==========
+# 仅在任务模式下追踪
+if [ "$TASK_MODE" = "true" ]; then
+    # 检查是否是 markdown 文档
+    if echo "$FILE_PATH" | grep -E '\.md$' > /dev/null; then
+        # 必须在 markdown/ 或 .claude/core-docs/ 目录下
+        if echo "$FILE_PATH" | grep -E '(markdown/|\.claude/core-docs/)' > /dev/null; then
+            # 排除某些文件不计数
+            EXCLUDE_PATTERN='(CLAUDE\.md|README\.md|索引\.md|项目状态\.md|文档待补充清单\.md|change-log\.md|context\.md|recovery-checklist\.md|solution\.md)'
+
+            if ! echo "$FILE_PATH" | grep -E "$EXCLUDE_PATTERN" > /dev/null; then
+                # 递增文档阅读计数
+                DOCS_READ_COUNT=$((DOCS_READ_COUNT + 1))
+
+                # 更新状态文件
+                if command -v jq &> /dev/null; then
+                    # 使用 jq 更新 JSON
+                    TMP_FILE=$(mktemp)
+                    cat "$STATE_FILE" | jq ".docsReadCount = $DOCS_READ_COUNT" > "$TMP_FILE"
+                    mv "$TMP_FILE" "$STATE_FILE"
+                else
+                    # 降级方案：简单字符串替换
+                    sed -i.bak "s/\"docsReadCount\":[0-9]*/\"docsReadCount\":$DOCS_READ_COUNT/" "$STATE_FILE"
+                    rm -f "$STATE_FILE.bak"
+                fi
+
+                # 输出追踪信息
+                echo "[Hook] 文档阅读计数: $DOCS_READ_COUNT"
+
+                # 检查是否满足文档要求
+                if [ "$DOCS_READ_COUNT" -ge 3 ]; then
+                    echo "[Hook] 文档要求已满足 (>= 3 个文档)。Python 文件限制已解除。"
+                else
+                    REMAINING=$((3 - DOCS_READ_COUNT))
+                    echo "[Hook] 还需阅读 $REMAINING 个文档才能解除 Python 文件限制。"
+                fi
+            fi
+        fi
+    fi
+fi
+
+# ========== Python 文件限制检查 ==========
+# 如果尝试读取 .py 文件，检查是否满足文档要求
+if [ "$TASK_MODE" = "true" ]; then
+    if echo "$FILE_PATH" | grep -E '\.py$' > /dev/null; then
+        if [ "$DOCS_READ_COUNT" -lt 3 ]; then
+            echo "========================================"
+            echo "⚠️ 警告：Python 文件读取受限"
+            echo "========================================"
+            echo ""
+            echo "您正在尝试读取 Python 文件："
+            echo "  $FILE_PATH"
+            echo ""
+            echo "但尚未满足文档阅读要求。"
+            echo ""
+            echo "当前已读文档: $DOCS_READ_COUNT / 3（最低要求）"
+            echo ""
+            echo "📚 要求：在读取 Python 代码前，至少阅读 3 个 markdown 文档。"
+            echo ""
+            echo "建议阅读的文档："
+            echo "  1. .claude/core-docs/核心工作流文档/开发规范.md（CRITICAL 规范）"
+            echo "  2. .claude/core-docs/概念参考/MODSDK核心概念.md（System/Component/Event）"
+            echo "  3. markdown/systems/[相关System].md（System特定文档）"
+            echo ""
+            echo "或使用 /mc-discover 命令查找相关文档。"
+            echo ""
+            echo "========================================"
+
+            # 阻止读取操作
+            exit 1
+        fi
+    fi
+fi
+
+# ========== 调试信息 ==========
+if [ "${DEBUG_HOOK:-false}" = "true" ]; then
+    echo "[调试] read-hook.sh 状态："
+    echo "  - 文件路径: $FILE_PATH"
+    echo "  - 任务模式: $TASK_MODE"
+    echo "  - 文档阅读计数: $DOCS_READ_COUNT"
+    echo "  - 是否Markdown: $(echo "$FILE_PATH" | grep -E '\.md$' > /dev/null && echo "是" || echo "否")"
+    echo "  - 是否Python: $(echo "$FILE_PATH" | grep -E '\.py$' > /dev/null && echo "是" || echo "否")"
+fi
+
+# Hook执行完成
+exit 0

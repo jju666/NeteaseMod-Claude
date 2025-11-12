@@ -4748,7 +4748,7 @@ if error_count == 0 and warning_count == 0:
 
 ```mermaid
 graph TB
-    User[用户] --> MC[/mc 主命令]
+    User[用户] --> MC["/mc 主命令"]
 
     MC --> Step1[步骤1: 理解任务]
     MC --> Step2[步骤2: 查阅文档]
@@ -4761,7 +4761,7 @@ graph TB
 
     SelfCheck -->|全部通过| TaskLevel{任务级别}
 
-    TaskLevel -->|复杂任务| Review[/mc-review 专家审核]
+    TaskLevel -->|复杂任务| Review["/mc-review 专家审核"]
     TaskLevel -->|标准任务+触发条件| Review
     TaskLevel -->|标准任务+未触发| Step3
     TaskLevel -->|微任务| Step3
@@ -4771,15 +4771,15 @@ graph TB
     ReviewReport -->|评分<8| Modify[修改方案]
     Modify --> Review
 
-    Step3 --> Docs[/mc-docs 文档维护]
+    Step3 --> Docs["/mc-docs 文档维护"]
 
-    User -.独立使用.-> Discover[/mc-discover 结构发现]
-    User -.独立使用.-> Perf[/mc-perf 性能分析]
-    User -.独立使用.-> Why[/mc-why 意图追溯]
+    User -.独立使用.-> Discover["/mc-discover 结构发现"]
+    User -.独立使用.-> Perf["/mc-perf 性能分析"]
+    User -.独立使用.-> Why["/mc-why 意图追溯"]
 
-    Step2 -.查阅.-> CoreDocs[.claude/core-docs/]
-    Step2 -.查阅.-> SystemDocs[markdown/systems/]
-    Step2 -.查阅.-> OfficialDocs[.claude/docs/]
+    Step2 -.查阅.-> CoreDocs[".claude/core-docs/"]
+    Step2 -.查阅.-> SystemDocs["markdown/systems/"]
+    Step2 -.查阅.-> OfficialDocs[".claude/docs/"]
 
     style MC fill:#4caf50,color:#fff
     style Review fill:#ff9800,color:#fff

@@ -25,7 +25,8 @@
       "Bash(find:*)",
       "Bash(awk:*)",
       "Read(//c/Users/28114/.claude-modsdk-workflow/markdown/ai/**)",
-      "Read(//c/Users/28114/.claude-modsdk-workflow/templates/markdown//**)"
+      "Read(//c/Users/28114/.claude-modsdk-workflow/templates/markdown//**)",
+      "Read(//c/Users/28114/.claude-modsdk-workflow/docs/modsdk-wiki/docs/mcdocs/1-ModAPI/事件/**)"
     ],
     "deny": [],
     "ask": []

@@ -10,7 +10,10 @@
 
 ## 示例
 ```
-{{EXAMPLE_TASKS}}
+/mc 修复System初始化错误
+/mc 添加新功能模块
+/mc 优化代码性能
+/mc 日志显示错误
 ```
 
 ---
@@ -46,7 +49,7 @@ Read ../../CLAUDE.md
 ✅ 步骤0检查点：项目上下文理解
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-项目：{{PROJECT_NAME}}
+项目：基于Claude的MODSDK开发工作流
 类型：{{PROJECT_TYPE}}
 特殊规范：（如有，列出关键点）
 
@@ -62,7 +65,7 @@ Read ../../CLAUDE.md
 
 ### 🎯 步骤1：理解任务（2分钟）
 
-1. **检查历史上下文**：查看 `{{PROJECT_PATH}}/tasks/` 目录，判断是否为继续任务
+1. **检查历史上下文**：查看 `d:/EcWork/基于Claude的MODSDK开发工作流/tasks/` 目录，判断是否为继续任务
 
 2. **识别任务类型**：
    - **微任务**：单文件、<30行、无需探索 → 直接执行
@@ -72,7 +75,7 @@ Read ../../CLAUDE.md
 
 3. **理解问题现象**（⚠️ 本步骤禁止读代码！）：
    - ⚠️ **如果任务描述中提到"日志"或"错误"**，则按以下优先级查阅日志文件：
-{{LOG_FILES}}
+     - `d:/EcWork/基于Claude的MODSDK开发工作流/日志.log` - 主日志文件
    - ✅ 允许：查看 `tasks/` 历史上下文、查看日志文件、查看 CLAUDE.md
    - ❌ **禁止**：使用 Search/Grep/Read 查看Python代码（这是步骤3的工作！）
 
@@ -132,217 +135,36 @@ Read ../../CLAUDE.md
    - 路径：`markdown/systems/`
    - 查阅相关系统的技术文档
 
-{{ARCHITECTURE_DOCS_SECTION}}{{BUSINESS_DOCS_SECTION}}
 
-4. **官方MODSDK文档** - 遇到不熟悉的API/事件时查阅 ⭐⭐⭐
+5. **Systems文档** - 系统实现文档
+   - 路径: `markdown/systems/`
+   - 查阅对应系统的技术文档
+
+
+4. **官方MODSDK文档** - 遇到不熟悉的API时查阅 ⭐
    - **GitHub仓库**: https://github.com/EaseCation/netease-modsdk-wiki
    - **何时查阅**：
      - ❌ 本地文档不足：markdown/目录未找到相关API说明
-     - 🔍 遇到不熟悉的API/事件：不确定API参数、返回值、使用方式
+     - 🔍 遇到不熟悉的API：不确定API参数、返回值、使用方式
      - 🐛 需要查询最新文档：确认API是否有更新
 
-   - **⚠️ 文档组织方式（极其重要）**：
-     ```
-     MODSDK文档是按类别组织的，而不是每个API/事件一个独立文件！
-
-     错误示例 ❌：
-     Read("{{GLOBAL_DOCS_PATH}}/modsdk-wiki/.../ServerPlayerTryDestroyBlockEvent.md")
-     # ↑ 这个文件不存在！
-
-     正确流程 ✅（必须按此3步法查询）：
-     1. Grep索引表 → 找到事件所在的分类文件
-     2. Read分类文档 → 读取整个分类文件
-     3. 定位具体章节 → 在分类文件中找到具体事件/API
-     ```
-
-   - **查阅方式（3步法）**⭐⭐⭐：
-
-     **【事件查询】3步法**
-
-     **步骤1：查询事件索引表**
-     ```python
-     # 先查索引表，确定分类
-     Grep(
-         pattern="ServerPlayerTryDestroyBlockEvent",
-         path="{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/事件/事件索引表.md",
-         output_mode="content"
-     )
-
-     # 预期输出示例：
-     # | [ServerPlayerTryDestroyBlockEvent](方块.md#serverplayertrydestroyblockevent) | 服务端 | 当玩家即将破坏方块时... |
-     #
-     # 从输出可知：
-     # ✅ 事件存在
-     # ✅ 端别是"服务端"
-     # ✅ 位于"方块.md"文件中
-     # ✅ 锚点是#serverplayertrydestroyblockevent
-     ```
-
-     **步骤2：读取事件分类文档**
-     ```python
-     # 根据步骤1的结果，读取"方块.md"分类文件
-     Read("{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/事件/方块.md")
-
-     # 注意：
-     # - 读取的是"方块.md"（分类文件），不是"ServerPlayerTryDestroyBlockEvent.md"（不存在）
-     # - 这个文件包含所有方块相关的事件（约20+个事件）
-     ```
-
-     **步骤3：定位具体章节**
-     ```python
-     # 在Read的输出中，搜索"## ServerPlayerTryDestroyBlockEvent"章节
-     # 或使用Ctrl+F搜索"ServerPlayerTryDestroyBlockEvent"
-
-     # 在该章节中找到：
-     # - 触发时机
-     # - 参数列表（如 spawnResources: bool - 是否生成掉落物）
-     # - 使用示例
-     # - 注意事项
-     ```
-
-     ---
-
-     **【API查询】3步法**
-
-     **步骤1：查询API索引表**
-     ```python
-     # 先查索引表，确定API所在的分类文件
-     Grep(
-         pattern="CreateComponent",
-         path="{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/接口/Api索引表.md",
-         output_mode="content"
-     )
-
-     # 预期输出示例：
-     # | [CreateComponent](通用/Component.md#createcomponent) | 服务端 | 给实体创建服务端组件 |
-     # | [CreateComponent](通用/Component.md#createcomponent) | 客户端 | 给实体创建客户端组件 |
-     #
-     # 从输出可知：
-     # ✅ API存在
-     # ✅ 有服务端和客户端两个版本
-     # ✅ 位于"通用/Component.md"文件中（注意是2级路径：大类/子类.md）
-     # ✅ 锚点是#createcomponent
-     ```
-
-     **步骤2：读取API分类文档**
-     ```python
-     # 根据步骤1的结果，读取"通用/Component.md"分类文件
-     Read("{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/接口/通用/Component.md")
-
-     # 注意：
-     # - API文档是2级路径（大类/子类.md），如"通用/Component.md"、"世界/实体管理.md"
-     # - 不是"CreateComponent.md"（不存在）
-     # - 这个文件包含所有Component相关的API（约10个API）
-     ```
-
-     **步骤3：定位具体API章节**
-     ```python
-     # 在Read的输出中，搜索"## CreateComponent"或"### CreateComponent"章节
-
-     # 在该章节中找到：
-     # - 函数签名：CreateComponent(entityId, namespace, name)
-     # - 参数说明：entityId(str), namespace(str), name(str)
-     # - 返回值：组件实例或None
-     # - 使用示例
-     # - 注意事项
-     ```
-
-   - **文档分类规则**⭐：
-     ```
-     事件分类：
-     - 方块相关 → 事件/方块.md
-     - 玩家相关 → 事件/玩家.md
-     - 实体相关 → 事件/实体.md
-     - 世界相关 → 事件/世界.md
-     - 物品相关 → 事件/物品.md
-     - UI相关 → 事件/UI.md
-     - 音效相关 → 事件/音效.md
-     - 控制相关 → 事件/控制.md
-     - 模型相关 → 事件/模型.md
-     - 联机大厅 → 事件/联机大厅.md
-
-     API分类（2级路径：大类/子类.md）⭐：
-     通用类：
-     - Component相关 → 接口/通用/Component.md
-     - System相关 → 接口/通用/System.md
-     - 事件相关 → 接口/通用/事件.md
-     - 本地设备 → 接口/通用/本地设备.md
-
-     世界类：
-     - 实体管理 → 接口/世界/实体管理.md
-     - 方块管理 → 接口/世界/方块管理.md
-     - 地图相关 → 接口/世界/地图.md
-     - 记分板 → 接口/世界/记分板.md
-
-     实体类：
-     - 属性相关 → 接口/实体/属性.md
-     - 行为相关 → 接口/实体/行为.md
-     - 状态效果 → 接口/实体/状态效果.md
-
-     玩家类：
-     - 属性相关 → 接口/玩家/属性.md
-     - 行为相关 → 接口/玩家/行为.md
-     - 背包相关 → 接口/玩家/背包.md
-
-     其他常用类：
-     - 物品相关 → 接口/物品.md
-     - 音效相关 → 接口/音效.md
-     - 成就相关 → 接口/成就.md
-     - 商城相关 → 接口/商城.md
-     - 游戏设置 → 接口/游戏设置.md
-     - 联机大厅 → 接口/联机大厅.md
-     - 控制相关 → 接口/控制.md
-     - 模型相关 → 接口/模型.md
-     - 原生UI → 接口/原生UI.md
-
-     特殊类（含子分类）：
-     - 方块特效 → 接口/方块/（子分类）
-     - 自定义UI → 接口/自定义UI/（子分类）
-     - 特效相关 → 接口/特效/（子分类）
-     - 后处理 → 接口/后处理/（子分类）
-     - 虚拟世界 → 接口/虚拟世界/（子分类）
-     ```
-
-   - **完整查询示例（事件）**：
-     ```python
-     # 示例：查询ServerPlayerTryDestroyBlockEvent的spawnResources参数
-
-     # 步骤1：查询索引表
-     Grep(
-         pattern="ServerPlayerTryDestroyBlockEvent",
-         path="{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/事件/事件索引表.md",
-         output_mode="content"
-     )
-     # 输出：| [ServerPlayerTryDestroyBlockEvent](方块.md#...) | 服务端 | ...
-     # 得知：位于"方块.md"
-
-     # 步骤2：读取方块.md
-     Read("{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/事件/方块.md")
-     # 输出：包含所有方块相关事件的完整文档（约2000+行）
-
-     # 步骤3：定位章节
-     # 在输出中搜索"## ServerPlayerTryDestroyBlockEvent"
-     # 找到参数表：
-     # | spawnResources | bool | 是否生成掉落物，默认为True，在脚本层设置为False就能取消生成掉落物 |
-     ```
-
-   - **降级在线查询（全局文档不存在时）**：
-     ```python
-     # 如果全局文档不存在，使用WebFetch查询在线文档
-     # 注意：在线文档也是按分类组织的！
-
-     # 步骤1：查询索引表（在线）
-     WebFetch(
-         url="https://raw.githubusercontent.com/EaseCation/netease-modsdk-wiki/main/docs/mcdocs/1-ModAPI/事件/事件索引表.md",
-         prompt="查找[事件名称]，返回它所在的分类文件名和端别"
-     )
-
-     # 步骤2：读取分类文档（在线）
-     WebFetch(
-         url="https://raw.githubusercontent.com/EaseCation/netease-modsdk-wiki/main/docs/mcdocs/1-ModAPI/事件/[分类名].md",
-         prompt="提取[事件名称]的触发时机、参数定义、使用示例"
-     )
-     ```
+   - **查阅方式**（智能降级策略）⭐：
+     1. **优先全局离线文档**（推荐）：
+        ```python
+        # 示例1：查询Component用法
+        Read("C:/Users/28114/.claude-modsdk-workflow/docs/modsdk-wiki/docs/mcdocs/1-ModAPI/Component/actorOwnerComp.md")
+        # 优点：速度快（<1秒）、支持离线、精确引用
+        # 路径说明：C:/Users/28114/.claude-modsdk-workflow/docs = ~/.claude-modsdk-workflow/docs/
+        ```
+     2. **降级在线查询**（全局文档不存在时）：
+        ```python
+        # 示例2：使用WebFetch在线查询
+        WebFetch(
+            url="https://raw.githubusercontent.com/EaseCation/netease-modsdk-wiki/main/docs/mcdocs/1-ModAPI/...",
+            prompt="提取[API名称]的使用说明、参数定义和返回值"
+        )
+        # 适用场景：全局文档未下载、需要最新版本
+        ```
 
 5. **基岩版Wiki** - 涉及原版实体/物品/NBT时查阅 ⭐
    - **GitHub仓库**: https://github.com/Bedrock-OSS/bedrock-wiki
@@ -355,9 +177,9 @@ Read ../../CLAUDE.md
      1. **优先全局离线文档**（推荐）：
         ```python
         # 示例：查询NBT结构
-        Read("{{GLOBAL_DOCS_PATH}}/bedrock-wiki/docs/nbt/entity.md")
+        Read("C:/Users/28114/.claude-modsdk-workflow/docs/bedrock-wiki/docs/nbt/entity.md")
         # 优点：速度快、支持离线
-        # 路径说明：{{GLOBAL_DOCS_PATH}} = ~/.claude-modsdk-workflow/docs/
+        # 路径说明：C:/Users/28114/.claude-modsdk-workflow/docs = ~/.claude-modsdk-workflow/docs/
         ```
      2. **降级在线查询**（全局文档不存在时）：
         ```python
@@ -369,10 +191,10 @@ Read ../../CLAUDE.md
 
 **⚠️ 官方文档查阅策略**（三级降级）：
 1. ✅ **优先项目文档**：先查阅 `markdown/` 目录中的项目文档
-2. 📦 **次优全局离线文档**：查阅 `{{GLOBAL_DOCS_PATH}}/` 中的官方文档（推荐）
+2. 📦 **次优全局离线文档**：查阅 `C:/Users/28114/.claude-modsdk-workflow/docs/` 中的官方文档（推荐）
    - 优点：速度快（<1秒）、支持离线、精确引用
    - 检测方式：尝试 Read 操作，失败则自动降级
-   - 路径说明：{{GLOBAL_DOCS_PATH}} = ~/.claude-modsdk-workflow/docs/
+   - 路径说明：C:/Users/28114/.claude-modsdk-workflow/docs = ~/.claude-modsdk-workflow/docs/
 3. 🌐 **最终在线查询**：使用 WebFetch 查询 GitHub 原始文件
    - 适用场景：全局文档未下载、需要最新版本
 - 📝 **记录查阅结果**：将查阅结果（包括来源）记录到核心检查点输出中
@@ -443,27 +265,12 @@ if 文档缺少"数据流"或"常见问题"章节:
    - MODSDK核心概念.md:72 - Part初始化流程说明
 
 4. 🌐 官方文档查阅（如有）:
-   **事件查询示例**：
-   - 步骤1：查询事件索引表
-     ```
-     Grep("ServerPlayerTryDestroyBlockEvent", path="{{GLOBAL_DOCS_PATH}}/modsdk-wiki/.../事件索引表.md")
-     → 输出：位于"方块.md"，服务端事件
-     ```
-   - 步骤2：读取分类文档
-     ```
-     Read("{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/事件/方块.md")
-     → 找到参数：spawnResources (bool) - 是否生成掉落物
-     ```
-   - 提取内容：可通过设置 args["spawnResources"] = False 来阻止掉落物生成
-
-   **API查询示例**：
-   - 查询方式：Grep("GetHealth", path="{{GLOBAL_DOCS_PATH}}/modsdk-wiki/.../")
-   - 定位文档：Component/healthComp.md
-   - 提取内容：GetHealth()返回当前生命值（float类型）
-
+   - 📦 全局离线文档：[C:/Users/28114/.claude-modsdk-workflow/docs/modsdk-wiki/具体路径] - [查阅的API/概念]
+   - 🌐 在线查询：[GitHub文件路径] - [查阅的API/概念]
+   - 提取内容: [关键信息摘要]
    (如未使用官方文档，可跳过此项)
 
-{{NBT_CHECK_SECTION}}
+
 
 ⚠️ 确认检查点输出完成后，才能进入下一步！
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -534,42 +341,13 @@ if ServerSystem调用客户端API or ClientSystem调用服务端API:
 
 # 检查3: 事件/API存在性验证（可选：查询索引表）⭐
 # 如果对事件/API不熟悉，执行以下查询（每个<150 tokens）：
-
-# 事件验证（3步法）：
 for event_name in 方案中的事件列表:
-    # 步骤1: 查询事件索引表
-    Grep(
-        pattern=event_name,
-        path="{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/事件/事件索引表.md",
-        output_mode="content"
-    )
-    # 从输出中提取：
-    # - 事件是否存在
-    # - 端别（服务端/客户端）
-    # - 所在分类文件（如 方块.md）
+    Grep(event_name, path="C:/Users/28114/.claude-modsdk-workflow/docs/modsdk-wiki/.../事件索引表.md", output_mode="content")
+    # 验证: 事件存在? 端别匹配?
 
-    # 步骤2: 如需详细参数，读取分类文档
-    if 需要查询详细参数:
-        分类文件 = 从步骤1输出中提取的文件名  # 如 "方块.md"
-        Read(f"{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/事件/{分类文件}")
-        # 在输出中搜索事件名称，找到参数列表
-
-    # 步骤3: 验证端别匹配
-    if 方案中的System端别 != 事件端别:
-        violations.append(f"❌ 端别不匹配: {event_name}是{事件端别}事件，不应在{方案System端别}使用")
-
-# API验证（直接查询API文档）：
 for api_name in 方案中的API列表:
-    # 方式1: 如果知道API所属模块，直接Read
-    # 例如: Read("{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/Component/healthComp.md")
-
-    # 方式2: 如果不知道所属模块，Grep搜索
-    Grep(
-        pattern=api_name,
-        path="{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/",
-        output_mode="files_with_matches"
-    )
-    # 找到包含该API的文件，然后Read该文件获取详细信息
+    Grep(api_name, path="C:/Users/28114/.claude-modsdk-workflow/docs/modsdk-wiki/.../Api索引表.md", output_mode="content")
+    # 验证: API存在? 端别匹配?
 
 # 检查4: 数据流完整性（逻辑检查）
 # 绘制数据流图，检查:
@@ -679,7 +457,7 @@ if error_count == 0 and warning_count == 0:
 
         # 检查1: 2轮以上Bug修复?
         if 用户需求包含["修复","BUG","bug","fix","错误","异常"]关键词:
-            执行Bash检查: ls -d {{PROJECT_PATH}}/tasks/*修复* {{PROJECT_PATH}}/tasks/*bug* {{PROJECT_PATH}}/tasks/*fix* 2>/dev/null | wc -l
+            执行Bash检查: ls -d d:/EcWork/基于Claude的MODSDK开发工作流/tasks/*修复* d:/EcWork/基于Claude的MODSDK开发工作流/tasks/*bug* d:/EcWork/基于Claude的MODSDK开发工作流/tasks/*fix* 2>/dev/null | wc -l
             if 历史任务数 >= 2:
                 输出("✅ 触发条件满足: 2轮以上Bug修复")
                 goto 步骤2.5.4_专家审核
@@ -1077,13 +855,32 @@ if 本次修复了BUG:
 
 ## ⚠️ CRITICAL 规范提醒
 
-{{CRITICAL_RULES}}
+在开发过程中必须遵守以下CRITICAL规范（详见 `markdown/开发规范.md`）：
+
+### ⛔ 规范1: System生命周期
+
+**禁止:**
+- ❌ 不调用 `self.Create()` - 会导致事件注册失败
+
+**应该:**
+- ✅ 在 `__init__` 中手动调用 `self.Create()`
+- 原因: 网易引擎不会自动调用 `Create()`，必须手动触发
+
+### ⛔ 规范2: 模块导入规范
+
+**禁止:**
+- ❌ 使用相对路径导入（如 `from ..utils import xxx`）
+
+**应该:**
+- ✅ 使用绝对路径导入（如 `from modMain.utils import xxx`）
+- 原因: 网易引擎的Python环境不支持相对导入
+
 
 ---
 
 ## 📂 核心路径参考
 
-{{CORE_PATHS}}
+- **项目根目录**: `d:/EcWork/基于Claude的MODSDK开发工作流`
 
 ---
 

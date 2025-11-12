@@ -322,6 +322,12 @@ if EventData中使用tuple:
 if AddAoi参数超过2000:
     violations.append("❌ 违反规范4: AOI超限")
 
+# 规范5: Python模块白名单限制 ⭐ NEW
+if 方案中导入了非白名单模块(如os, gc, sys, subprocess):
+    violations.append("❌ 违反规范5: 使用非白名单模块，MOD审核会失败")
+    # 常见非白名单模块: os, gc, sys, subprocess, socket, pickle
+    # 白名单模块: json, time, math, random, base64, zlib, hashlib, mod.*, Preset.*
+
 # 检查2: 双端隔离验证（内存检查）
 if ServerSystem调用客户端API or ClientSystem调用服务端API:
     violations.append("❌ 端别不匹配")

@@ -46,6 +46,8 @@ scripts/extract-vocabulary.js
 
 # 备份文件
 README.md.backup
+CLAUDE.md.backup*
+CLAUDE-OLD.md
 
 # docs目录中的Git Submodules（不提交）
 docs/modsdk-wiki/

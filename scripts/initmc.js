@@ -1,6 +1,20 @@
 #!/usr/bin/env node
 
 /**
+ * ⚠️ DEPRECATED - 此文件已废弃（v16.0+）
+ *
+ * 本文件为 v15.x 遗留代码，已被 lib/init-workflow.js 替代。
+ * 实际使用的命令入口为: bin/initmc.js -> lib/init-workflow.js
+ *
+ * 保留原因：
+ * 1. 作为 v15.x 架构的参考文档
+ * 2. 帮助理解架构演进过程
+ * 3. 迁移时作为功能对照
+ *
+ * ⚠️ 请勿直接执行此文件！使用全局命令 `initmc` 代替。
+ *
+ * ---
+ * 原功能说明（v15.x）：
  * MODSDK 工作流部署脚本
  *
  * 功能：在 MODSDK 项目目录中部署 Claude Code 工作流
@@ -11,12 +25,14 @@
  *   3. 等待部署完成
  *
  * 作者：Claude Code Workflow
- * 版本：2.0.0
+ * 版本：2.0.0（v15.x架构）
  */
 
 const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
+const readline = require('readline');
+const { execSync } = require('child_process');
 
 // ANSI 颜色代码
 const colors = {
@@ -46,6 +62,23 @@ function info(message) {
 
 function warning(message) {
   log(`⚠️  ${message}`, 'yellow');
+}
+
+/**
+ * 询问用户问题并获取 y/n 回答
+ */
+function askQuestion(question) {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+
+    rl.question(`${colors.yellow}${question} (y/n): ${colors.reset}`, (answer) => {
+      rl.close();
+      resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
+    });
+  });
 }
 
 /**
@@ -371,34 +404,37 @@ function generateCustomizedCC(globalDir, projectDir) {
 
 /**
  * 从工作流模板中提取纯工作流内容
+ * v18.0: 直接从 templates/CLAUDE.md.template 提取，消除冗余文件
  */
 function extractWorkflowContent(globalDir) {
-  const templatePath = path.join(globalDir, '.claude', 'workflow.template.md');
+  // v18.0: 从 templates/CLAUDE.md.template 提取工作流内容区
+  const templatePath = path.join(globalDir, 'templates', 'CLAUDE.md.template');
 
-  if (fs.existsSync(templatePath)) {
-    // 优先使用 workflow.template.md
-    return fs.readFileSync(templatePath, 'utf-8');
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`找不到工作流模板文件: ${templatePath}`);
   }
 
-  // 降级：从 CLAUDE.md 中提取（向后兼容）
-  const claudePath = path.join(globalDir, 'CLAUDE.md');
-  if (!fs.existsSync(claudePath)) {
-    throw new Error('找不到工作流模板文件');
+  const content = fs.readFileSync(templatePath, 'utf-8');
+
+  // 提取工作流内容区（从 START 到 END 标记之间的内容）
+  const startMarker = /<!-- ==================== 工作流内容 START v[\d.]+ ====================[\s\S]*?\n---\n\n/;
+  const endMarker = /\n\n<!-- ==================== 工作流内容 END v[\d.]+ ====================/;
+
+  const startMatch = content.match(startMarker);
+  const endMatch = content.match(endMarker);
+
+  if (!startMatch || !endMatch) {
+    throw new Error('无法从模板中提取工作流内容区（缺少标记）');
   }
 
-  let content = fs.readFileSync(claudePath, 'utf-8');
+  const startIndex = startMatch.index + startMatch[0].length;
+  const endIndex = endMatch.index;
 
-  // 移除文件头和元数据，只保留从"AI助手身份定位"开始的内容
-  const match = content.match(/## 🎯 AI助手身份定位[\s\S]*/);
-  if (match) {
-    content = match[0];
-    // 移除版本信息章节
-    content = content.replace(/## 📝 版本信息[\s\S]*$/, '');
-    // 移除尾部"记住"章节后的空行
-    content = content.replace(/\n+$/, '');
+  if (startIndex >= endIndex) {
+    throw new Error('工作流内容区标记位置异常');
   }
 
-  return content.trim();
+  return content.substring(startIndex, endIndex).trim();
 }
 
 /**
@@ -747,29 +783,22 @@ async function deployWorkflow() {
 
   let allSuccess = true;
 
-  allSuccess &= copyFileWithValidation(
-    path.join(globalDir, '.claude', 'commands', 'discover.md'),
-    path.join(projectDir, '.claude', 'commands', 'discover.md'),
-    5000
-  );
+  // v18.4+: 使用新的 mc-* 命令格式
+  const commandFiles = [
+    { name: 'mc-discover.md', minSize: 3000 },
+    { name: 'mc-docs.md', minSize: 3000 },
+    { name: 'mc-perf.md', minSize: 2000 },
+    { name: 'mc-review.md', minSize: 3000 },
+    { name: 'mc-why.md', minSize: 2000 }
+  ];
 
-  allSuccess &= copyFileWithValidation(
-    path.join(globalDir, '.claude', 'commands', 'enhance-docs.md'),
-    path.join(projectDir, '.claude', 'commands', 'enhance-docs.md'),
-    5000
-  );
-
-  allSuccess &= copyFileWithValidation(
-    path.join(globalDir, '.claude', 'commands', 'validate-docs.md'),
-    path.join(projectDir, '.claude', 'commands', 'validate-docs.md'),
-    6000
-  );
-
-  allSuccess &= copyFileWithValidation(
-    path.join(globalDir, '.claude', 'commands', 'review-design.md'),
-    path.join(projectDir, '.claude', 'commands', 'review-design.md'),
-    7000  // v16.0: 降低阈值以适应review-design.md实际大小（~8KB）
-  );
+  commandFiles.forEach(cmd => {
+    allSuccess &= copyFileWithValidation(
+      path.join(globalDir, '.claude', 'commands', cmd.name),
+      path.join(projectDir, '.claude', 'commands', cmd.name),
+      cmd.minSize
+    );
+  });
 
   // 生成定制化 mc.md
   allSuccess &= generateCustomizedCC(globalDir, projectDir);
@@ -785,12 +814,9 @@ async function deployWorkflow() {
   log('📚 复制通用文档...', 'blue');
 
   const docsToCopy = [
-    { src: 'markdown/开发规范.md', minSize: 10000 },
-    { src: 'markdown/问题排查.md', minSize: 5000 },
-    { src: 'markdown/快速开始.md', minSize: 3000 },
-    { src: 'markdown/开发指南.md', minSize: 10000 },
-    { src: 'markdown/API速查.md', minSize: 3000 },
-    { src: 'markdown/MODSDK核心概念.md', minSize: 3000 }
+    { src: 'markdown/核心工作流文档/开发规范.md', minSize: 10000 },
+    { src: 'markdown/核心工作流文档/问题排查.md', minSize: 5000 },
+    { src: 'markdown/核心工作流文档/快速开始.md', minSize: 3000 }
   ];
 
   docsToCopy.forEach(doc => {
@@ -889,21 +915,90 @@ async function deployWorkflow() {
     process.exit(1);
   }
 
-  // 8. 部署官方文档（Git Submodule）
-  log('📚 部署官方文档...', 'blue');
+  // 8. 部署官方文档（Git Submodule）- 交互式下载
+  log('📚 检查官方文档...', 'blue');
 
   const globalDocsPath = path.join(globalDir, 'docs');
   const projectDocsPath = path.join(projectDir, '.claude', 'docs');
 
   if (!fs.existsSync(globalDocsPath)) {
+    // 文档未下载，询问用户是否下载
     console.log('');
-    warning('官方文档未下载，将使用在线查询（WebFetch）');
-    info('如需本地文档加速查询，请在工作流目录执行：');
-    console.log(`  cd ${globalDir}`);
-    console.log('  git submodule update --init --recursive');
+    warning('检测到官方文档未下载');
     console.log('');
+    console.log('📖 官方文档包含：');
+    console.log('  - MODSDK Wiki（网易我的世界 MOD SDK 官方文档）');
+    console.log('  - Bedrock Wiki（基岩版开发文档）');
+    console.log('');
+    console.log('📊 文档大小：约 50-100 MB');
+    console.log('⚡ 优势：本地查询速度提升 10 倍');
+    console.log('');
+
+    const shouldDownload = await askQuestion('是否现在下载官方文档？');
+
+    if (shouldDownload) {
+      console.log('');
+      log('⬇️  开始下载官方文档（需要 1-3 分钟）...', 'blue');
+
+      try {
+        execSync('git submodule update --init --recursive', {
+          cwd: globalDir,
+          stdio: 'inherit'
+        });
+
+        console.log('');
+        success('官方文档下载完成！');
+
+        // 下载成功后创建软链接
+        const modsdkWikiPath = path.join(globalDocsPath, 'modsdk-wiki');
+        const bedrockWikiPath = path.join(globalDocsPath, 'bedrock-wiki');
+        const hasModsdkWiki = fs.existsSync(modsdkWikiPath) && fs.readdirSync(modsdkWikiPath).length > 1;
+        const hasBedrockWiki = fs.existsSync(bedrockWikiPath) && fs.readdirSync(bedrockWikiPath).length > 1;
+
+        if (hasModsdkWiki || hasBedrockWiki) {
+          fs.symlinkSync(globalDocsPath, projectDocsPath, 'junction');
+          success('已部署官方文档到 .claude/docs/（软链接）');
+          console.log('📁 包含文档：');
+          if (hasModsdkWiki) {
+            console.log('  - MODSDK Wiki (modsdk-wiki/)');
+          }
+          if (hasBedrockWiki) {
+            console.log('  - Bedrock Wiki (bedrock-wiki/)');
+          }
+          info('⚡ /mc 指令将优先查询本地文档（速度提升10x）');
+        }
+        console.log('');
+      } catch (err) {
+        console.log('');
+        error(`文档下载失败: ${err.message}`);
+        console.log('');
+        warning('将使用在线查询（WebFetch）模式');
+        info('您也可以稍后手动下载文档，请参考下方说明');
+        console.log('');
+      }
+    } else {
+      console.log('');
+      info('已跳过文档下载，将使用在线查询（WebFetch）模式');
+      console.log('');
+      log('📌 如需稍后添加本地文档，请执行以下步骤：', 'cyan');
+      console.log('');
+      console.log('方法1: 自动下载（推荐）');
+      console.log(`  cd ${globalDir}`);
+      console.log('  git submodule update --init --recursive');
+      console.log('');
+      console.log('方法2: 手动下载');
+      console.log('  1. 从以下地址下载文档包：');
+      console.log('     - MODSDK Wiki: https://github.com/YOUR_REPO/modsdk-wiki');
+      console.log('     - Bedrock Wiki: https://github.com/YOUR_REPO/bedrock-wiki');
+      console.log(`  2. 解压到目录: ${globalDocsPath}`);
+      console.log('  3. 确保目录结构为:');
+      console.log(`     ${globalDocsPath}/modsdk-wiki/`);
+      console.log(`     ${globalDocsPath}/bedrock-wiki/`);
+      console.log('  4. 重新运行 initmc 即可自动部署');
+      console.log('');
+    }
   } else {
-    // 检查文档子模块是否完整
+    // 文档已存在，检查完整性并部署
     const modsdkWikiPath = path.join(globalDocsPath, 'modsdk-wiki');
     const bedrockWikiPath = path.join(globalDocsPath, 'bedrock-wiki');
     const hasModsdkWiki = fs.existsSync(modsdkWikiPath) && fs.readdirSync(modsdkWikiPath).length > 1;
@@ -911,9 +1006,33 @@ async function deployWorkflow() {
 
     if (!hasModsdkWiki && !hasBedrockWiki) {
       console.log('');
-      warning('官方文档子模块为空，跳过部署');
-      info('请执行 git submodule update --init --recursive');
+      warning('官方文档子模块为空');
       console.log('');
+      const shouldDownload = await askQuestion('是否现在下载官方文档？');
+
+      if (shouldDownload) {
+        console.log('');
+        log('⬇️  开始下载官方文档（需要 1-3 分钟）...', 'blue');
+
+        try {
+          execSync('git submodule update --init --recursive', {
+            cwd: globalDir,
+            stdio: 'inherit'
+          });
+
+          console.log('');
+          success('官方文档下载完成！');
+          console.log('');
+        } catch (err) {
+          console.log('');
+          error(`文档下载失败: ${err.message}`);
+          console.log('');
+        }
+      } else {
+        console.log('');
+        info('已跳过文档下载，将使用在线查询模式');
+        console.log('');
+      }
     } else {
       // 创建软链接（Windows使用junction）
       try {
@@ -956,10 +1075,12 @@ async function deployWorkflow() {
 
   const filesToVerify = [
     { path: '.claude/commands/mc.md', minSize: 10000 },
-    { path: '.claude/commands/discover.md', minSize: 5000 },
-    { path: '.claude/commands/enhance-docs.md', minSize: 5000 },
-    { path: '.claude/commands/validate-docs.md', minSize: 6000 },
-    { path: '.claude/commands/review-design.md', minSize: 7000 },  // v16.0: 降低阈值以适应review-design.md实际大小
+    // v18.4+: 使用新的 mc-* 命令格式
+    { path: '.claude/commands/mc-discover.md', minSize: 3000 },
+    { path: '.claude/commands/mc-docs.md', minSize: 3000 },
+    { path: '.claude/commands/mc-perf.md', minSize: 2000 },
+    { path: '.claude/commands/mc-review.md', minSize: 3000 },
+    { path: '.claude/commands/mc-why.md', minSize: 2000 },
     { path: 'CLAUDE.md', minSize: 10000 },
     // v16.0: 移除markdown/文档检查，改为检查.claude/core-docs/（双层架构）
     { path: '.claude/core-docs/开发规范.md', minSize: 10000, optional: true },  // 软连接，可能不存在

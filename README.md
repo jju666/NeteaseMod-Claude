@@ -253,6 +253,24 @@ initmc
 
 完成！🎉 现在可以使用 `/mc` 命令开始开发了。
 
+#### 命令参数
+
+```bash
+initmc                    # 初始化工作流（首次部署）
+initmc --sync             # 同步更新工作流到最新版本
+initmc --auto-migrate     # 非交互式迁移（默认选项1：保留现有CLAUDE.md）
+initmc --auto-migrate=2   # 非交互式迁移（选项2：简化为最小化模板）
+```
+
+**环境变量**:
+```bash
+export CLAUDE_AUTO_MIGRATE=1  # 等同于 --auto-migrate
+```
+
+**适用场景**:
+- `--auto-migrate`: CI/CD环境、自动化测试、脚本批处理
+- `--sync`: 升级工作流到最新版本
+
 ---
 
 ## 📚 完整文档

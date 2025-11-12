@@ -102,8 +102,10 @@ ls -la .claude/core-docs/
 
 **解决方案**：
 ```bash
-# 重新初始化工作流
+# 重新初始化工作流（两个参数功能相同，任选其一）
 initmc --force
+# 或
+initmc --reset
 
 # 或手动创建软连接（高级用户）
 # Windows:

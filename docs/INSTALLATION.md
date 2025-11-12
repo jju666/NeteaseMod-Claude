@@ -150,7 +150,10 @@ initmc
 initmc --path /path/to/modsdk-project
 
 # 强制重新初始化（覆盖已有配置）
+# 两个参数功能相同，任选其一
 initmc --force
+# 或
+initmc --reset
 ```
 
 ### 初始化后的项目结构

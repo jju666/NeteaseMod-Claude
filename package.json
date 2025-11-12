@@ -1,12 +1,11 @@
 {
   "name": "netease-mod-claude",
-  "version": "18.2.0",
+  "version": "19.3.0",
   "description": "AI-Powered MODSDK Development Workflow - Claude Code驱动的网易我的世界MODSDK开发工作流",
   "main": "lib/init-workflow.js",
   "scripts": {
     "install-global": "node bin/install-global.js",
     "uninstall": "node bin/uninstall-global.js",
-    "postinstall": "git submodule update --init --recursive || echo '\u26a0\ufe0f  \u6587\u6863\u4e0b\u8f7d\u5931\u8d25\uff0c\u5c06\u4f7f\u7528\u5728\u7ebf\u67e5\u8be2'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {

@@ -273,7 +273,7 @@ def is_bugfix_task(task_desc):
     return False
 
 def format_fallback_guide():
-    """降级方案：未匹配到玩法包时的通用指南"""
+    """降级方案:未匹配到玩法包时的通用指南"""
     return u"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ℹ️ 未匹配到玩法包
@@ -295,23 +295,132 @@ def format_fallback_guide():
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
+def analyze_bug_symptom(task_desc):
+    """v20.2: 分析BUG症状类型"""
+    import re
+    task_lower = task_desc.lower()
+
+    # API错误
+    if re.search(r'(attributeerror|notimplementederror|keyerror|api.*not.*work)', task_lower):
+        return ("api_error", u"API调用错误")
+
+    # 生命周期错误
+    if re.search(r'(初始化|加载|卸载|生命周期|lifecycle)', task_lower):
+        return ("lifecycle_error", u"生命周期管理问题")
+
+    # CRITICAL违规
+    if re.search(r'(client.*server|同步|tick)', task_lower):
+        return ("critical_violation", u"CRITICAL规范违规")
+
+    # 性能问题
+    if re.search(r'(卡顿|延迟|性能|performance)', task_lower):
+        return ("performance", u"性能问题")
+
+    # 业务逻辑 (默认)
+    return ("business_logic", u"业务逻辑BUG")
+
+def route_knowledge_sources(symptom_type, task_desc):
+    """v20.2: 根据症状类型路由知识源"""
+    routes = {
+        "business_logic": {
+            "strategy": u"项目文档优先 → 代码实现",
+            "guidance_note": u"💡 业务逻辑问题通常记录在项目markdown文档中"
+        },
+        "api_error": {
+            "strategy": u"常见问题速查 → API文档",
+            "guidance_note": u"💡 11个常见问题覆盖90%的API错误"
+        },
+        "lifecycle_error": {
+            "strategy": u"CRITICAL规范 → 生命周期文档",
+            "guidance_note": u"💡 生命周期问题多为违反规范导致"
+        },
+        "critical_violation": {
+            "strategy": u"CRITICAL规范 → 双端隔离文档",
+            "guidance_note": u"💡 检查是否违反12项CRITICAL规则"
+        },
+        "performance": {
+            "strategy": u"性能优化指南 → Profiling",
+            "guidance_note": u"💡 常见性能问题已有标准化解决方案"
+        }
+    }
+    return routes.get(symptom_type, routes["business_logic"])
+
+def extract_business_keywords(task_desc):
+    """v20.2: 提取业务关键词（用于文档搜索）"""
+    import re
+    # 移除常见停用词
+    stop_words = [u'修复', u'问题', u'BUG', u'bug', u'错误', u'不', u'无法', u'没有', u'tests', u'目录', u'中']
+    words = re.findall(r'[\u4e00-\u9fa5]+', task_desc)
+    keywords = [w for w in words if w not in stop_words and len(w) >= 2]
+    return keywords[:3]  # 返回前3个关键词
+
+def format_bugfix_guide(task_desc):
+    """v20.2: BUG修复智能指引"""
+    # 分析症状
+    symptom_type, symptom_desc = analyze_bug_symptom(task_desc)
+    route = route_knowledge_sources(symptom_type, task_desc)
+    keywords = []
+    if symptom_type == "business_logic":
+        keywords = extract_business_keywords(task_desc)
+
+    # 构建指引
+    guidance = u"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    guidance += u"🐛 智能BUG修复系统 v20.2\n"
+    guidance += u"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    guidance += u"**症状**: {}\n".format(symptom_desc)
+    guidance += u"**策略**: {}\n\n".format(route["strategy"])
+
+    # 差异化指引
+    if symptom_type == "business_logic" and keywords:
+        guidance += u"### 第1步: 查阅项目文档（⭐优先）\n\n"
+        guidance += u"关键词: {}\n".format(u', '.join(keywords[:2]))
+        guidance += u"```\nGlob(\"markdown/**/*{}*.md\")\n```\n".format(keywords[0])
+        guidance += u"理解设计意图 → 定位代码 → 验证一致性\n\n"
+        guidance += route.get("guidance_note", u"") + u"\n\n"
+    elif symptom_type == "api_error":
+        guidance += u"### 第1步: 快速匹配常见错误\n\n"
+        guidance += u"```\nRead(\".claude/core-docs/核心工作流文档/问题排查.md\", offset=1, limit=150)\n```\n"
+        guidance += u"11个常见问题速查 → 验证API用法\n\n"
+        guidance += route.get("guidance_note", u"") + u"\n\n"
+    elif symptom_type in ["lifecycle_error", "critical_violation"]:
+        guidance += u"### 第1步: 查阅CRITICAL规范\n\n"
+        guidance += u"```\nRead(\".claude/core-docs/核心工作流文档/开发规范.md\", offset=20, limit=100)\n```\n"
+        guidance += u"验证规范违规 → 定位问题代码\n\n"
+        guidance += route.get("guidance_note", u"") + u"\n\n"
+    elif symptom_type == "performance":
+        guidance += u"### 第1步: 性能优化指南\n\n"
+        guidance += u"```\nRead(\".claude/core-docs/深度指南/性能优化完整指南.md\")\n```\n"
+        guidance += u"问题12-15: 卡顿/延迟/内存问题\n\n"
+    else:
+        guidance += u"### 混合探索\n\n"
+        guidance += u"先查项目文档 → 再查常见问题 → 动态调整\n\n"
+
+    # 通用结尾
+    guidance += u"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    guidance += u"⚠️ 提示: 文档不存在→降级探索 | 文档过期→以代码为准\n"
+    guidance += u"**重要**: 本次BUG修复无需启动子代理，Hook会自动检查规范\n"
+    guidance += u"**立即开始**: 执行上述第1步查阅\n"
+    guidance += u"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+
+    return guidance
+
 def main():
     try:
         # 读取stdin输入
         data = json.load(sys.stdin)
 
-        user_prompt = data.get('user_prompt', '')
+        prompt = data.get('prompt', '')
         cwd = os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd())
 
         # 检测是否是 /mc 命令
-        if not user_prompt.strip().startswith('/mc '):
+        if not prompt.strip().startswith('/mc '):
             # 非 /mc 命令，放行（输出控制JSON）
             output = {"continue": True}
             print(json.dumps(output, ensure_ascii=False))
             sys.exit(0)
 
         # 提取任务描述
-        task_desc = user_prompt.replace('/mc ', '').strip().strip('"\'')
+        task_desc = prompt.replace('/mc ', '').strip().strip('"\'')
 
         # 生成任务ID（时间戳格式 + 中文描述）
         timestamp = datetime.now().strftime('%m%d-%H%M%S')
@@ -341,11 +450,19 @@ def main():
             # v20.2: Intelligent routing based on task type
             is_bugfix = is_bugfix_task(task_desc)
             sys.stderr.write(u"[DEBUG v20.2] is_bugfix_task result: {}\n".format(is_bugfix))
-            
+
             if is_bugfix:
-                gameplay_pack_content = format_bugfix_guide(task_desc)
-                pack_info = u"BUG修复任务,启用智能诊断 (v20.2)"
-                sys.stderr.write(u"[INFO] BUG修复模式激活,智能诊断系统已注入\n")
+                try:
+                    gameplay_pack_content = format_bugfix_guide(task_desc)
+                    pack_info = u"BUG修复任务,启用智能诊断 (v20.2)"
+                    sys.stderr.write(u"[INFO] BUG修复模式激活,智能诊断系统已注入\n")
+                except Exception as e:
+                    sys.stderr.write(u"[ERROR] BUG修复指引生成失败: {}\n".format(e))
+                    import traceback
+                    traceback.print_exc(file=sys.stderr)
+                    # 降级到通用指南
+                    gameplay_pack_content = format_fallback_guide()
+                    pack_info = u"BUG修复指引生成失败,使用通用指南"
             else:
                 gameplay_pack_content = format_fallback_guide()
                 pack_info = u"未匹配,使用通用指南"

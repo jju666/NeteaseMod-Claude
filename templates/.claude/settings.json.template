@@ -1,12 +1,30 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/session-start-hook.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "python .claude/hooks/user-prompt-submit-hook.py",
-            "timeout": 5
+            "timeout": 5,
+            "comment": "v20.1: Task init + gameplay pack injection + sub-agent launch"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/iteration-tracker-hook.py",
+            "timeout": 5,
+            "comment": "v20.2: Intent classification + sentiment analysis + iteration tracking"
           }
         ]
       }
@@ -18,7 +36,8 @@
           {
             "type": "command",
             "command": "python .claude/hooks/check-critical-rules.py",
-            "timeout": 10
+            "timeout": 10,
+            "comment": "v20.1: CRITICAL rule check + violation counter + notification"
           },
           {
             "type": "command",
@@ -40,6 +59,34 @@
     ],
     "PostToolUse": [
       {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/conversation-recorder.py",
+            "timeout": 3,
+            "comment": "v20.2.7: Record conversation history to .conversation.jsonl"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/unified-workflow-driver.py",
+            "timeout": 5,
+            "comment": "v20.1: Workflow driver (removed step2) + enhanced expert diagnosis"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/post-archive-hook.py",
+            "timeout": 5,
+            "comment": "Task archiving and doc sync injection"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/post-archive-doc-enforcer.py",
+            "timeout": 5,
+            "comment": "v20.1.1: Enforce doc creation verification"
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {
@@ -58,16 +105,6 @@
             "timeout": 5
           }
         ]
-      },
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python .claude/hooks/track-doc-reading.py",
-            "timeout": 5
-          }
-        ]
       }
     ],
     "Stop": [
@@ -76,6 +113,12 @@
           {
             "type": "command",
             "command": "python .claude/hooks/enforce-cleanup.py",
+            "timeout": 10,
+            "comment": "v20.1: Enforce cleanup + notification"
+          },
+          {
+            "type": "command",
+            "command": "python .claude/hooks/post-archive-hook.py",
             "timeout": 10
           }
         ]
@@ -86,8 +129,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python .claude/hooks/subagent-stop-hook.py",
-            "timeout": 5
+            "command": "python .claude/hooks/subagent-complete-notifier.py",
+            "timeout": 3,
+            "comment": "v20.1: Sub-agent completion notification"
           }
         ]
       }
@@ -99,17 +143,6 @@
             "type": "command",
             "command": "python .claude/hooks/pre-compact-reminder.py",
             "timeout": 5
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python .claude/hooks/vscode_notify.py",
-            "timeout": 3
           }
         ]
       }

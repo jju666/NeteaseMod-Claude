@@ -34,10 +34,57 @@
 
 ---
 
+## ⚠️ 重要注意事项
+
+### Windows 中文路径问题 (v20.2.5)
+
+**关键事实：Python 3.6+ 完全支持 Windows 中文目录创建**
+
+在 v20.2.5 修复过程中发现了一个容易误判的问题：
+
+#### ❌ 错误判断
+- 如果看到乱码的任务目录（如 `任务-1113-214915-淇���澶嶇帺瀹舵���`）
+- **不要**立即认为是 `os.makedirs()` 无法创建中文路径
+- **不要**尝试使用 Windows UNC 前缀 `\\?\` 或短路径名 API
+
+#### ✅ 正确诊断
+1. **Python 文件系统 API 完全支持中文**
+   - `os.makedirs("任务-1113-测试中文")` 在 Windows 上正常工作
+   - 如果你成功创建了中文目录，说明文件系统没有问题
+
+2. **乱码的真正原因：stdin 编码**
+   - 问题出在读取用户输入时引入了代理字符 (surrogate characters U+D800-U+DFFF)
+   - 这些无效的 Unicode 字符传播到了文件路径中
+
+3. **解决方案：修复 stdin 编码**
+   ```python
+   # user-prompt-submit-hook.py 开头添加
+   if sys.platform == 'win32':
+       import io
+       sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8', errors='replace')
+       sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+       sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+   ```
+
+#### 📊 验证方法
+```bash
+# 如果看到成功创建的中文目录，说明文件系统没问题
+ls tasks/
+# 输出：
+# ✅ 测试-Python-中文目录         # 文件系统正常
+# ❌ 任务-1113-淇���澶�          # stdin 编码问题导致
+```
+
+#### 🔍 详细报告
+- [BUGFIX-v20.2.5.md](./BUGFIX-v20.2.5.md) - 完整的问题分析与修复过程
+- [CHANGELOG.md](./CHANGELOG.md#20.2.5) - v20.2.5 版本更新记录
+
+---
+
 ## 📄 许可证
 
 MIT License - 详见 [LICENSE](./LICENSE)
 
 ---
 
-_最后更新: 2025-11-13 | v19.3.0_
+_最后更新: 2025-11-13 | v20.2.5_

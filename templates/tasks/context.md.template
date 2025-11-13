@@ -1,0 +1,105 @@
+# 任务上下文
+
+> **任务ID**: `{{TASK_ID}}`
+> **创建时间**: {{CREATED_AT}}
+> **项目**: {{PROJECT_NAME}}
+
+---
+
+## 1. 任务描述
+
+### 1.1 原始需求
+```
+{{USER_REQUEST}}
+```
+
+### 1.2 任务分类
+- **类型**: {{TASK_TYPE}} (🟢 微任务 / 🟡 标准任务 / 🔴 复杂任务)
+- **涉及模块**: {{MODULES}}
+- **预估复杂度**: {{COMPLEXITY}}
+
+---
+
+## 2. 技术调研
+
+### 2.1 相关文档
+1. **开发规范.md** ({{DOC_PATH_1}})
+   - 关键规范: {{KEY_RULES}}
+
+2. **问题排查.md** ({{DOC_PATH_2}})
+   - 相关问题: {{RELATED_ISSUES}}
+
+3. **Systems文档** ({{DOC_PATH_3}})
+   - 系统交互: {{SYSTEM_INTERACTION}}
+
+### 2.2 MODSDK API
+- 事件: {{EVENTS_USED}}
+- Component: {{COMPONENTS_USED}}
+- 接口: {{APIS_USED}}
+
+---
+
+## 3. 技术方案
+
+### 3.1 架构设计
+```
+{{ARCHITECTURE_DIAGRAM}}
+```
+
+### 3.2 关键实现点
+1. {{KEY_POINT_1}}
+2. {{KEY_POINT_2}}
+3. {{KEY_POINT_3}}
+
+### 3.3 CRITICAL规范检查
+- [ ] 生命周期: 避免在`__init__`调用API
+- [ ] 双端隔离: 使用`NotifyToClient/Server`
+- [ ] EventData: 使用`list`/`dict`,避免`tuple`
+- [ ] AOI范围: 限制在2000内
+- [ ] 模块白名单: 不使用未授权模块
+
+---
+
+## 4. 实施计划
+
+### 4.1 文件修改清单
+| 文件路径 | 修改类型 | 说明 |
+|---------|---------|------|
+| {{FILE_1}} | {{EDIT_TYPE_1}} | {{DESC_1}} |
+| {{FILE_2}} | {{EDIT_TYPE_2}} | {{DESC_2}} |
+
+### 4.2 测试计划
+- [ ] 单元测试: {{TEST_PLAN_1}}
+- [ ] 集成测试: {{TEST_PLAN_2}}
+- [ ] 游戏内测试: {{TEST_PLAN_3}}
+
+---
+
+## 5. 风险评估
+
+### 5.1 已识别风险
+1. **{{RISK_1}}**
+   - 影响: {{RISK_IMPACT_1}}
+   - 缓解措施: {{RISK_MITIGATION_1}}
+
+2. **{{RISK_2}}**
+   - 影响: {{RISK_IMPACT_2}}
+   - 缓解措施: {{RISK_MITIGATION_2}}
+
+### 5.2 依赖检查
+- [ ] 上游依赖: {{UPSTREAM_DEPS}}
+- [ ] 下游影响: {{DOWNSTREAM_IMPACT}}
+
+---
+
+## 6. 执行日志
+
+### 6.1 修改轮次
+详见 [`change-log.md`](./change-log.md)
+
+### 6.2 专家审核
+详见 [`solution.md`](./solution.md) (如触发)
+
+---
+
+_最后更新: {{LAST_UPDATED}}_

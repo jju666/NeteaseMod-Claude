@@ -69,3 +69,4 @@ docs/bedrock-wiki/
 # Windows保留设备名（防止误提交）
 nul
 NUL
+__pycache__/

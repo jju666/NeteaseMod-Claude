@@ -24,10 +24,11 @@ import os
 from datetime import datetime
 import io
 
-# 修复Windows GBK编码问题：强制使用UTF-8输出
+# 修复Windows编码问题：强制使用UTF-8 (v20.2.5增强)
 if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8', errors='replace')
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # 导入VSCode通知模块
 try:
@@ -46,12 +47,22 @@ except ImportError:
         return 8  # 默认值
 
 def ensure_dir(path):
-    """确保目录存在 - 简化版 (v20.2.5)"""
+    """确保目录存在 - 增强验证版 (v20.2.6)
+
+    返回:
+        bool: 成功返回True, 失败返回False
+    """
     try:
         if not os.path.exists(path):
             os.makedirs(path)
+            # 验证目录确实被创建
+            if not os.path.exists(path):
+                sys.stderr.write(u"[CRITICAL] 目录创建失败但未抛出异常: {}\n".format(path))
+                return False
+        return True
     except Exception as e:
-        sys.stderr.write(u"[ERROR] 创建目录失败: {}\n".format(e))
+        sys.stderr.write(u"[CRITICAL] 创建目录失败: {}\n错误: {}\n".format(path, e))
+        return False
 
 def load_knowledge_base(kb_path):
     """加载玩法知识库"""
@@ -85,7 +96,8 @@ def find_best_gameplay_pattern(task_desc, knowledge_base):
     matched_patterns = []
     for pattern in knowledge_base['gameplay_patterns']:
         score = calculate_match_score(task_desc, pattern.get('keywords', []))
-        if score > 0.15:  # 相似度阈值降低到15%,提高召回率
+        # v20.3: 降低阈值到10%，提高玩法包匹配召回率
+        if score > 0.10:
             matched_patterns.append((pattern, score))
 
     # 排序并选择最佳匹配
@@ -429,18 +441,51 @@ def main():
         # 提取任务描述
         task_desc = prompt.replace('/mc ', '').strip().strip('"\'')
 
-        # 生成任务ID（时间戳格式 + 中文描述）
+        # 生成任务ID - v20.2.5: 尝试保留中文，依赖stdin编码修复
         timestamp = datetime.now().strftime('%m%d-%H%M%S')
-        # 清理任务描述：移除不安全的文件名字符
         max_desc_length = get_max_task_desc_length(cwd)
-        safe_desc = task_desc[:max_desc_length]  # v20.2.4: 使用配置的长度限制
+        safe_desc = task_desc[:max_desc_length]
         for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|']:
             safe_desc = safe_desc.replace(char, '-')
         task_id = u"任务-{}-{}".format(timestamp, safe_desc)
 
-        # 创建任务目录
+        # 创建任务目录 (v20.2.6: 增强验证)
         task_dir = os.path.join(cwd, 'tasks', task_id)
-        ensure_dir(task_dir)
+        if not ensure_dir(task_dir):
+            # 目录创建失败，阻塞流程
+            sys.stderr.write(u"[CRITICAL] 任务初始化失败：无法创建任务目录\n")
+            sys.stderr.write(u"  任务ID: {}\n".format(task_id))
+            sys.stderr.write(u"  目标路径: {}\n".format(task_dir))
+            sys.stderr.write(u"  可能原因：路径编码问题、权限不足、磁盘空间不足\n")
+
+            output = {
+                "continue": False,
+                "stopReason": "task_init_failed",
+                "injectedContext": u"""
+❌ 任务初始化失败
+
+**问题**: 无法创建任务目录
+
+**任务ID**: {}
+**目标路径**: {}
+
+**可能原因**:
+1. 路径包含无效字符（中文路径编码问题）
+2. 磁盘权限不足
+3. 磁盘空间不足
+4. 父目录不存在
+
+**建议**:
+1. 检查 tasks/ 目录是否存在且可写
+2. 检查磁盘空间
+3. 如果是 Windows 系统，确认路径不包含特殊字符
+4. 查看上方 stderr 输出获取详细错误信息
+
+**注意**: Hook 已阻止任务继续，请修复后重试
+""".format(task_id, task_dir)
+            }
+            print(json.dumps(output, ensure_ascii=False))
+            sys.exit(2)  # exit 2 = 阻塞错误
 
         # === 玩法包匹配 (v19.0 新增) ===
         kb_path = os.path.join(cwd, '.claude', 'knowledge-base.json')
@@ -568,6 +613,23 @@ def main():
         active_file = os.path.join(cwd, '.claude', '.task-active.json')
         with open(active_file, 'w', encoding='utf-8') as f:
             json.dump(active_flag, f, indent=2, ensure_ascii=False)
+
+        # === v20.2.7: 创建会话历史文件（方案B - 持久化会话历史）===
+        conversation_file = os.path.join(task_dir, '.conversation.jsonl')
+        try:
+            with open(conversation_file, 'w', encoding='utf-8') as f:
+                # 记录初始用户输入
+                entry = {
+                    "timestamp": datetime.now().isoformat(),
+                    "role": "user",
+                    "content": prompt,
+                    "event_type": "task_init"
+                }
+                f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+            sys.stderr.write(u"[INFO] 会话历史文件已创建: {}\n".format(conversation_file))
+        except Exception as e:
+            sys.stderr.write(u"[WARN] 会话历史文件创建失败: {}\n".format(e))
+            # 不阻塞主流程
 
         # 📢 通知1：任务启动 - 步骤3开始（玩法包模式）
         try:

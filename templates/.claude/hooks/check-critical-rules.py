@@ -84,8 +84,7 @@ def main():
         # For Edit operations: check if original file has UTF-8 declaration
         # v20.2 fix: Skip encoding check for code snippets if file has declaration
         skip_encoding_check = False
-        sys.stderr.write("[v20.2 DEBUG] tool_name={}, file_path={}, has_new_string={}
-".format(tool_name, file_path, bool(new_string)))
+        sys.stderr.write("[v20.2 DEBUG] tool_name={}, file_path={}, has_new_string={}\\n".format(tool_name, file_path, bool(new_string)))
         if tool_name == "Edit" and file_path and new_string:
             try:
                 # Use os module (already imported at line 116 for violation tracking)
@@ -99,13 +98,13 @@ def main():
                     with open(check_path, 'r', encoding='utf-8') as file_check:
                         first_lines = [file_check.readline() for _ in range(3)]
                         file_content = ''.join(first_lines)
-                        if 'coding' in file_content or 'utf-8' in file_content or 'utf8' in file_content:
+                        if re.search(r'#.*?coding[:=]\s*utf-?8', file_content, re.IGNORECASE):
                             skip_encoding_check = True
-                            sys.stderr.write("[v20.2 DEBUG] Skipping encoding check for: {}
-".format(file_path))
+                            sys.stderr.write("[v20.2.6 INFO] File has UTF-8 declaration, skipping encoding check: {}\\n".format(file_path))
+                        else:
+                            sys.stderr.write("[v20.2.6 DEBUG] No UTF-8 declaration found in first 3 lines: {}\\n".format(file_path))
             except Exception as skip_check_error:
-                sys.stderr.write("[v20.2 ERROR] Skip check failed: {}
-".format(skip_check_error))
+                sys.stderr.write("[v20.2 ERROR] Skip check failed: {}\\n".format(skip_check_error))
 
         # Get content to check
         check_content = new_string if new_string else content
@@ -126,14 +125,24 @@ def main():
 
         if not violations:
             # 通过检查
-            print(json.dumps({
+            # v20.3: 支持详细模式（通过环境变量控制）
+            import os
+            VERBOSE_MODE = os.getenv("CLAUDE_HOOK_VERBOSE", "false").lower() == "true"
+
+            output = {
                 "hookSpecificOutput": {
                     "hookEventName": "PreToolUse",
                     "permissionDecision": "allow",
                     "permissionDecisionReason": "✅ CRITICAL规范检查通过"
                 },
-                "suppressOutput": True
-            }))
+                "suppressOutput": not VERBOSE_MODE  # 详细模式下显示
+            }
+
+            # 详细模式：输出到stderr让用户知道Hook在工作
+            if VERBOSE_MODE:
+                sys.stderr.write("✅ CRITICAL规范检查通过 ({})\n".format(file_path))
+
+            print(json.dumps(output))
             sys.exit(0)
         else:
             # 发现违规,阻断操作并提供精准文档引导

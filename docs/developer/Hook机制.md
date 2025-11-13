@@ -1,9 +1,11 @@
 # Hook机制完整技术文档
 
-> **文档版本**: v1.0
+> **文档版本**: v2.0
 > **最后更新**: 2025-11-13
-> **工作流版本**: v18.4.0
+> **工作流版本**: v20.0.3
 > **作者**: NeteaseMod-Claude Workflow Team
+>
+> **⚠️ 重要更新**: 本文档已更新至v20.0.3架构,包含新的SessionStart Hook和Unified Workflow Driver
 
 ---
 
@@ -103,9 +105,15 @@ graph TB
 
 ---
 
-## 2. 多层Hook执行力系统架构
+## 2. Hook系统架构 (v20.0.3)
 
-### 2.1 三层核心Hook
+### 2.1 核心Hook流程
+
+**v20.0.3架构改进**:
+- ✅ 新增 SessionStart Hook - 会话生命周期管理
+- ✅ 新增 Unified Workflow Driver - 统一工作流驱动
+- ❌ 移除 3个旧driver (notification/post-tool/read-workflow-driver)
+- ✅ 改进 user-prompt-submit-hook - 修复字段名bug,添加关键词检测
 
 ```mermaid
 graph LR
@@ -146,7 +154,7 @@ graph LR
     style C4 fill:#FFD700
 ```
 
-### 2.2 六层辅助Hook
+### 2.2 辅助Hook清单
 
 | Hook | 文件 | 触发时机 | 职责 |
 |------|------|---------|------|
@@ -155,7 +163,8 @@ graph LR
 | **Hook 6** | `enforce-step2.py` | PreToolUse (Read) | 强制步骤2文档查阅 |
 | **Hook 7** | `track-doc-reading.py` | PostToolUse (Read) | 追踪文档阅读进度 |
 | **Hook 8** | `enforce-cleanup.py` | Stop | 强制收尾工作验证 |
-| **Hook 9** | `pre-compact-reminder.py` | PreCompact | 上下文压缩前注入规则 |
+| **Hook 9** | `post-archive-hook.py` | PostToolUse (All) | 任务归档与文档同步 **(v20.1.0 新增)** |
+| **Hook 10** | `pre-compact-reminder.py` | PreCompact | 上下文压缩前注入规则 |
 
 ### 2.3 Hook执行优先级
 
@@ -664,7 +673,164 @@ sys.exit(0)
 
 ---
 
-### 3.8 Hook 9: 上下文恢复机制
+### 3.8 Hook 9: 任务归档与文档同步 **(v20.1.0 新增)**
+
+**文件**: `post-archive-hook.py`
+
+**触发时机**: PostToolUse（任何工具使用后）
+
+**设计背景**:
+
+v20.0.3 中发现的归档流程缺陷:
+1. ❌ 已归档任务仍保留在 `tasks/` 主目录,与进行中任务混杂
+2. ❌ 任务完成后没有自动更新下游项目文档
+3. ❌ 任务知识无法沉淀到项目文档体系
+
+**核心职责**:
+
+```python
+# 1. 检测任务是否刚完成
+task_meta = load_task_meta()
+if task_meta['workflow_state']['steps']['step4_cleanup']['status'] == 'completed':
+    if not task_meta.get('archived', False):  # 避免重复触发
+
+        # 2. 移动到归档目录
+        archived_path = move_to_archive(
+            from_dir='tasks/任务-1113-165727-测试hooks/',
+            to_dir='tasks/已归档/任务-1113-165727-测试hooks/'
+        )
+
+        # 3. 标记为已归档
+        task_meta['archived'] = True
+        task_meta['archived_at'] = datetime.now().isoformat()
+        save_task_meta(task_meta)
+
+        # 4. 生成文档同步提示词
+        doc_sync_prompt = generate_doc_sync_prompt(
+            task_meta=task_meta,
+            context_md=read(f"{archived_path}/context.md"),
+            solution_md=read(f"{archived_path}/solution.md")
+        )
+
+        # 5. 注入文档同步任务
+        inject_context(f"""
+        📦 任务归档完成 - 正在启动文档同步
+
+        任务已归档到: {archived_path}
+
+        下一步: 分析任务内容并更新下游项目的相关文档（≤3个文档）
+
+        {doc_sync_prompt}
+        """)
+```
+
+**自动化流程图**:
+
+```mermaid
+graph TB
+    A[AI执行cleanup_completed标记] --> B[post-archive-hook触发]
+    B --> C{检查step4_cleanup状态}
+    C -->|completed| D{检查是否已归档?}
+    C -->|pending| Z[跳过]
+
+    D -->|archived=true| Z
+    D -->|archived=false| E[移动任务到已归档/]
+
+    E --> F[标记archived=true]
+    F --> G[读取context.md + solution.md]
+    G --> H[生成文档同步Agent提示词]
+    H --> I[注入文档同步任务]
+
+    I --> J[AI分析任务内容]
+    J --> K{识别影响范围}
+
+    K -->|新功能| L1[更新README.md]
+    K -->|Bug修复| L2[更新CHANGELOG.md]
+    K -->|架构变更| L3[更新技术文档]
+    K -->|API变更| L4[更新API文档]
+
+    L1 --> M[完成文档同步]
+    L2 --> M
+    L3 --> M
+    L4 --> M
+
+    style E fill:#90EE90
+    style I fill:#FFD700
+    style M fill:#87CEEB
+```
+
+**文档同步Agent提示词模板**:
+
+```markdown
+# 任务归档文档同步
+
+**归档任务ID**: 任务-1113-165727-测试v20.0.3工作流hooks是否生效
+**任务描述**: 测试v20.0.3工作流hooks是否生效
+**归档路径**: tasks/已归档/任务-1113-165727-测试v20.0.3工作流hooks是否生效
+
+---
+
+## 📋 你的任务
+
+分析这个已完成任务的内容,更新下游项目的相关文档。
+
+### 步骤1: 分析任务内容
+阅读以下文件:
+- context.md (任务上下文)
+- solution.md (解决方案)
+
+### 步骤2: 识别影响范围
+确定这个任务涉及了哪些方面:
+- 新功能/特性?
+- Bug修复?
+- 重构/优化?
+- 文档更新?
+- 配置变更?
+
+### 步骤3: 更新项目文档
+根据任务内容,更新以下可能相关的文档(≤3个):
+- README.md - 如果有新功能或使用方式变更
+- CHANGELOG.md - 记录本次变更
+- 技术文档 - 如果有架构或实现细节变更
+- 配置文档 - 如果有配置项变更
+- API文档 - 如果有接口变更
+
+**重要提醒**:
+- 只更新确实需要更新的文档
+- 变更应该简洁明了,不要长篇大论
+- 如果任务是测试性质,无需更新文档
+```
+
+**关键设计点**:
+
+1. **避免重复触发**: 检查 `archived` 字段,已归档任务不再触发
+2. **自动化归档**: 无需AI手动执行 `mv` 命令
+3. **知识沉淀**: 强制AI分析任务内容并更新文档
+4. **限制更新范围**: 最多更新3个文档,避免过度修改
+
+**目录结构示例**:
+
+```
+tasks/
+├── 任务-1113-170023-实现商店购买功能/  # 进行中任务
+│   ├── .task-meta.json
+│   ├── context.md
+│   └── solution.md
+└── 已归档/
+    ├── README.md  # 归档目录说明
+    ├── 任务-1113-165727-测试hooks/  # 已完成任务
+    │   ├── .task-meta.json (archived: true)
+    │   ├── context.md
+    │   └── solution.md
+    └── 任务-1112-093045-修复AOI问题/
+        ├── .task-meta.json (archived: true)
+        ├── context.md
+        └── solution.md
+```
+
+---
+
+### 3.9 Hook 10: 上下文恢复机制
 
 **文件**: `pre-compact-reminder.py`
 

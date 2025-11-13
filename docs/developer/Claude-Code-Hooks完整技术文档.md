@@ -534,7 +534,7 @@ sys.exit(0)
   "transcript_path": "/path/to/transcript.jsonl",
   "cwd": "/current/working/directory",
   "hook_event_name": "UserPromptSubmit",
-  "user_prompt": "Fix the login bug",
+  "prompt": "Fix the login bug",
   "attachments": []
 }
 ```
@@ -569,7 +569,7 @@ sys.exit(0)
         {
           "type": "command",
           "comment": "记录用户提示日志",
-          "command": "jq -r '.user_prompt' >> ~/.claude/prompt-history.txt"
+          "command": "jq -r '.prompt' >> ~/.claude/prompt-history.txt"
         }
       ]
     }

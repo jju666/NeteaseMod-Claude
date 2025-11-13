@@ -2,7 +2,7 @@
 
 > 📚 **基于Claude的MODSDK开发工作流** - MODSDK项目文档中心
 >
-> 基于 NeteaseMod-Claude 工作流 v18.4.0
+> 基于 NeteaseMod-Claude 工作流 v20.0.0
 
 **最后更新**: 2025-11-13
 
@@ -247,6 +247,6 @@ rm markdown/core/开发规范.md
 
 ---
 
-**文档版本**: v18.4.0
+**文档版本**: v20.0.0
 **项目名称**: 基于Claude的MODSDK开发工作流
 **最后更新**: 2025-11-13

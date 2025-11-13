@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Unified Workflow Driver - 统一工作流驱动器 (v20.0.3)
+Unified Workflow Driver - 统一工作流驱动器 (v20.2.7)
 
 触发时机: PostToolUse (Read/Write/Edit/Bash)
 职责:
@@ -10,6 +10,7 @@ Unified Workflow Driver - 统一工作流驱动器 (v20.0.3)
 3. 更新任务状态机
 4. 检查步骤完成条件
 5. 注入下一步指令(防重复注入)
+6. (v20.2.7) 三文件状态同步：task-meta.json <-> workflow-state.json <-> task-active.json
 
 退出码:
 - 0: 成功
@@ -85,8 +86,8 @@ def update_docs_read(meta, file_path):
         return True
     return False
 
-def update_code_changes(meta, tool_data):
-    """记录代码修改"""
+def update_code_changes(meta, tool_data, cwd):
+    """记录代码修改并更新同文件编辑计数 (v20.2 fix)"""
     file_path = tool_data.get("tool_input", {}).get("file_path", "")
     if not file_path:
         return False
@@ -94,7 +95,8 @@ def update_code_changes(meta, tool_data):
     change_record = {
         "file": file_path,
         "timestamp": datetime.now().isoformat(),
-        "operation": tool_data.get("tool_name", "Unknown")
+        "operation": tool_data.get("tool_name", "Unknown"),
+        "status": "success"  # v20.3: 标记成功
     }
 
     if "code_changes" not in meta["metrics"]:
@@ -102,6 +104,88 @@ def update_code_changes(meta, tool_data):
 
     meta["metrics"]["code_changes"].append(change_record)
     meta["metrics"]["code_changes_count"] = len(meta["metrics"]["code_changes"])
+
+    # v20.2: 统计同文件编辑次数（包含成功和失败）
+    same_file_edits = sum(1 for change in meta["metrics"]["code_changes"]
+                          if change["file"] == file_path)
+
+    # 同步到workflow-state.json的bug_fix_tracking
+    workflow_state_path = os.path.join(cwd, '.claude', 'workflow-state.json')
+    workflow_state = load_json(workflow_state_path)
+
+    if workflow_state and "bug_fix_tracking" in workflow_state:
+        workflow_state["bug_fix_tracking"]["loop_indicators"]["same_file_edit_count"] = same_file_edits
+        save_json(workflow_state_path, workflow_state)
+
+        # 同步回meta
+        meta["workflow_state"] = workflow_state
+
+    return True
+
+
+def update_failed_operations(meta, tool_data, cwd):
+    """记录失败的工具操作 (v20.3 新增)
+
+    策略:
+    1. 失败操作也计入code_changes数组（标记status=failed）
+    2. 统计same_file_edit_count（失败也算一次尝试）
+    3. 更新consecutive_failures（连续失败计数器）
+    """
+    file_path = tool_data.get("tool_input", {}).get("file_path", "")
+    if not file_path:
+        return False
+
+    # 提取错误信息
+    result = tool_data.get("result", {})
+    error_msg = ""
+    if isinstance(result, dict):
+        error_msg = result.get("error", str(result))
+    else:
+        error_msg = str(result)[:200]
+
+    failure_record = {
+        "file": file_path,
+        "timestamp": datetime.now().isoformat(),
+        "operation": tool_data.get("tool_name", "Unknown"),
+        "status": "failed",  # v20.3: 标记失败
+        "error": error_msg[:200]  # 限制错误信息长度
+    }
+
+    if "code_changes" not in meta["metrics"]:
+        meta["metrics"]["code_changes"] = []
+
+    meta["metrics"]["code_changes"].append(failure_record)
+    meta["metrics"]["code_changes_count"] = len(meta["metrics"]["code_changes"])
+
+    # v20.3: 统计同文件编辑次数（包含失败）
+    same_file_edits = sum(1 for change in meta["metrics"]["code_changes"]
+                          if change["file"] == file_path)
+
+    # v20.3: 统计连续失败次数
+    recent_operations = meta["metrics"]["code_changes"][-5:]  # 最近5次操作
+    consecutive_failures = 0
+    for op in reversed(recent_operations):
+        if op.get("status") == "failed" and op.get("file") == file_path:
+            consecutive_failures += 1
+        else:
+            break
+
+    if "consecutive_failures" not in meta["metrics"]:
+        meta["metrics"]["consecutive_failures"] = 0
+    meta["metrics"]["consecutive_failures"] = consecutive_failures
+
+    # 同步到workflow-state.json
+    workflow_state_path = os.path.join(cwd, '.claude', 'workflow-state.json')
+    workflow_state = load_json(workflow_state_path)
+
+    if workflow_state and "bug_fix_tracking" in workflow_state:
+        workflow_state["bug_fix_tracking"]["loop_indicators"]["same_file_edit_count"] = same_file_edits
+        workflow_state["bug_fix_tracking"]["loop_indicators"]["consecutive_failures"] = consecutive_failures
+        save_json(workflow_state_path, workflow_state)
+
+        # 同步回meta
+        meta["workflow_state"] = workflow_state
+
     return True
 
 def check_test_failure(result_str):
@@ -535,6 +619,37 @@ def inject_next_step_prompt(next_step, meta, cwd=None):
 
     # 特殊处理：步骤4启动子代理
     if next_step == "step4_cleanup" and cwd:
+        # v20.2.7: 先从会话历史生成context.md和solution.md
+        task_id = meta.get("task_id")
+        if task_id:
+            task_dir = os.path.join(cwd, 'tasks', task_id)
+            conversation_file = os.path.join(task_dir, '.conversation.jsonl')
+
+            # 检查会话历史文件是否存在
+            if os.path.exists(conversation_file):
+                try:
+                    import subprocess
+                    # 调用生成脚本
+                    result = subprocess.run(
+                        [sys.executable, '.claude/hooks/generate-docs-from-conversation.py', task_dir],
+                        cwd=cwd,
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                        encoding='utf-8'
+                    )
+
+                    if result.returncode == 0:
+                        sys.stderr.write(u"[INFO] ✅ 已从会话历史生成context.md和solution.md\n")
+                        sys.stderr.write(result.stdout)
+                    else:
+                        sys.stderr.write(u"[WARN] 生成文档失败:\n{}\n".format(result.stderr))
+                except Exception as e:
+                    sys.stderr.write(u"[WARN] 调用生成脚本失败: {}\n".format(e))
+            else:
+                sys.stderr.write(u"[WARN] 会话历史文件不存在，跳过文档生成\n")
+
+        # 继续启动子代理（原有逻辑）
         agent_message = trigger_doc_update_agent(meta, cwd)
         if agent_message:
             output = {
@@ -701,9 +816,110 @@ def main():
                 step_changed = check_step_completed(current_step, meta)
 
         elif tool_name in ["Write", "Edit"]:
-            # 记录代码修改
-            if update_code_changes(meta, data):
-                logger.info(u"代码修改已记录")
+            # v20.3: 判断工具执行状态（成功/失败）
+            tool_result = data.get('result', {})
+            is_error = False
+
+            # 判断失败的多种情况
+            if isinstance(tool_result, dict):
+                # 情况1: result包含error字段
+                is_error = 'error' in tool_result
+
+            # 情况2: result是字符串且包含Error关键词
+            result_str = str(tool_result).lower()
+            if 'error' in result_str or 'failed' in result_str:
+                is_error = True
+
+            if is_error:
+                # 记录失败操作 (v20.3)
+                if update_failed_operations(meta, data, cwd):
+                    logger.info(u"失败操作已记录", {
+                        "file": data.get("tool_input", {}).get("file_path", ""),
+                        "consecutive": meta["metrics"].get("consecutive_failures", 0)
+                    })
+
+                    # 连续失败≥3次，触发专家检测
+                    if meta["metrics"].get("consecutive_failures", 0) >= 3:
+                        expert_check = check_expert_trigger(meta, cwd)
+                        if expert_check["should_trigger"]:
+                            expert_prompt = launch_meta_expert(expert_check, meta, cwd, logger)
+                            if expert_prompt:
+                                output = {
+                                    "continue": True,
+                                    "hookSpecificOutput": {
+                                        "hookEventName": "PostToolUse",
+                                        "additionalContext": expert_prompt
+                                    }
+                                }
+                                print(json.dumps(output, ensure_ascii=False))
+                                logger.finish(success=True, message=u"连续失败触发专家")
+                                sys.exit(0)
+            else:
+                # 记录成功的代码修改 (v20.2: 包含同文件编辑计数)
+                if update_code_changes(meta, data, cwd):
+                    logger.info(u"代码修改已记录")
+
+                    # v20.2.7: 主动引导 - 修复完成后提醒AI询问用户测试结果
+                    if current_step == "step3_execute":
+                        task_type = meta.get("task_type", "general")
+                        user_confirmed = meta["workflow_state"]["steps"]["step3_execute"].get("user_confirmed", False)
+
+                        # 仅在BUG修复任务 + 用户未确认 + 有代码修改时注入提醒
+                        if task_type == "bug_fix" and not user_confirmed:
+                            code_changes_count = meta["metrics"].get("code_changes_count", 0)
+
+                            # 策略：代码修改≥2次后开始提醒（避免首次修改就提醒）
+                            if code_changes_count >= 2:
+                                # 检查最近一次提醒时间（避免频繁提醒）
+                                last_reminder_at = meta["workflow_state"]["steps"]["step3_execute"].get("last_test_reminder_at", None)
+                                should_remind = True
+
+                                if last_reminder_at:
+                                    from datetime import datetime
+                                    last_time = datetime.fromisoformat(last_reminder_at)
+                                    elapsed_minutes = (datetime.now() - last_time).total_seconds() / 60
+                                    # 10分钟内不重复提醒
+                                    if elapsed_minutes < 10:
+                                        should_remind = False
+
+                                if should_remind:
+                                    meta["workflow_state"]["steps"]["step3_execute"]["last_test_reminder_at"] = datetime.now().isoformat()
+                                    save_json(meta_path, meta)
+
+                                    reminder_message = u"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ **修复提醒：请引导用户测试验证**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+你已完成代码修改（共{}次），建议：
+
+1. **输出修复摘要** - 告诉用户你做了什么修改
+2. **主动询问测试结果** - "请在游戏中测试验证，并告诉我结果"
+3. **等待用户反馈** - 不要在用户未确认前尝试结束会话
+
+**标准询问模板**:
+```
+修复完成！我已修改了 [文件名]。
+请在游戏中测试验证，并告诉我结果：
+- 如果问题已解决，请回复"已修复"
+- 如果仍有问题，请详细描述问题现象
+```
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(code_changes_count)
+
+                                    output = {
+                                        "continue": True,
+                                        "hookSpecificOutput": {
+                                            "hookEventName": "PostToolUse",
+                                            "additionalContext": reminder_message
+                                        }
+                                    }
+                                    print(json.dumps(output, ensure_ascii=False))
+                                    logger.info(u"✅ 已注入测试提醒", {
+                                        "code_changes_count": code_changes_count
+                                    })
+                                    sys.exit(0)
 
         elif tool_name == "Bash":
             # 检测测试结果
@@ -775,6 +991,22 @@ def main():
                         "current_step": next_step,
                         "updated_at": datetime.now().isoformat()
                     })
+
+                    # v20.2.7: 同步到 workflow-state.json（P0修复）
+                    workflow_state_path = os.path.join(cwd, '.claude', 'workflow-state.json')
+                    workflow_state = load_json(workflow_state_path)
+                    if workflow_state:
+                        # 完整同步 steps 对象
+                        workflow_state['current_step'] = next_step
+                        workflow_state['steps'] = meta['workflow_state']['steps'].copy()
+                        workflow_state['last_sync_at'] = datetime.now().isoformat()
+                        if save_json(workflow_state_path, workflow_state):
+                            logger.info(u"✅ 已同步到workflow-state.json", {
+                                "current_step": next_step,
+                                "steps_synced": list(workflow_state['steps'].keys())
+                            })
+                        else:
+                            logger.error(u"❌ workflow-state.json同步失败")
 
                     # v20.1: Desktop notification - Step completed
                     next_step_desc = meta["workflow_state"]["steps"][next_step].get("description", next_step)

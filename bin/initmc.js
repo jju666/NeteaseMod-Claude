@@ -21,6 +21,32 @@ if (!fs.existsSync(workflowHome)) {
   process.exit(1);
 }
 
+// ⭐ 开发环境预检查：防止在本项目中误执行
+const cwd = process.cwd();
+const devMarkers = [
+  'lib/init-workflow.js',
+  'lib/analyzer.js',
+  'templates/.claude/settings.json.template',
+  'bin/initmc.js'
+];
+
+const isDevEnv = devMarkers.every(marker => fs.existsSync(path.join(cwd, marker)));
+
+if (isDevEnv) {
+  console.error('\n❌ 错误：不能在 NeteaseMod-Claude 开发环境中执行 initmc');
+  console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  console.error('当前目录: ' + cwd);
+  console.error('\n这是工作流生成器的源代码目录，不是 MODSDK 项目。\n');
+  console.error('📍 正确用法：');
+  console.error('   1. 切换到你的 MODSDK 项目目录');
+  console.error('   2. 执行: initmc\n');
+  console.error('💡 示例：');
+  console.error('   cd D:\\MyProject\\my-game');
+  console.error('   initmc\n');
+  console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  process.exit(1);
+}
+
 // 加载v16.0核心模块
 const { main } = require(path.join(workflowHome, 'lib', 'init-workflow'));
 

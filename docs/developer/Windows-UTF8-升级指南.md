@@ -142,7 +142,7 @@ for %f in (templates\.claude\hooks\*.py) do copy %f "D:\EcWork\你的MODSDK项�
 cd D:\EcWork\你的MODSDK项目
 
 # 创建测试JSON
-echo {"user_prompt": "/mc test-hook-fix"} > test.json
+echo {"prompt": "/mc test-hook-fix"} > test.json
 
 # 测试hook
 python .claude\hooks\user-prompt-submit-hook.py < test.json

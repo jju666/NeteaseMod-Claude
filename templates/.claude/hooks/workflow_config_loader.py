@@ -10,7 +10,7 @@ import json
 
 DEFAULT_CONFIG = {
     "task_naming": {
-        "max_description_length": 8
+        "max_description_length": 16  # v20.2.7: 从8提升到16字符
     },
     "workflow_steps": {
         "step2_min_docs": 3

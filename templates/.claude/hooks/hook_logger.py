@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-统一Hook日志记录器 (v19.4.0)
+统一Hook日志记录器 (v20.2.6)
 功能: 为所有Hook提供统一的日志记录、性能监控和调试功能
 
 设计理念:
@@ -9,6 +9,13 @@
 2. 性能追踪 - 记录每个Hook的执行时间
 3. 错误收集 - 自动记录Hook执行过程中的异常
 4. 调试友好 - 支持多级别日志输出
+5. 自动轮转 - 日志文件超过5MB自动轮转（v20.2.6新增）
+
+v20.2.6 变更:
+- 日志路径改为 .claude/logs/hooks.log（统一目录）
+- 支持环境变量 CLAUDE_HOOK_DEBUG=1 启用DEBUG级别
+- 文件轮转策略：5MB自动创建.log.1，最多保留3个备份
+- 日志格式优化：[时间] [Hook名] [级别] 消息
 
 使用方法:
     from hook_logger import HookLogger
@@ -20,7 +27,7 @@
     logger.success("检查通过", {"violations": 0})
     logger.finish(success=True)
 
-日志文件路径: .claude/hooks/hook-execution.log
+日志文件路径: .claude/logs/hooks.log
 """
 
 import sys
@@ -51,21 +58,30 @@ class HookLogger:
     WARNING = 2
     ERROR = 3
 
-    # 日志文件路径（相对于项目根目录）
-    LOG_FILE = ".claude/hooks/hook-execution.log"
+    # v20.2.6: 日志文件路径改为统一目录
+    LOG_FILE = ".claude/logs/hooks.log"
 
-    # 最大日志文件大小（10MB）
-    MAX_LOG_SIZE = 10 * 1024 * 1024
+    # v20.2.6: 最大日志文件大小改为5MB
+    MAX_LOG_SIZE = 5 * 1024 * 1024
 
-    def __init__(self, hook_name, log_level=INFO):
+    # v20.2.6: 轮转备份数量
+    BACKUP_COUNT = 3
+
+    def __init__(self, hook_name, log_level=None):
         """
         初始化Hook日志记录器
 
         Args:
             hook_name: Hook名称（如 "check-critical-rules"）
-            log_level: 日志级别（默认INFO）
+            log_level: 日志级别（可选，默认根据环境变量决定）
         """
         self.hook_name = hook_name
+
+        # v20.2.6: 根据环境变量自动设置日志级别
+        if log_level is None:
+            debug_mode = os.environ.get('CLAUDE_HOOK_DEBUG', '0') == '1'
+            log_level = self.DEBUG if debug_mode else self.INFO
+
         self.log_level = log_level
         self.session_id = datetime.now().strftime('%Y%m%d-%H%M%S-%f')[:20]
         self.start_time = None
@@ -305,14 +321,29 @@ class HookLogger:
             self._write_to_stderr(u"⚠️  日志写入失败: {}".format(str(e)))
 
     def _rotate_log_file(self):
-        """日志文件轮转（保留最近的记录）"""
+        """
+        日志文件轮转（v20.2.6增强版）
+        保留最近3个备份：.log -> .log.1 -> .log.2 -> .log.3
+        """
         try:
-            backup_path = self.log_path + ".old"
-            if os.path.exists(backup_path):
-                os.remove(backup_path)
-            os.rename(self.log_path, backup_path)
-        except:
-            pass  # 轮转失败不影响Hook执行
+            # 删除最旧的备份
+            oldest_backup = self.log_path + f".{self.BACKUP_COUNT}"
+            if os.path.exists(oldest_backup):
+                os.remove(oldest_backup)
+
+            # 轮转现有备份
+            for i in range(self.BACKUP_COUNT - 1, 0, -1):
+                old_backup = self.log_path + f".{i}"
+                new_backup = self.log_path + f".{i + 1}"
+                if os.path.exists(old_backup):
+                    os.rename(old_backup, new_backup)
+
+            # 将当前日志文件重命名为.log.1
+            if os.path.exists(self.log_path):
+                os.rename(self.log_path, self.log_path + ".1")
+        except Exception as e:
+            # 轮转失败不影响Hook执行
+            self._write_to_stderr(u"⚠️  日志轮转失败: {}".format(str(e)))
 
 
 # ========================================

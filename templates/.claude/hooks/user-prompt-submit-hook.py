@@ -38,13 +38,20 @@ except ImportError:
     def notify_warning(msg, detail=""): sys.stderr.write(u"⚠️ {} {}\n".format(msg, detail))
     def notify_error(msg, detail=""): sys.stderr.write(u"❌ {} {}\n".format(msg, detail))
 
+# 导入工作流配置加载器 (v20.2.4)
+try:
+    from workflow_config_loader import get_max_task_desc_length
+except ImportError:
+    def get_max_task_desc_length(project_path=None):
+        return 8  # 默认值
+
 def ensure_dir(path):
-    """确保目录存在"""
+    """确保目录存在 - 简化版 (v20.2.5)"""
     try:
         if not os.path.exists(path):
             os.makedirs(path)
     except Exception as e:
-        sys.stderr.write("[ERROR] 创建目录失败: {}\n".format(e))
+        sys.stderr.write(u"[ERROR] 创建目录失败: {}\n".format(e))
 
 def load_knowledge_base(kb_path):
     """加载玩法知识库"""
@@ -425,7 +432,8 @@ def main():
         # 生成任务ID（时间戳格式 + 中文描述）
         timestamp = datetime.now().strftime('%m%d-%H%M%S')
         # 清理任务描述：移除不安全的文件名字符
-        safe_desc = task_desc[:30]  # 限制长度
+        max_desc_length = get_max_task_desc_length(cwd)
+        safe_desc = task_desc[:max_desc_length]  # v20.2.4: 使用配置的长度限制
         for char in ['/', '\\', ':', '*', '?', '"', '<', '>', '|']:
             safe_desc = safe_desc.replace(char, '-')
         task_id = u"任务-{}-{}".format(timestamp, safe_desc)
@@ -472,6 +480,7 @@ def main():
         workflow_state = {
             "task_id": task_id,
             "task_description": task_desc,
+            "task_type": "bug_fix" if (not matched_pattern and is_bugfix_task(task_desc)) else "general",  # v20.2.5
             "created_at": datetime.now().isoformat(),
             "current_step": "step3_execute",  # v20.2: 玩法包已提供代码，跳过step0/1直接执行
             "last_injection_step": None,
@@ -502,6 +511,22 @@ def main():
             "gameplay_pack_matched": matched_pattern['id'] if matched_pattern else None,
             "gameplay_pack_name": matched_pattern['name'] if matched_pattern else None
         }
+
+        # v20.2.5: BUG修复模式 - 立即初始化追踪状态
+        if not matched_pattern and is_bugfix_task(task_desc):
+            workflow_state["bug_fix_tracking"] = {
+                "enabled": True,
+                "bug_description": task_desc,
+                "iterations": [],
+                "loop_indicators": {
+                    "same_file_edit_count": 0,
+                    "failed_test_count": 0,
+                    "negative_feedback_count": 0,
+                    "time_spent_minutes": 0
+                },
+                "expert_triggered": False
+            }
+            sys.stderr.write(u"[INFO] BUG修复追踪已初始化\n")
 
         # 保存workflow-state.json
         state_file = os.path.join(cwd, '.claude', 'workflow-state.json')
@@ -591,9 +616,29 @@ def main():
         sys.exit(0)
 
     except Exception as e:
-        sys.stderr.write("[ERROR] Hook执行失败: {}\n".format(e))
+        sys.stderr.write(u"[ERROR] Hook执行失败: {}\n".format(e))
         import traceback
         traceback.print_exc(file=sys.stderr)
+
+        # v20.2.5: 错误回滚 - 清理不完整的状态文件
+        try:
+            cwd = os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd())
+            state_file = os.path.join(cwd, '.claude', 'workflow-state.json')
+            active_file = os.path.join(cwd, '.claude', '.task-active.json')
+
+            # 删除损坏的状态文件
+            for f in [state_file, active_file]:
+                if os.path.exists(f):
+                    # 检查文件是否完整
+                    try:
+                        with open(f, 'r', encoding='utf-8') as fp:
+                            json.load(fp)
+                    except (json.JSONDecodeError, ValueError):
+                        sys.stderr.write(u"[ROLLBACK] 删除损坏的状态文件: {}\n".format(f))
+                        os.remove(f)
+        except Exception as rollback_err:
+            sys.stderr.write(u"[WARN] 回滚清理失败: {}\n".format(rollback_err))
+
         sys.exit(1)  # 非阻塞错误
 
 if __name__ == '__main__':

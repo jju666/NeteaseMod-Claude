@@ -251,6 +251,27 @@ def format_gameplay_pack(pattern):
 
     return result
 
+def is_bugfix_task(task_desc):
+    """v20.2: Detect if task is BUG fix related"""
+    import re
+    task_lower = task_desc.lower()
+    
+    # BUG fix keywords (Chinese + English)
+    bugfix_patterns = [
+        r'(bug|error|exception|issue|problem)',
+        r'(fix|repair|resolve|solve)',
+        r'(not work|fail|crash|break)',
+        r'(报错|错误|异常|问题|崩溃)',
+        r'(修复|修改|解决)',
+        r'(不工作|失败|不生效|没有效果)',
+        r'(返回none|返回null|attributeerror)',
+    ]
+    
+    for pattern in bugfix_patterns:
+        if re.search(pattern, task_lower):
+            return True
+    return False
+
 def format_fallback_guide():
     """降级方案：未匹配到玩法包时的通用指南"""
     return u"""
@@ -317,38 +338,99 @@ def main():
                 calculate_match_score(task_desc, matched_pattern.get('keywords', []))
             ))
         else:
-            gameplay_pack_content = format_fallback_guide()
-            pack_info = u"未匹配,使用通用指南"
-            sys.stderr.write(u"[INFO] 未匹配到玩法包,使用降级方案\n")
+            # v20.2: Intelligent routing based on task type
+            is_bugfix = is_bugfix_task(task_desc)
+            sys.stderr.write(u"[DEBUG v20.2] is_bugfix_task result: {}\n".format(is_bugfix))
+            
+            if is_bugfix:
+                gameplay_pack_content = format_bugfix_guide(task_desc)
+                pack_info = u"BUG修复任务,启用智能诊断 (v20.2)"
+                sys.stderr.write(u"[INFO] BUG修复模式激活,智能诊断系统已注入\n")
+            else:
+                gameplay_pack_content = format_fallback_guide()
+                pack_info = u"未匹配,使用通用指南"
+                sys.stderr.write(u"[INFO] 未匹配到玩法包,使用降级方案\n")
 
         # 创建工作流状态文件（用于后续hook协调）
         workflow_state = {
             "task_id": task_id,
             "task_description": task_desc,
             "created_at": datetime.now().isoformat(),
-            "current_step": 1,
-            "steps_completed": {
-                "step1_understanding": False,
-                "step2_doc_reading": False,
-                "step2_doc_count": 0,
-                "step2_5_self_check": False,
-                "step3_execution": False
+            "current_step": "step3_execute",  # v20.2: 玩法包已提供代码，跳过step0/1直接执行
+            "last_injection_step": None,
+            "steps": {
+                "step0_context": {
+                    "description": u"阅读项目CLAUDE.md",
+                    "status": "skipped",  # 玩法包已提供完整上下文
+                    "prompt": u"（玩法包模式：已跳过）"
+                },
+                "step1_understand": {
+                    "description": u"理解任务需求",
+                    "status": "skipped",  # 玩法包已提供完整代码
+                    "prompt": u"（玩法包模式：已跳过）"
+                },
+                "step3_execute": {
+                    "description": u"执行实施",
+                    "status": "in_progress",
+                    "started_at": datetime.now().isoformat(),
+                    "user_confirmed": False,
+                    "prompt": u"基于玩法包代码实现功能，测试验证，直到用户确认修复完成。"
+                },
+                "step4_cleanup": {
+                    "description": u"收尾归档",
+                    "status": "pending",
+                    "prompt": u"清理DEBUG代码，更新文档，归档任务。"
+                }
             },
-            "docs_read": [],
-            "failure_count": 0,
-            "expert_review_triggered": False,
             "gameplay_pack_matched": matched_pattern['id'] if matched_pattern else None,
             "gameplay_pack_name": matched_pattern['name'] if matched_pattern else None
         }
 
+        # 保存workflow-state.json
         state_file = os.path.join(cwd, '.claude', 'workflow-state.json')
         with open(state_file, 'w', encoding='utf-8') as f:
             json.dump(workflow_state, f, indent=2, ensure_ascii=False)
 
-        # 📢 通知1：任务启动 - 步骤1开始
+        # 创建 .task-meta.json（unified-workflow-driver 需要）
+        task_meta = {
+            "task_id": task_id,
+            "task_description": task_desc,
+            "task_type": "feature",  # 默认为功能开发
+            "task_complexity": "standard",  # 默认标准复杂度
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "workflow_state": workflow_state,
+            "metrics": {
+                "docs_read": [],
+                "docs_read_count": 0,
+                "code_changes": [],
+                "code_changes_count": 0,
+                "failure_count": 0,
+                "failures": [],
+                "expert_review_triggered": False
+            }
+        }
+
+        meta_file = os.path.join(task_dir, '.task-meta.json')
+        with open(meta_file, 'w', encoding='utf-8') as f:
+            json.dump(task_meta, f, indent=2, ensure_ascii=False)
+
+        # 创建 .task-active.json（unified-workflow-driver 快速检查）
+        active_flag = {
+            "task_id": task_id,
+            "task_dir": task_dir,
+            "current_step": "step3_execute",
+            "created_at": datetime.now().isoformat()
+        }
+
+        active_file = os.path.join(cwd, '.claude', '.task-active.json')
+        with open(active_file, 'w', encoding='utf-8') as f:
+            json.dump(active_flag, f, indent=2, ensure_ascii=False)
+
+        # 📢 通知1：任务启动 - 步骤3开始（玩法包模式）
         try:
             notify_info(
-                u"步骤1：理解任务 | 玩法包: {}".format(pack_info),
+                u"步骤3：执行实施 | 玩法包: {}".format(pack_info),
                 u"{}".format(task_desc[:40])
             )
         except:

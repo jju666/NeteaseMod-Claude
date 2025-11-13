@@ -21,6 +21,13 @@ if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
+# Import notification module (v20.1)
+try:
+    from vscode_notify import notify_error
+except ImportError:
+    def notify_error(msg, detail=""): pass
+
+
 def main():
     """主函数:从stdin读取JSON,检查CRITICAL规范"""
     try:
@@ -60,7 +67,47 @@ def main():
             }))
             sys.exit(0)
 
-        # 获取要检查的代码内容
+        # Skip checking Hook scripts themselves to avoid false positives
+        if file_path:
+            path_normalized = file_path.replace("\\", "/")
+            if ".claude/hooks" in path_normalized:
+                print(json.dumps({
+                    "hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": "allow",
+                        "permissionDecisionReason": "Skip Hook script check"
+                    },
+                    "suppressOutput": True
+                }))
+                sys.exit(0)
+
+        # For Edit operations: check if original file has UTF-8 declaration
+        # v20.2 fix: Skip encoding check for code snippets if file has declaration
+        skip_encoding_check = False
+        sys.stderr.write("[v20.2 DEBUG] tool_name={}, file_path={}, has_new_string={}
+".format(tool_name, file_path, bool(new_string)))
+        if tool_name == "Edit" and file_path and new_string:
+            try:
+                # Use os module (already imported at line 116 for violation tracking)
+                import os as os_module
+                check_path = file_path
+                if not os_module.path.isabs(file_path):
+                    cwd = os_module.environ.get('CLAUDE_PROJECT_DIR', os_module.getcwd())
+                    check_path = os_module.path.join(cwd, file_path)
+
+                if check_path.endswith(".py") and os_module.path.exists(check_path):
+                    with open(check_path, 'r', encoding='utf-8') as file_check:
+                        first_lines = [file_check.readline() for _ in range(3)]
+                        file_content = ''.join(first_lines)
+                        if 'coding' in file_content or 'utf-8' in file_content or 'utf8' in file_content:
+                            skip_encoding_check = True
+                            sys.stderr.write("[v20.2 DEBUG] Skipping encoding check for: {}
+".format(file_path))
+            except Exception as skip_check_error:
+                sys.stderr.write("[v20.2 ERROR] Skip check failed: {}
+".format(skip_check_error))
+
+        # Get content to check
         check_content = new_string if new_string else content
 
         if not check_content:
@@ -74,8 +121,8 @@ def main():
             }))
             sys.exit(0)
 
-        # 执行CRITICAL规范检查
-        violations = check_critical_rules(check_content)
+        # Execute CRITICAL rule check
+        violations = check_critical_rules(check_content, skip_encoding_check)
 
         if not violations:
             # 通过检查
@@ -90,6 +137,43 @@ def main():
             sys.exit(0)
         else:
             # 发现违规,阻断操作并提供精准文档引导
+            # v20.1: Update CRITICAL violation counter
+            try:
+                import os
+                cwd = os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd())
+                active_flag_path = os.path.join(cwd, '.claude', '.task-active.json')
+
+                if os.path.exists(active_flag_path):
+                    with open(active_flag_path, 'r', encoding='utf-8') as f:
+                        import json as json2
+                        active_flag = json2.load(f)
+
+                    task_dir = active_flag.get("task_dir", "")
+                    meta_path = os.path.join(task_dir, '.task-meta.json')
+
+                    if os.path.exists(meta_path):
+                        with open(meta_path, 'r', encoding='utf-8') as f:
+                            meta = json2.load(f)
+
+                        # Increase CRITICAL violation count
+                        if "critical_violation_count" not in meta["metrics"]:
+                            meta["metrics"]["critical_violation_count"] = 0
+                        meta["metrics"]["critical_violation_count"] += 1
+
+                        with open(meta_path, 'w', encoding='utf-8') as f:
+                            json2.dump(meta, f, indent=2, ensure_ascii=False)
+            except:
+                pass  # Update failure doesn't affect main flow
+
+            # Desktop notification
+            try:
+                notify_error(
+                    "CRITICAL rule violation",
+                    "Detected {} violations, operation blocked".format(len(violations))
+                )
+            except:
+                pass
+
             reason_lines = ["❌ 检测到CRITICAL规范违规,操作已阻断\n"]
             reason_lines.append("=" * 60)
 
@@ -127,15 +211,16 @@ def main():
         sys.exit(0)
 
 
-def check_critical_rules(code_content):
+def check_critical_rules(code_content, skip_encoding_check=False):
     """
-    检查12项CRITICAL规范(v19.1增强版)
+    Check 12 CRITICAL rules (v19.1 Enhanced + v20.2 UTF-8 fix)
 
     Args:
-        code_content: 要检查的Python代码内容
+        code_content: Python code content to check
+        skip_encoding_check: Skip UTF-8 encoding check for Edit operations (v20.2)
 
     Returns:
-        list: 违规详情列表,每项包含{规范编号, 描述, 文档引用}
+        list: Violation details list with {rule, description, doc_ref}
     """
     violations = []
 
@@ -329,33 +414,32 @@ import mod.common.utils as utils
         })
 
     # ===================================================================
-    # 规范7: 字符串编码声明
-    # 要求: Python文件必须声明UTF-8编码
+    # Rule 7: UTF-8 Encoding Declaration
+    # v20.2 fix: Skip check for Edit operations if original file has declaration
     # ===================================================================
-    # 检查文件前3行是否包含编码声明
-    first_lines = code_content.split('\n')[:3]
-    has_encoding = any(re.search(r'#.*?coding[:=]\s*utf-?8', line, re.IGNORECASE) for line in first_lines)
+    if not skip_encoding_check:
+        # Check first 3 lines for encoding declaration
+        first_lines = code_content.split('\n')[:3]
+        has_encoding = any(re.search(r'#.*?coding[:=]\s*utf-?8', line, re.IGNORECASE) for line in first_lines)
 
-    # 检查是否包含中文字符或中文注释
-    has_chinese = bool(re.search(r'[\u4e00-\u9fff]', code_content))
+        # Check for Chinese characters
+        has_chinese = bool(re.search(r'[\u4e00-\u9fff]', code_content))
 
-    # 只有当代码实际包含中文且缺少编码时才报错
-    if has_chinese and not has_encoding and len(code_content.strip()) > 0:
-        violations.append({
-            "rule": "规范7: 字符串编码声明",
-            "description": "文件包含中文字符但缺少UTF-8编码声明",
-            "solution": "在文件第一行添加编码声明: # -*- coding: utf-8 -*-",
-            "doc_ref": ".claude/core-docs/核心工作流文档/开发规范.md 第1.1节(约38-44行)",
-            "doc_snippet": """
-✅ 正确的文件开头:
+        # Only error if code contains Chinese but lacks encoding
+        if has_chinese and not has_encoding and len(code_content.strip()) > 0:
+            violations.append({
+                "rule": "Rule 7: UTF-8 Encoding",
+                "description": "File contains Chinese but lacks UTF-8 declaration",
+                "solution": "Add at line 1: # -*- coding: utf-8 -*-",
+                "doc_ref": ".claude/core-docs/dev-guide.md Section 1.1 (lines 38-44)",
+                "doc_snippet": """
+Correct file header:
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-from mod.server.system.serverSystem import ServerSystem
 ...
 """
-        })
+            })
 
-    # ===================================================================
     # 规范8: Component初始化顺序
     # 警告: 在Create()之外使用Component方法可能导致NoneType错误
     # ===================================================================

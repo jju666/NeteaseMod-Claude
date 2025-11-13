@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Enforce Step 2 Hook - 强制执行步骤2（文档查阅）
+Enforce Step 2 Hook - 强制执行步骤2（文档查阅）(v20.0)
 触发时机: Read工具调用前（PreToolUse事件）
 职责: 阻止在步骤2完成前读取Python代码文件
+
+v20.0 变更:
+- 优先检查 .task-meta.json (新格式)
+- 降级检查 workflow-state.json (兼容v19.x)
 """
 
 import os
@@ -15,6 +19,30 @@ import io
 if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+def find_task_meta_file(project_path):
+    """查找最新任务的 .task-meta.json 文件"""
+    from pathlib import Path
+
+    tasks_dir = Path(project_path) / "tasks"
+    if not tasks_dir.exists():
+        return None
+
+    task_dirs = [
+        d for d in tasks_dir.iterdir()
+        if d.is_dir() and (d.name.startswith("task-") or d.name.startswith(u"任务-"))
+    ]
+
+    if not task_dirs:
+        return None
+
+    latest_task = max(task_dirs, key=lambda d: d.stat().st_mtime)
+    meta_file = latest_task / ".task-meta.json"
+
+    if meta_file.exists():
+        return str(meta_file)
+
+    return None
 
 def main():
     """主函数：检查步骤2完成状态"""
@@ -39,28 +67,55 @@ def main():
         if not file_path.endswith('.py'):
             sys.exit(0)
 
-        # 5. 读取工作流状态
-        state_file = os.path.join(project_path, '.claude', 'workflow-state.json')
-        if not os.path.exists(state_file):
-            # 状态文件不存在，可能不是/mc任务，允许读取
-            sys.exit(0)
+        # 5. 查找 .task-meta.json (v20.0优先)
+        task_meta_file = find_task_meta_file(project_path)
+        task_meta = None
+        if task_meta_file:
+            try:
+                with open(task_meta_file, 'r', encoding='utf-8') as f:
+                    task_meta = json.load(f)
+            except:
+                pass
 
-        with open(state_file, 'r', encoding='utf-8') as f:
-            state = json.load(f)
+        # 6. 检查步骤2完成状态 (v20.0格式)
+        if task_meta:
+            current_step = task_meta['workflow_state']['current_step']
+            step2_status = task_meta['workflow_state']['steps']['step2_docs']['status']
+            doc_count = task_meta['metrics']['docs_read_count']
+            min_docs = task_meta['workflow_state']['steps']['step2_docs'].get('min_docs', 3)
 
-        # 6. 检查步骤2完成状态
-        steps = state.get('steps_completed', {})
-        step2_completed = steps.get('step2_doc_reading', False)
-        doc_count = steps.get('step2_doc_count', 0)
-        current_step = state.get('current_step', 1)
+            # 如果步骤2已完成或当前步骤已超过步骤2，允许读取
+            if step2_status == 'completed' or current_step not in ['step0_context', 'step1_understand', 'step2_docs']:
+                sys.exit(0)
 
-        # 7. 如果步骤2已完成且文档数≥3，允许读取Python文件
-        if step2_completed and doc_count >= 3:
-            sys.exit(0)
+            # 步骤2未完成，拒绝读取Python文件
+            task_desc = task_meta['task_description']
+            docs_read = task_meta['metrics']['docs_read']
 
-        # 8. 步骤2未完成，拒绝读取Python文件
-        task_desc = state.get('task_description', '未知任务')
-        docs_read = state.get('docs_read', [])
+        else:
+            # 7. 降级：读取 workflow-state.json (兼容v19.x)
+            state_file = os.path.join(project_path, '.claude', 'workflow-state.json')
+            if not os.path.exists(state_file):
+                # 状态文件不存在，可能不是/mc任务，允许读取
+                sys.exit(0)
+
+            with open(state_file, 'r', encoding='utf-8') as f:
+                state = json.load(f)
+
+            steps = state.get('steps_completed', {})
+            step2_completed = steps.get('step2_doc_reading', False)
+            doc_count = steps.get('step2_doc_count', 0)
+            current_step = state.get('current_step', 1)
+
+            # 如果步骤2已完成且文档数≥3，允许读取Python文件
+            if step2_completed and doc_count >= 3:
+                sys.exit(0)
+
+            task_desc = state.get('task_description', '未知任务')
+            docs_read = state.get('docs_read', [])
+            min_docs = 3
+
+        # 8. 拒绝读取Python文件
 
         denial_message = f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Unified Workflow Driver - 统一工作流驱动器 (v20.2.7)
+Unified Workflow Driver - 统一工作流驱动器 (v20.2.8)
 
 触发时机: PostToolUse (Read/Write/Edit/Bash)
 职责:
@@ -11,6 +11,14 @@ Unified Workflow Driver - 统一工作流驱动器 (v20.2.7)
 4. 检查步骤完成条件
 5. 注入下一步指令(防重复注入)
 6. (v20.2.7) 三文件状态同步：task-meta.json <-> workflow-state.json <-> task-active.json
+7. (v20.2.8) 异常隔离机制：防止单点故障导致Hook完全失效
+
+变更日志:
+- v20.2.8 (2025-11-14):
+  * 🔧 P0修复: 删除line 878的重复datetime导入,修复UnboundLocalError
+  * 🛡️ P1修复: 添加异常隔离机制,将关键业务逻辑包装在独立try-catch块
+  * ✅ 修复后各阶段独立失败不会影响整体Hook执行
+  * 📝 详见: BUG修复工作流执行问题分析报告-v20.2.7.md
 
 退出码:
 - 0: 成功
@@ -805,88 +813,94 @@ def main():
             "current_step": current_step
         })
 
-        # 工具分发处理
+        # 工具分发处理 (v20.2.8: 添加异常隔离,防止单点故障)
         step_changed = False
 
+        # === 阶段1: 工具特定处理 (独立异常处理) ===
         if tool_name == "Read":
-            # 更新文档阅读记录
-            file_path = data.get('tool_input', {}).get('file_path', '')
-            if update_docs_read(meta, file_path):
-                logger.info(u"文档阅读记录已更新", {"file": file_path})
-                step_changed = check_step_completed(current_step, meta)
+            try:
+                # 更新文档阅读记录
+                file_path = data.get('tool_input', {}).get('file_path', '')
+                if update_docs_read(meta, file_path):
+                    logger.info(u"文档阅读记录已更新", {"file": file_path})
+                    step_changed = check_step_completed(current_step, meta)
+            except Exception as read_err:
+                logger.error(u"Read工具处理失败", read_err)
+                # 继续执行其他逻辑,不中断流程
 
         elif tool_name in ["Write", "Edit"]:
-            # v20.3: 判断工具执行状态（成功/失败）
-            tool_result = data.get('result', {})
-            is_error = False
+            try:
+                # v20.3: 判断工具执行状态（成功/失败）
+                tool_result = data.get('result', {})
+                is_error = False
 
-            # 判断失败的多种情况
-            if isinstance(tool_result, dict):
-                # 情况1: result包含error字段
-                is_error = 'error' in tool_result
+                # 判断失败的多种情况
+                if isinstance(tool_result, dict):
+                    # 情况1: result包含error字段
+                    is_error = 'error' in tool_result
 
-            # 情况2: result是字符串且包含Error关键词
-            result_str = str(tool_result).lower()
-            if 'error' in result_str or 'failed' in result_str:
-                is_error = True
+                # 情况2: result是字符串且包含Error关键词
+                result_str = str(tool_result).lower()
+                if 'error' in result_str or 'failed' in result_str:
+                    is_error = True
 
-            if is_error:
-                # 记录失败操作 (v20.3)
-                if update_failed_operations(meta, data, cwd):
-                    logger.info(u"失败操作已记录", {
-                        "file": data.get("tool_input", {}).get("file_path", ""),
-                        "consecutive": meta["metrics"].get("consecutive_failures", 0)
-                    })
+                if is_error:
+                    # 记录失败操作 (v20.3)
+                    if update_failed_operations(meta, data, cwd):
+                        logger.info(u"失败操作已记录", {
+                            "file": data.get("tool_input", {}).get("file_path", ""),
+                            "consecutive": meta["metrics"].get("consecutive_failures", 0)
+                        })
 
-                    # 连续失败≥3次，触发专家检测
-                    if meta["metrics"].get("consecutive_failures", 0) >= 3:
-                        expert_check = check_expert_trigger(meta, cwd)
-                        if expert_check["should_trigger"]:
-                            expert_prompt = launch_meta_expert(expert_check, meta, cwd, logger)
-                            if expert_prompt:
-                                output = {
-                                    "continue": True,
-                                    "hookSpecificOutput": {
-                                        "hookEventName": "PostToolUse",
-                                        "additionalContext": expert_prompt
+                        # 连续失败≥3次，触发专家检测
+                        if meta["metrics"].get("consecutive_failures", 0) >= 3:
+                            expert_check = check_expert_trigger(meta, cwd)
+                            if expert_check["should_trigger"]:
+                                expert_prompt = launch_meta_expert(expert_check, meta, cwd, logger)
+                                if expert_prompt:
+                                    output = {
+                                        "continue": True,
+                                        "hookSpecificOutput": {
+                                            "hookEventName": "PostToolUse",
+                                            "additionalContext": expert_prompt
+                                        }
                                     }
-                                }
-                                print(json.dumps(output, ensure_ascii=False))
-                                logger.finish(success=True, message=u"连续失败触发专家")
-                                sys.exit(0)
-            else:
-                # 记录成功的代码修改 (v20.2: 包含同文件编辑计数)
-                if update_code_changes(meta, data, cwd):
-                    logger.info(u"代码修改已记录")
+                                    print(json.dumps(output, ensure_ascii=False))
+                                    logger.finish(success=True, message=u"连续失败触发专家")
+                                    sys.exit(0)
+                else:
+                    # 记录成功的代码修改 (v20.2: 包含同文件编辑计数)
+                    if update_code_changes(meta, data, cwd):
+                        logger.info(u"代码修改已记录")
 
-                    # v20.2.7: 主动引导 - 修复完成后提醒AI询问用户测试结果
-                    if current_step == "step3_execute":
-                        task_type = meta.get("task_type", "general")
-                        user_confirmed = meta["workflow_state"]["steps"]["step3_execute"].get("user_confirmed", False)
+                        # v20.2.7: 主动引导 - 修复完成后提醒AI询问用户测试结果
+                        if current_step == "step3_execute":
+                            task_type = meta.get("task_type", "general")
+                            user_confirmed = meta["workflow_state"]["steps"]["step3_execute"].get("user_confirmed", False)
 
-                        # 仅在BUG修复任务 + 用户未确认 + 有代码修改时注入提醒
-                        if task_type == "bug_fix" and not user_confirmed:
-                            code_changes_count = meta["metrics"].get("code_changes_count", 0)
+                            # 仅在BUG修复任务 + 用户未确认 + 有代码修改时注入提醒
+                            if task_type == "bug_fix" and not user_confirmed:
+                                code_changes_count = meta["metrics"].get("code_changes_count", 0)
 
-                            # 策略：代码修改≥2次后开始提醒（避免首次修改就提醒）
-                            if code_changes_count >= 2:
-                                # 检查最近一次提醒时间（避免频繁提醒）
-                                last_reminder_at = meta["workflow_state"]["steps"]["step3_execute"].get("last_test_reminder_at", None)
-                                should_remind = True
+                                # 策略：代码修改≥2次后开始提醒（避免首次修改就提醒）
+                                if code_changes_count >= 2:
+                                    # 检查最近一次提醒时间（避免频繁提醒）
+                                    last_reminder_at = meta["workflow_state"]["steps"]["step3_execute"].get("last_test_reminder_at", None)
+                                    should_remind = True
 
-                                if last_reminder_at:
-                                    from datetime import datetime
-                                    last_time = datetime.fromisoformat(last_reminder_at)
-                                    elapsed_minutes = (datetime.now() - last_time).total_seconds() / 60
-                                    # 10分钟内不重复提醒
-                                    if elapsed_minutes < 10:
-                                        should_remind = False
+                                    if last_reminder_at:
+                                        # 使用全局导入的datetime,避免局部变量覆盖导致UnboundLocalError
+                                        last_time = datetime.fromisoformat(last_reminder_at)
+                                        elapsed_minutes = (datetime.now() - last_time).total_seconds() / 60
+                                        # 10分钟内不重复提醒
+                                        if elapsed_minutes < 10:
+                                            should_remind = False
 
-                                if should_remind:
-                                    meta["workflow_state"]["steps"]["step3_execute"]["last_test_reminder_at"] = datetime.now().isoformat()
-                                    save_json(meta_path, meta)
+                                    if should_remind:
+                                        meta["workflow_state"]["steps"]["step3_execute"]["last_test_reminder_at"] = datetime.now().isoformat()
+                                        save_json(meta_path, meta)
 
-                                    reminder_message = u"""
+                                        reminder_message = u"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️ **修复提醒：请引导用户测试验证**
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -908,159 +922,184 @@ def main():
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """.format(code_changes_count)
 
-                                    output = {
-                                        "continue": True,
-                                        "hookSpecificOutput": {
-                                            "hookEventName": "PostToolUse",
-                                            "additionalContext": reminder_message
+                                        output = {
+                                            "continue": True,
+                                            "hookSpecificOutput": {
+                                                "hookEventName": "PostToolUse",
+                                                "additionalContext": reminder_message
+                                            }
                                         }
-                                    }
-                                    print(json.dumps(output, ensure_ascii=False))
-                                    logger.info(u"✅ 已注入测试提醒", {
-                                        "code_changes_count": code_changes_count
-                                    })
-                                    sys.exit(0)
+                                        print(json.dumps(output, ensure_ascii=False))
+                                        logger.info(u"✅ 已注入测试提醒", {
+                                            "code_changes_count": code_changes_count
+                                        })
+                                        sys.exit(0)
+            except Exception as write_edit_err:
+                logger.error(u"Write/Edit工具处理失败", write_edit_err)
+                # 继续执行其他逻辑,不中断流程
 
         elif tool_name == "Bash":
-            # 检测测试结果
-            result = data.get('result', {})
-            result_str = json.dumps(result, ensure_ascii=False)
+            try:
+                # 检测测试结果
+                result = data.get('result', {})
+                result_str = json.dumps(result, ensure_ascii=False)
 
-            if check_test_failure(result_str):
-                meta["metrics"]["failure_count"] += 1
+                if check_test_failure(result_str):
+                    meta["metrics"]["failure_count"] += 1
 
-                # 记录错误
-                if "failures" not in meta["metrics"]:
-                    meta["metrics"]["failures"] = []
+                    # 记录错误
+                    if "failures" not in meta["metrics"]:
+                        meta["metrics"]["failures"] = []
 
-                error_record = {
-                    "timestamp": datetime.now().isoformat(),
-                    "error": result_str[:500],  # 限制长度
-                    "command": data.get('tool_input', {}).get('command', '')
-                }
-                meta["metrics"]["failures"].append(error_record)
+                    error_record = {
+                        "timestamp": datetime.now().isoformat(),
+                        "error": result_str[:500],  # 限制长度
+                        "command": data.get('tool_input', {}).get('command', '')
+                    }
+                    meta["metrics"]["failures"].append(error_record)
 
-                # 更新step3的last_error
-                if current_step == "step3_execute":
-                    meta["workflow_state"]["steps"]["step3_execute"]["last_error"] = result_str[:200]
-                    meta["workflow_state"]["steps"]["step3_execute"]["last_error_time"] = datetime.now().isoformat()
+                    # 更新step3的last_error
+                    if current_step == "step3_execute":
+                        meta["workflow_state"]["steps"]["step3_execute"]["last_error"] = result_str[:200]
+                        meta["workflow_state"]["steps"]["step3_execute"]["last_error_time"] = datetime.now().isoformat()
 
-                logger.info(u"Detected test failure", {
-                    "failure_count": meta["metrics"]["failure_count"]
-                })
+                    logger.info(u"Detected test failure", {
+                        "failure_count": meta["metrics"]["failure_count"]
+                    })
 
-                # v20.1: Enhanced expert diagnosis trigger logic
-                should_trigger, trigger_reason = should_trigger_expert_diagnosis(meta)
+                    # v20.1: Enhanced expert diagnosis trigger logic
+                    should_trigger, trigger_reason = should_trigger_expert_diagnosis(meta)
 
-                if should_trigger:
-                    inject_expert_review_warning(meta, trigger_reason)
-                    meta["metrics"]["expert_review_triggered"] = True
+                    if should_trigger:
+                        inject_expert_review_warning(meta, trigger_reason)
+                        meta["metrics"]["expert_review_triggered"] = True
 
-                    # Desktop notification
+                        # Desktop notification
+                        try:
+                            from vscode_notify import notify_warning
+                            notify_warning("Expert diagnosis recommended", trigger_reason)
+                        except:
+                            pass
+
+                        step_changed = True
+            except Exception as bash_err:
+                logger.error(u"Bash工具处理失败", bash_err)
+                # 继续执行其他逻辑,不中断流程
+
+        # === 阶段2: 状态更新 (必须成功) ===
+        try:
+            meta["updated_at"] = datetime.now().isoformat()
+        except Exception as timestamp_err:
+            logger.error(u"时间戳更新失败", timestamp_err)
+            # 时间戳更新失败不致命,使用旧时间戳继续
+
+        # === 阶段3: 步骤检查与推进 (独立异常处理) ===
+        try:
+            # 检查步骤是否刚刚完成
+            if step_changed or check_step_completed(current_step, meta):
+                if meta["workflow_state"]["steps"][current_step]["status"] != "completed":
+                    # 标记当前步骤完成
+                    meta["workflow_state"]["steps"][current_step]["status"] = "completed"
+                    meta["workflow_state"]["steps"][current_step]["completed_at"] = datetime.now().isoformat()
+
+                    # 获取下一步
+                    next_step = get_next_step(current_step)
+
+                    if next_step and current_step != last_injection:
+                        # 更新状态机
+                        meta["workflow_state"]["current_step"] = next_step
+                        meta["workflow_state"]["steps"][next_step]["status"] = "in_progress"
+                        meta["workflow_state"]["last_injection_step"] = next_step
+
+                        # 保存状态机
+                        save_json(meta_path, meta)
+                        save_json(active_flag_path, {
+                            **active_flag,
+                            "current_step": next_step,
+                            "updated_at": datetime.now().isoformat()
+                        })
+
+                        # v20.2.7: 同步到 workflow-state.json（P0修复）
+                        workflow_state_path = os.path.join(cwd, '.claude', 'workflow-state.json')
+                        workflow_state = load_json(workflow_state_path)
+                        if workflow_state:
+                            # 完整同步 steps 对象
+                            workflow_state['current_step'] = next_step
+                            workflow_state['steps'] = meta['workflow_state']['steps'].copy()
+                            workflow_state['last_sync_at'] = datetime.now().isoformat()
+                            if save_json(workflow_state_path, workflow_state):
+                                logger.info(u"✅ 已同步到workflow-state.json", {
+                                    "current_step": next_step,
+                                    "steps_synced": list(workflow_state['steps'].keys())
+                                })
+                            else:
+                                logger.error(u"❌ workflow-state.json同步失败")
+
+                        # v20.1: Desktop notification - Step completed
+                        next_step_desc = meta["workflow_state"]["steps"][next_step].get("description", next_step)
+                        notify_info(
+                            "Step completed",
+                            "Current: {} → Next: {}".format(current_step, next_step_desc)
+                        )
+
+                        # Inject next step prompt
+                        inject_next_step_prompt(next_step, meta, cwd)
+
+                        logger.info(u"Step completed", {
+                            "from": current_step,
+                            "to": next_step
+                        })
+                        logger.finish(success=True, message=u"步骤{}完成,进入{}".format(current_step, next_step))
+                        sys.exit(0)
+        except Exception as step_check_err:
+            logger.error(u"步骤检查失败", step_check_err)
+            # 步骤检查失败不致命,继续执行其他逻辑
+
+        # === 阶段4: 循环检测与专家触发 (独立异常处理) ===
+        try:
+            expert_check = check_expert_trigger(meta, cwd)
+
+            if expert_check["should_trigger"] and not meta["metrics"].get("expert_review_triggered", False):
+                # 触发专家审查
+                expert_prompt = launch_meta_expert(expert_check, meta, cwd, logger)
+
+                if expert_prompt:
+                    # 注入专家分析提示
+                    output = {
+                        "continue": True,
+                        "hookSpecificOutput": {
+                            "hookEventName": "PostToolUse",
+                            "additionalContext": expert_prompt
+                        }
+                    }
+                    print(json.dumps(output, ensure_ascii=False))
+
+                    # 桌面通知
                     try:
                         from vscode_notify import notify_warning
-                        notify_warning("Expert diagnosis recommended", trigger_reason)
+                        notify_warning(
+                            u"专家审查已触发",
+                            u"循环类型: {} | 置信度: {:.0%}".format(
+                                expert_check["loop_type"],
+                                expert_check["confidence"]
+                            )
+                        )
                     except:
                         pass
 
-                    step_changed = True
-
-        # 更新时间戳
-        meta["updated_at"] = datetime.now().isoformat()
-
-        # 检查步骤是否刚刚完成
-        if step_changed or check_step_completed(current_step, meta):
-            if meta["workflow_state"]["steps"][current_step]["status"] != "completed":
-                # 标记当前步骤完成
-                meta["workflow_state"]["steps"][current_step]["status"] = "completed"
-                meta["workflow_state"]["steps"][current_step]["completed_at"] = datetime.now().isoformat()
-
-                # 获取下一步
-                next_step = get_next_step(current_step)
-
-                if next_step and current_step != last_injection:
-                    # 更新状态机
-                    meta["workflow_state"]["current_step"] = next_step
-                    meta["workflow_state"]["steps"][next_step]["status"] = "in_progress"
-                    meta["workflow_state"]["last_injection_step"] = next_step
-
-                    # 保存状态机
-                    save_json(meta_path, meta)
-                    save_json(active_flag_path, {
-                        **active_flag,
-                        "current_step": next_step,
-                        "updated_at": datetime.now().isoformat()
-                    })
-
-                    # v20.2.7: 同步到 workflow-state.json（P0修复）
-                    workflow_state_path = os.path.join(cwd, '.claude', 'workflow-state.json')
-                    workflow_state = load_json(workflow_state_path)
-                    if workflow_state:
-                        # 完整同步 steps 对象
-                        workflow_state['current_step'] = next_step
-                        workflow_state['steps'] = meta['workflow_state']['steps'].copy()
-                        workflow_state['last_sync_at'] = datetime.now().isoformat()
-                        if save_json(workflow_state_path, workflow_state):
-                            logger.info(u"✅ 已同步到workflow-state.json", {
-                                "current_step": next_step,
-                                "steps_synced": list(workflow_state['steps'].keys())
-                            })
-                        else:
-                            logger.error(u"❌ workflow-state.json同步失败")
-
-                    # v20.1: Desktop notification - Step completed
-                    next_step_desc = meta["workflow_state"]["steps"][next_step].get("description", next_step)
-                    notify_info(
-                        "Step completed",
-                        "Current: {} → Next: {}".format(current_step, next_step_desc)
-                    )
-
-                    # Inject next step prompt
-                    inject_next_step_prompt(next_step, meta, cwd)
-
-                    logger.info(u"Step completed", {
-                        "from": current_step,
-                        "to": next_step
-                    })
-                    logger.finish(success=True, message=u"步骤{}完成,进入{}".format(current_step, next_step))
+                    logger.finish(success=True, message=u"专家审查已触发")
                     sys.exit(0)
+        except Exception as expert_err:
+            logger.error(u"专家触发检查失败", expert_err)
+            # 专家触发失败不影响主流程
 
-        # === v20.2 新增：循环检测与专家触发 ===
-        expert_check = check_expert_trigger(meta, cwd)
-
-        if expert_check["should_trigger"] and not meta["metrics"].get("expert_review_triggered", False):
-            # 触发专家审查
-            expert_prompt = launch_meta_expert(expert_check, meta, cwd, logger)
-
-            if expert_prompt:
-                # 注入专家分析提示
-                output = {
-                    "continue": True,
-                    "hookSpecificOutput": {
-                        "hookEventName": "PostToolUse",
-                        "additionalContext": expert_prompt
-                    }
-                }
-                print(json.dumps(output, ensure_ascii=False))
-
-                # 桌面通知
-                try:
-                    from vscode_notify import notify_warning
-                    notify_warning(
-                        u"专家审查已触发",
-                        u"循环类型: {} | 置信度: {:.0%}".format(
-                            expert_check["loop_type"],
-                            expert_check["confidence"]
-                        )
-                    )
-                except:
-                    pass
-
-                logger.finish(success=True, message=u"专家审查已触发")
-                sys.exit(0)
-
-        # 保存状态机(即使没有步骤跃迁,也要保存更新)
-        save_json(meta_path, meta)
+        # === 阶段5: 状态保存 (必须成功,否则状态丢失) ===
+        try:
+            save_json(meta_path, meta)
+        except Exception as save_err:
+            logger.error(u"状态保存失败", save_err)
+            # 状态保存失败视为严重错误,但仍然放行
+            # (避免阻塞用户操作,状态可从其他源恢复)
 
         # 当前步骤未完成,放行
         logger.decision("continue", u"步骤{}进行中".format(current_step))

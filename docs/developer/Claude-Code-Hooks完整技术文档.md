@@ -1,9 +1,21 @@
 # Claude Code Hooks 完整技术文档
 
+> **文档类型**: 通用Claude Code Hooks技术参考（非项目特定）
 > **文档版本**: v1.0
-> **最后更新**: 2025-11-12
+> **最后更新**: 2025-11-14
 > **适用版本**: Claude Code v2.0.10+
 > **官方文档**: https://docs.anthropic.com/en/docs/claude-code/hooks
+
+---
+
+## 📚 文档导航
+
+本文档是**通用的Claude Code Hooks技术参考手册**，适用于所有Claude Code项目。
+
+如需了解本项目（MODSDK工作流）的Hook实现，请参阅：
+- **项目Hook架构** → [Hook机制.md](./Hook机制.md) - v20.0.3架构与9个Hook详解
+- **项目Hook使用** → [Hooks使用指南.md](./Hooks使用指南.md) - v20.2.10实战指南与配置
+- **项目状态机** → [Hook状态机数据流完整说明.md](./Hook状态机数据流完整说明.md) - 深度技术分析
 
 ---
 

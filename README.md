@@ -4,7 +4,7 @@
 
 **🚀 网易我的世界MODSDK × Claude Code = 开发效率革命**
 
-[![Version](https://img.shields.io/badge/version-20.2.9-blue.svg)](https://github.com/jju666/NeteaseMod-Claude)
+[![Version](https://img.shields.io/badge/version-20.2.12-blue.svg)](https://github.com/jju666/NeteaseMod-Claude)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D12.0.0-brightgreen.svg)](https://nodejs.org/)
 
@@ -404,29 +404,41 @@ def check_expert_trigger(meta):
 
 ## 🚀 快速开始
 
-### 步骤1：安装工作流（上游项目维护者）
+### 步骤1：全局安装
+
+> **v20.2.12 新推荐**: 使用 `npm link` 替代旧的安装方式
 
 ```bash
+# 克隆项目
 git clone https://github.com/jju666/NeteaseMod-Claude.git
 cd NeteaseMod-Claude
+
+# 安装依赖并创建全局链接
 npm install
-npm run deploy
+npm link
 ```
 
-安装完成后，`initmc` 命令会自动添加到系统PATH。
+**优势**：
+- ⚡ 5秒安装 (vs 旧方式 30秒+)
+- 🔄 修改代码立即生效
+- 🗑️ `npm unlink` 完全清理，无残留文件
 
-### 步骤2：部署到MODSDK项目（下游用户）
+### 步骤2：部署到MODSDK项目
 
 ```bash
 cd your-modsdk-project
 initmc
 ```
 
-**工作流自动部署**：
-- ✅ 复制 `.claude/` 目录（Hooks、配置、命令）
-- ✅ 复制 `markdown/` 文档库（开发规范、问题排查）
-- ✅ 创建 `tasks/` 任务目录
-- ✅ 创建 `templates/` 任务模板
+> **v20.2.12 智能模式**: `initmc` 自动完成所有操作
+> - 🗑️ 清理遗留文件 → 🔍 检测版本更新 → 🧹 清除废弃文件 → ⬆️ 自动同步
+> - 无需任何参数，一条命令搞定！
+
+**自动部署内容**：
+- ✅ `.claude/` 目录（Hooks、配置、命令）
+- ✅ `markdown/` 文档库（开发规范、问题排查）
+- ✅ `tasks/` 任务目录
+- ✅ `templates/` 任务模板
 
 ### 步骤3：开始使用
 

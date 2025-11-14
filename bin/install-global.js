@@ -197,9 +197,28 @@ alias uninstallmc="node ~/.claude-modsdk-workflow/bin/uninstallmc.js"
  * 主函数
  */
 function main() {
+  // v20.2.12: 从 package.json 动态读取版本号
+  const pkg = require('../package.json');
+  const version = pkg.version;
+
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('🚀 MODSDK工作流生成器 - 全局部署 v20.2.8');
+  console.log(`🚀 MODSDK工作流生成器 - 全局部署 v${version}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+  // ⚠️ v20.2.12: install-global.js 已废弃,推荐使用 npm link
+  console.warn('⚠️  警告: 此部署方式已废弃!\n');
+  console.warn('推荐使用更简洁的 npm link 方式:');
+  console.warn('  npm link');
+  console.warn('  # 或');
+  console.warn('  npm install -g .\n');
+  console.warn('优点: 实时更新、无残留文件、自动清理\n');
+  console.warn('按 Ctrl+C 取消,或等待 5 秒继续使用旧方式...\n');
+
+  // 延迟 5 秒,给用户思考时间
+  const startTime = Date.now();
+  while (Date.now() - startTime < 5000) {
+    // 同步等待
+  }
 
   // 检查依赖
   console.log('🔍 检查依赖...\n');

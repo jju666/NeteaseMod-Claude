@@ -10,14 +10,24 @@
 const path = require('path');
 const fs = require('fs');
 
-// 查找全局工作流目录
-const workflowHome = process.env.NETEASE_CLAUDE_HOME ||
-                     path.join(require('os').homedir(), '.claude-modsdk-workflow');
+// v20.2.12: 使用npm包路径(支持npm link)
+// __dirname = /path/to/netease-mod-claude/bin
+const workflowHome = path.resolve(__dirname, '..');
 
-if (!fs.existsSync(workflowHome)) {
-  console.error('❌ 错误: 未找到全局工作流目录');
+// 验证是否是有效的工作流目录
+const requiredFiles = ['lib/init-workflow.js', 'lib/config.js', 'package.json'];
+const isValidWorkflow = requiredFiles.every(file =>
+  fs.existsSync(path.join(workflowHome, file))
+);
+
+if (!isValidWorkflow) {
+  console.error('❌ 错误: 无效的工作流目录');
   console.error('   路径: ' + workflowHome);
-  console.error('\n请先运行: npm run install-global\n');
+  console.error('\n请确保正确安装:');
+  console.error('   1. git clone https://github.com/jju666/NeteaseMod-Claude.git');
+  console.error('   2. cd NeteaseMod-Claude');
+  console.error('   3. npm install');
+  console.error('   4. npm link\n');
   process.exit(1);
 }
 

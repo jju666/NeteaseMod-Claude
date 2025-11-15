@@ -15,7 +15,7 @@
 ### 🏗️ 核心架构
 - [技术架构](./docs/developer/技术架构.md) - 系统设计与模块划分
 - [数据流设计](./docs/developer/数据流设计.md) - 工作流执行流程
-- [Hook状态机机制](./docs/developer/Hook状态机机制.md) - 完整状态机运作机制（v20.2.17）
+- [Hook状态机机制](./docs/developer/Hook状态机机制.md) - 完整状态机运作机制（v21.1.2）
 - [通知系统](./docs/developer/通知系统.md) - 跨平台桌面通知(v18.4+)
 
 ### 📦 核心模块
@@ -77,4 +77,4 @@ MIT License - 详见 [LICENSE](./LICENSE)
 
 ---
 
-_最后更新: 2025-11-14 | v20.2.17_
+_最后更新: 2025-11-15 | v21.1.2_

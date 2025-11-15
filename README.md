@@ -4,7 +4,7 @@
 
 **🚀 网易我的世界MODSDK × Claude Code = 开发效率革命**
 
-[![Version](https://img.shields.io/badge/version-20.2.12-blue.svg)](https://github.com/jju666/NeteaseMod-Claude)
+[![Version](https://img.shields.io/badge/version-21.1.2-blue.svg)](https://github.com/jju666/NeteaseMod-Claude)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D12.0.0-brightgreen.svg)](https://nodejs.org/)
 
@@ -22,7 +22,7 @@
 
 > **不是简单的AI脚本工具，而是完整的事件驱动状态机！**
 
-**8个Hook协同工作** × **3文件状态同步** × **循环检测算法** × **专家诊断系统**
+**8个Hook协同工作** × **单数据源架构** × **循环检测算法** × **专家诊断系统**
 
 ### 💥 颠覆传统开发流程
 
@@ -47,7 +47,7 @@
 
 **🔒 并发安全保证**
 - Windows系统级文件锁
-- 3文件原子状态同步
+- task-meta.json单数据源
 - 指数退避重试机制
 - 归档锁防止并发冲突
 
@@ -94,7 +94,7 @@
 
 > **这不是简单的脚本串联，而是完整的状态机系统！**
 
-**8层Hook协同 × 3文件状态同步 × 循环检测 + 专家介入**
+**8层Hook协同 × 单数据源架构 × 循环检测 + 专家介入**
 
 ```mermaid
 flowchart LR
@@ -118,8 +118,8 @@ flowchart LR
 
 - **智能任务分类**：自动识别BUG修复/新功能/性能优化，注入差异化执行策略
 - **循环检测算法**：检测到 `迭代≥2 && 负反馈≥2 && 同文件修改≥2` 自动触发专家审查
-- **三文件状态同步**：`workflow-state.json` + `task-meta.json` + `.task-active.json` 跨Hook原子更新
-- **步骤自动推进**：step0(读CLAUDE.md) → step1(读文档) → step3(执行) → step4(归档) 全自动流转
+- **单数据源架构**：`task-meta.json` 统一管理所有状态，消除同步冲突（v21.0重构）
+- **步骤自动推进**：step3(执行) → step4(归档) 全自动流转，简化工作流
 - **并发安全保证**：Windows系统级文件锁 + 指数退避重试机制
 
 **关键数据流**（点击展开）：
@@ -130,7 +130,7 @@ flowchart LR
 ```
 1. UserPromptSubmitHook 触发
    ├─ 创建任务目录 tasks/任务-MMDD-HHMMSS-描述/
-   ├─ 初始化状态文件 (.task-meta.json + workflow-state.json + .conversation.jsonl)
+   ├─ 初始化状态文件 (.task-meta.json + .conversation.jsonl)
    └─ 匹配玩法知识库 → 注入智能诊断指引 (症状分析 + 知识路由)
 
 2. IterationTrackerHook 并行触发
@@ -282,9 +282,8 @@ markdown/
 **技术实现**：
 
 - **持久化存储**：
-  - `.task-meta.json` - 任务元数据 + 工作流状态（永久保留）
+  - `.task-meta.json` - 任务元数据 + 工作流状态（永久保留，v21.0单数据源）
   - `.conversation.jsonl` - 完整会话历史（支持回溯）
-  - `workflow-state.json` - 会话内状态（恢复时从meta同步）
 
 - **智能恢复提示**：
   ```python
@@ -329,8 +328,8 @@ def check_expert_trigger(meta):
                     "confidence": 90
                 }
 
-    # 连续失败快速通道（v20.3）
-    if meta['metrics']['consecutive_failures'] >= 3:
+    # 连续失败快速通道
+    if meta['metrics']['failure_count'] >= 3:
         return {
             "should_trigger": True,
             "loop_type": "consecutive_failures",
@@ -406,7 +405,7 @@ def check_expert_trigger(meta):
 
 ### 步骤1：全局安装
 
-> **v20.2.12 新推荐**: 使用 `npm link` 替代旧的安装方式
+> **推荐方式**: 使用 `npm link` 全局安装
 
 ```bash
 # 克隆项目
@@ -419,8 +418,8 @@ npm link
 ```
 
 **优势**：
-- ⚡ 5秒安装 (vs 旧方式 30秒+)
-- 🔄 修改代码立即生效
+- ⚡ 快速安装，5秒完成
+- 🔄 修改代码立即生效（开发模式）
 - 🗑️ `npm unlink` 完全清理，无残留文件
 
 ### 步骤2：部署到MODSDK项目
@@ -430,9 +429,9 @@ cd your-modsdk-project
 initmc
 ```
 
-> **v20.2.12 智能模式**: `initmc` 自动完成所有操作
+> **智能模式**: `initmc` 自动完成所有操作
 > - 🗑️ 清理遗留文件 → 🔍 检测版本更新 → 🧹 清除废弃文件 → ⬆️ 自动同步
-> - 无需任何参数，一条命令搞定！
+> - v21.0+支持自动迁移，无需手动配置
 
 **自动部署内容**：
 - ✅ `.claude/` 目录（Hooks、配置、命令）
@@ -521,8 +520,8 @@ initmc
 1. **任务初始化** (5秒)
    ```
    ✓ 创建任务目录: tasks/任务-1114-143025-VIP系统/
-   ✓ 意图分类: feature_implementation
-   ✓ 初始化状态: step0_context → step3_execute (跳过文档阅读)
+   ✓ 意图分类: general (通用任务类型)
+   ✓ 初始化状态: step3_execute (直接进入执行阶段)
    ```
 
 2. **架构设计** (30秒)
@@ -714,7 +713,7 @@ initmc
 
 ### 🏗️ 核心架构文档（深入理解）
 - **[CLAUDE.md](./CLAUDE.md)** - AI工作流程参考（必读）
-- **[Hook状态机数据流完整说明](./docs/developer/Hook状态机数据流完整说明.md)** - 🔥 **强烈推荐**（完整数据流图）
+- **[Hook状态机机制](./docs/developer/Hook状态机机制.md)** - 🔥 **强烈推荐**（完整状态机说明，v21.1.2）
 - **[技术架构](./docs/developer/技术架构.md)** - 系统设计、模块划分
 - **[Hook机制](./docs/developer/Hook机制.md)** - 任务隔离、上下文管理
 - **[数据流设计](./docs/developer/数据流设计.md)** - 工作流执行流程
@@ -748,12 +747,12 @@ initmc
 | 指标 | 数值 | 说明 |
 |------|------|------|
 | **总代码行数** | ~15,000+ 行 | Hook脚本 + 核心模块 + 工具库 |
-| **Hook脚本** | 8个Python脚本 | UserPromptSubmit、IterationTracker、UnifiedWorkflowDriver等 |
+| **Hook脚本** | 10+个Python脚本 | UserPromptHandler、PostToolUseUpdater、PreToolUseEnforcer等 |
 | **核心模块** | 23个JavaScript模块 | 项目分析器、文档生成器、模板系统等 |
-| **状态文件** | 3个JSON文件 | workflow-state.json、task-meta.json、task-active.json |
-| **开发者文档** | 19篇，80,000字 | 包含完整的Hook状态机数据流说明 |
+| **状态文件** | 单数据源 | task-meta.json（v21.0重构，消除同步冲突） |
+| **开发者文档** | 19篇，80,000字 | 包含完整的Hook状态机机制说明 |
 | **流程图** | 30+ Mermaid图表 | 数据流图、状态机图、时序图 |
-| **版本迭代** | v1.0 → v20.2.9 | **20个大版本，持续迭代优化** |
+| **版本迭代** | v1.0 → v21.1.2 | **21个大版本，持续迭代优化** |
 
 ### 技术栈
 
@@ -769,16 +768,21 @@ initmc
 ### 系统架构复杂度（体现设计深度）
 
 ```
-NeteaseMod-Claude
-├── Hook系统 (8个Python脚本)
-│   ├── UserPromptSubmitHook          - 任务初始化 + 玩法包匹配
-│   ├── IterationTrackerHook          - 意图分类 + 用户反馈识别
-│   ├── UnifiedWorkflowDriver         - 核心状态驱动器
-│   ├── CheckCriticalRules            - CRITICAL规范检查
-│   ├── PostArchiveHook               - 任务归档
-│   ├── EnforceCleanupHook            - 收尾强制
-│   ├── SessionStartHook              - 会话恢复
-│   └── ConversationRecorder          - 会话历史记录
+NeteaseMod-Claude (v21.1.2架构)
+├── Hook系统 (10+个Python脚本，模块化组织)
+│   ├── orchestrator/
+│   │   ├── user_prompt_handler.py       - 任务初始化 + 玩法包匹配
+│   │   ├── posttooluse_updater.py       - 工具调用后状态更新
+│   │   └── pretooluse_enforcer.py       - 规范检查 + 拦截
+│   ├── lifecycle/
+│   │   ├── session_start.py             - 会话恢复
+│   │   ├── session_end.py               - 会话结束处理
+│   │   └── cleanup_subagent_stop.py     - 子代理清理
+│   ├── archiver/
+│   │   ├── post_archive.py              - 任务归档
+│   │   └── doc_generator.py             - 文档生成
+│   └── validators/
+│       └── critical_rules_checker.py    - CRITICAL规范检查
 │
 ├── 核心模块 (23个JavaScript模块)
 │   ├── ProjectAnalyzer               - 项目分析器
@@ -787,10 +791,8 @@ NeteaseMod-Claude
 │   ├── KnowledgeBaseManager          - 知识库管理
 │   └── ... (19个其他模块)
 │
-├── 状态管理 (3文件同步)
-│   ├── workflow-state.json           - 会话级状态
-│   ├── task-meta.json                - 持久化状态
-│   └── task-active.json              - 快速检查标志
+├── 状态管理 (单数据源架构 - v21.0重构)
+│   └── task-meta.json                - 唯一状态文件（消除同步冲突）
 │
 └── 智能系统
     ├── 循环检测算法                  - 2-2-2规则
@@ -818,9 +820,9 @@ NeteaseMod-Claude
 **NeteaseMod-Claude的解决方案**：
 
 ```
-✅ 事件驱动状态机 - 8个Hook在关键节点触发
-✅ 多文件状态同步 - 3个JSON文件跨Hook原子更新
-✅ 智能断点恢复 - SessionStartHook自动恢复上次进度
+✅ 事件驱动状态机 - 10+个Hook在关键节点触发
+✅ 单数据源架构 - task-meta.json统一管理，消除同步冲突（v21.0）
+✅ 智能断点恢复 - SessionStart Hook自动恢复上次进度
 ✅ 循环检测算法 - 2-2-2规则触发专家诊断
 ✅ 文档自动生成 - 从会话历史逆向生成文档
 ```
@@ -834,11 +836,12 @@ NeteaseMod-Claude
 **1️⃣ 状态机驱动**
 
 ```
-step0 → step1 → step3 → step4
-  ↑                        ↓
-  └────── 失败重试 ────────┘
+step3 → step4
+  ↑        ↓
+  └── 重试 ─┘
 ```
 
+v21.0简化：移除step0/step1，直接执行
 每个步骤有明确完成条件，自动推进
 
 </td>
@@ -861,14 +864,14 @@ Stop        → 强制收尾
 **3️⃣ 数据持久化**
 
 ```
-workflow-state.json  (会话级)
-  ↓ 同步
-task-meta.json      (永久级)
-  ↓ 快速检查
-task-active.json    (标志位)
+task-meta.json
+    ↓
+单数据源
+v21.0重构
 ```
 
-三文件同步，防止状态丢失
+消除同步冲突，简化架构
+所有状态统一管理
 
 </td>
 </tr>
@@ -1025,16 +1028,16 @@ tasks/
 
 | 亮点 | 传统AI工具 | NeteaseMod-Claude |
 |------|-----------|-------------------|
-| **状态管理** | ❌ 无状态，单轮对话 | ✅ 8层Hook状态机，3文件同步 |
+| **状态管理** | ❌ 无状态，单轮对话 | ✅ 10+层Hook状态机，单数据源架构 |
 | **错误处理** | ❌ 事后修复 | ✅ PreToolUse拦截，零容忍违规 |
 | **循环检测** | ❌ 无检测，陷入死循环 | ✅ 2-2-2算法，自动触发专家 |
-| **会话恢复** | ❌ 无法恢复 | ✅ SessionStartHook智能恢复 |
+| **会话恢复** | ❌ 无法恢复 | ✅ SessionStart Hook智能恢复 |
 | **文档维护** | ❌ 手动编写 | ✅ 从会话历史自动生成 |
 | **并发安全** | ❌ 无保护 | ✅ Windows系统级文件锁 |
 
 ---
 
-_最后更新: 2025-11-14 | 当前版本: **v20.2.9** | 下一版本规划: [v21.0](./CHANGELOG.md)_
+_最后更新: 2025-11-15 | 当前版本: **v21.1.2** | [更新日志](./CHANGELOG.md)_
 
 _🌟 如果本项目对你有帮助，请给个Star支持！_
 

@@ -996,15 +996,16 @@ def main():
             "current_step": "step2_research",
             "last_injection_step": None,
             "steps": {
+                # v21.0: step0_context 和 step1_understand 已废弃（保留以兼容旧数据）
                 "step0_context": {
-                    "description": u"阅读项目CLAUDE.md",
+                    "description": u"阅读项目CLAUDE.md（已废弃）",
                     "status": "skipped",
-                    "prompt": u"（v22.0: 所有模式统一跳过step0/step1）"
+                    "prompt": u"（v21.0: 已废弃，所有任务从 step2_research 开始）"
                 },
                 "step1_understand": {
-                    "description": u"理解任务需求",
+                    "description": u"理解任务需求（已废弃）",
                     "status": "skipped",
-                    "prompt": u"（v22.0: 所有模式统一跳过step0/step1）"
+                    "prompt": u"（v21.0: 已废弃，所有任务从 step2_research 开始）"
                 },
                 "step2_research": {
                     "description": u"任务研究阶段（强制）",

@@ -8,94 +8,15 @@ Version: v20.3.0 - 重新引入Step2任务流路由阶段
 # ============== 核心矩阵配置 ==============
 
 STAGE_TOOL_MATRIX = {
-    # ========== Step0: 理解项目上下文 ==========
-    "step0_context": {
-        "display_name": "理解项目上下文",
-        "description": "阅读CLAUDE.md了解项目结构和工作流规范",
-
-        "allowed_tools": ["Read"],
-
-        "preconditions": [],  # 无前置条件，初始阶段
-
-        "path_rules": {
-            "Read": {
-                "whitelist": ["CLAUDE.md", "README.md"],
-                "blacklist": [],
-                "description": "只能阅读项目根目录的CLAUDE.md和README.md"
-            }
-        },
-
-        "semantic_rules": {
-            "Read": {
-                "purpose": "understand_project",
-                "max_reads": 2,
-                "description": "理解项目上下文，最多读2个文件"
-            }
-        },
-
-        "completion_condition": {
-            "trigger_expr": "any('CLAUDE.md'.upper() in doc.upper() for doc in task_meta.get('metrics', {}).get('docs_read', []))",
-            "auto_advance": True,
-            "next_step": "step1_understand",
-            "description": "检测到CLAUDE.md被读取后自动推进到step1"
-        }
-    },
-
-    # ========== Step1: 理解任务需求 ==========
-    "step1_understand": {
-        "display_name": "理解任务需求",
-        "description": "阅读用户提供的需求描述、相关文档或问题说明",
-
-        "allowed_tools": ["Read"],
-
-        "preconditions": ["step0_completed"],
-
-        "path_rules": {
-            "Read": {
-                "whitelist_patterns": [
-                    "docs/**/*.md",
-                    "markdown/**/*.md",
-                    "*.md",
-                    "tasks/*/context.md",
-                    "tasks/*/solution.md"
-                ],
-                "blacklist_patterns": [
-                    "behavior_packs/**/*",
-                    "resource_packs/**/*",
-                    "scripts/**/*.py",
-                    "scripts/**/*.js",
-                    "*.py",
-                    "*.js"
-                ],
-                "description": "只能阅读文档，禁止阅读代码文件"
-            }
-        },
-
-        "semantic_rules": {
-            "Read": {
-                "purpose": "understand_requirements",
-                "min_reads": 1,
-                "forbidden_content_types": ["code"],
-                "description": "理解需求文档，至少读1个文档"
-            }
-        },
-
-        "completion_condition": {
-            "trigger_expr": "task_meta.get('metrics', {}).get('docs_read_count', 0) >= 1",
-            "auto_advance": True,
-            "next_step": "step2_research",
-            "description": "至少阅读1个文档后自动推进到step2_research"
-        }
-    },
-
     # ========== Step2: 任务研究阶段 (v22.0 PreToolUse强制驱动) ==========
+    # 注: v21.0 重构后，step0_context 和 step1_understand 已废弃，所有任务直接从 step2_research 开始
     "step2_research": {
         "display_name": "任务研究阶段（强制）",
         "description": "深度研究问题根因和技术约束，禁止修改任何文件",
 
         "allowed_tools": ["Read", "Grep", "Glob"],
 
-        "preconditions": ["step1_completed"],
+        "preconditions": [],  # v21.0: step2 为起始阶段，无前置条件
 
         "path_rules": {
             "Read": {
@@ -194,7 +115,7 @@ Hook会检测你的确认关键词，自动推进到step3执行阶段。
 
         "allowed_tools": ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebFetch", "WebSearch"],
 
-        "preconditions": ["step1_completed", "step2_completed"],
+        "preconditions": ["step2_completed"],
 
         "path_rules": {
             "Write": {
@@ -289,7 +210,7 @@ Hook会检测你的确认关键词，自动推进到step3执行阶段。
         # 父代理只能Task，子代理可以全部工具
         "allowed_tools": ["Task", "Read"],
 
-        "preconditions": ["user_confirmed"],
+        "preconditions": ["step2_completed", "user_confirmed"],
 
         "path_rules": {
             "Task": {
@@ -410,7 +331,8 @@ def get_semantic_rules(stage_name: str, tool_name: str) -> dict:
 
 def get_next_step(current_step: str) -> str:
     """获取下一个步骤"""
-    step_order = ["step0_context", "step1_understand", "step2_route", "step3_execute", "step4_cleanup"]
+    # v21.0: 简化为 step2_research -> step3_execute -> step4_cleanup
+    step_order = ["step2_research", "step3_execute", "step4_cleanup"]
 
     try:
         current_idx = step_order.index(current_step)
@@ -432,9 +354,7 @@ def is_auto_advance(stage_name: str) -> bool:
 # ============== 步骤顺序配置 ==============
 
 STEP_ORDER = [
-    "step0_context",
-    "step1_understand",
-    "step2_research",   # v22.0 PreToolUse强制驱动
+    "step2_research",   # v22.0 PreToolUse强制驱动（v21.0: 起始阶段）
     "step3_execute",
     "step4_cleanup"
 ]

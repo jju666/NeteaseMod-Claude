@@ -151,29 +151,13 @@ class StageValidator:
         preconditions = stage_config.get('preconditions', [])
 
         for precondition in preconditions:
-            # 解析前置条件
-            if precondition == "step0_completed":
-                if not self._is_step_completed("step0_context", task_meta):
+            # 解析前置条件（v21.0: 移除 step0/step1，保留 step2）
+            if precondition == "step2_completed":
+                if not self._is_step_completed("step2_research", task_meta):
                     return {
                         "allowed": False,
-                        "reason": "前置条件未满足: Step0（理解项目上下文）尚未完成",
-                        "suggestion": "请先阅读 CLAUDE.md 了解项目结构和工作流规范"
-                    }
-
-            elif precondition == "step1_completed":
-                if not self._is_step_completed("step1_understand", task_meta):
-                    return {
-                        "allowed": False,
-                        "reason": "前置条件未满足: Step1（理解任务需求）尚未完成",
-                        "suggestion": "请先阅读至少1个相关文档了解任务需求"
-                    }
-
-            elif precondition == "step2_completed":
-                if not self._is_step_completed("step2_route", task_meta):
-                    return {
-                        "allowed": False,
-                        "reason": "前置条件未满足: Step2（任务流路由）尚未完成",
-                        "suggestion": "请先完成任务类型分析，确认执行策略"
+                        "reason": "前置条件未满足: Step2（任务研究阶段）尚未完成",
+                        "suggestion": "请先完成文档研究，明确说明研究结论后继续"
                     }
 
             elif precondition == "user_confirmed":
@@ -369,13 +353,9 @@ class StageValidator:
 - 允许的工具: {', '.join(allowed_tools)}
 """
 
-        # 特殊阶段的额外提示
-        if current_step == "step0_context":
-            suggestion += "\n请使用 Read('CLAUDE.md') 阅读项目上下文"
-        elif current_step == "step1_understand":
-            suggestion += "\n请阅读相关文档了解任务需求，禁止阅读代码文件"
-        elif current_step == "step2_route":
-            suggestion += "\n请分析任务类型并确认执行策略，可以阅读文档和代码，但禁止修改"
+        # 特殊阶段的额外提示（v21.0: 移除 step0/step1/step2_route 提示）
+        if current_step == "step2_research":
+            suggestion += "\n请查阅至少3个相关文档，理解问题根因和技术约束，明确说明研究结论后继续"
         elif current_step == "step4_cleanup":
             suggestion += "\n请使用 Task 工具启动收尾子代理"
 

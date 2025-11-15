@@ -86,13 +86,8 @@ class SemanticAnalyzer:
         """Write工具语义分析"""
         file_path = tool_input.get("file_path", "")
 
-        # 1. Step2阶段禁止Write
-        if current_step == "step2_route":
-            return {
-                "allowed": False,
-                "reason": "step2_route（任务流路由）阶段禁止修改任何文件",
-                "suggestion": "请完成任务流分析后再进入step3_execute执行阶段"
-            }
+        # （v21.0: step2_route 已废弃，相关检查已移除）
+        # step2_research 的 Write 禁止由 stage_validator Layer 4 (v22.0) 统一处理
 
         # 2. Step4父代理禁止Write
         if current_step == "step4_cleanup" and not is_subagent:
@@ -140,13 +135,8 @@ class SemanticAnalyzer:
         """Edit工具语义分析"""
         file_path = tool_input.get("file_path", "")
 
-        # 1. Step2阶段禁止Edit
-        if current_step == "step2_route":
-            return {
-                "allowed": False,
-                "reason": "step2_route（任务流路由）阶段禁止修改任何文件",
-                "suggestion": "请完成任务流分析后再进入step3_execute执行阶段"
-            }
+        # （v21.0: step2_route 已废弃，相关检查已移除）
+        # step2_research 的 Edit 禁止由 stage_validator Layer 4 (v22.0) 统一处理
 
         # 2. Step4父代理禁止Edit
         if current_step == "step4_cleanup" and not is_subagent:
@@ -191,13 +181,8 @@ class SemanticAnalyzer:
         """Bash工具语义分析"""
         command = tool_input.get("command", "")
 
-        # 1. Step2阶段禁止Bash
-        if current_step == "step2_route":
-            return {
-                "allowed": False,
-                "reason": "step2_route（任务流路由）阶段禁止执行命令",
-                "suggestion": "研究阶段只能Read和Grep，不能执行命令"
-            }
+        # （v21.0: step2_route 已废弃，相关检查已移除）
+        # step2_research 的 Bash 禁止由 stage_validator Layer 4 (v22.0) 统一处理
 
         # 2. 危险命令检测
         dangerous_patterns = [
@@ -244,27 +229,8 @@ class SemanticAnalyzer:
         """Read工具语义分析"""
         file_path = tool_input.get("file_path", "")
 
-        # 1. Step1阶段:禁止Read代码文件
-        if current_step == "step1_understand":
-            forbidden_types = semantic_rules.get('forbidden_content_types', [])
-            if 'code' in forbidden_types:
-                if self.path_validator.is_code_file(file_path):
-                    return {
-                        "allowed": False,
-                        "reason": f"step1_understand阶段禁止阅读代码文件: {file_path}",
-                        "suggestion": "请阅读文档了解需求，代码研究在step2_route阶段进行"
-                    }
-
-        # 2. 检查最大读取次数（Step0阶段）
-        if current_step == "step0_context":
-            max_reads = semantic_rules.get('max_reads', 999)
-            read_count = len(workflow_state.get('metrics', {}).get('docs_read', []))
-            if read_count >= max_reads:
-                return {
-                    "allowed": False,
-                    "reason": f"已达到最大读取次数: {max_reads}",
-                    "suggestion": "请进入下一阶段"
-                }
+        # （v21.0: step0_context 和 step1_understand 已废弃，相关检查已移除）
+        # Read 操作的语义规则现在主要由 path_rules 和通用的 semantic_rules 控制
 
         return {"allowed": True, "reason": "Read语义验证通过"}
 

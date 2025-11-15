@@ -289,15 +289,7 @@ def format_gameplay_pack(pattern):
     return result
 
 def handle_state_transition(user_input, cwd):
-    """处理用户状态转移（v3.0 Final新增）
-
-    检测用户输入中的确认关键词并执行状态转移:
-    - Planning阶段: "同意" → Implementation
-    - Implementation阶段: "修复了" → Finalization, "没修复" → Planning, "继续" → Implementation
-
-    返回:
-        dict or None: 如果是状态转移命令，返回Hook输出JSON；否则返回None
-    """
+    """处理用户状态转移（v22.2: 使用atomic_update增强并发安全性）"""
     if not TaskMetaManager:
         return None
 
@@ -306,21 +298,14 @@ def handle_state_transition(user_input, cwd):
     task_id = meta_manager.get_active_task_id()
 
     if not task_id:
-        # 无活跃任务，不处理状态转移
         return None
 
-    # 读取任务元数据
+    # 检查任务元数据是否存在
     meta_path = meta_manager._get_meta_path(task_id)
     if not os.path.exists(meta_path):
         return None
 
-    try:
-        with open(meta_path, 'r', encoding='utf-8') as f:
-            meta_data = json.load(f)
-    except:
-        return None
-
-    current_step = meta_data.get('current_step', '')
+    # 用户输入预处理
     user_input_lower = user_input.lower().strip()
 
     # 定义关键词映射
@@ -330,25 +315,35 @@ def handle_state_transition(user_input, cwd):
     CONTINUE_KEYWORDS = ['继续', '继续修改', '再改', '还有', 'continue']
     RESTART_KEYWORDS = ['重来', '重新开始', '不对', '完全错了', 'restart']
 
-    transition_occurred = False
-    message = ""
+    # ========== 核心改动：使用闭包 + atomic_update ==========
 
-    # Planning → Implementation (用户确认方案)
-    if current_step == 'planning':
-        if any(kw in user_input_lower for kw in CONFIRM_KEYWORDS):
-            # ✅ Phase 4: 前置检查 - 验证文档查阅数量（P0优先级）
-            task_type = meta_data.get('task_type', 'feature_design')
-            docs_read = meta_data.get('metrics', {}).get('docs_read', [])
-            required_docs = meta_data.get('steps', {}).get('planning', {}).get('required_doc_count', 3)
+    # 用于存储转移结果（闭包捕获）
+    result = {
+        'occurred': False,       # 是否发生状态转移
+        'message': '',           # 用户消息
+        'new_step': None,        # 新状态
+        'old_step': None,        # 旧状态
+        'blocked': False,        # 是否被阻止（文档不足等）
+        'block_reason': ''       # 阻止原因
+    }
 
-            # 功能设计强制3个文档，BUG修复无要求（由专家审查替代）
-            if task_type == 'feature_design' and len(docs_read) < required_docs:
-                sys.stderr.write(f"[UserPromptSubmit] Planning→Implementation转移被拒绝: 文档查阅不足 ({len(docs_read)}/{required_docs})\n")
+    def apply_state_transition(meta_data):
+        """原子更新函数：应用状态转移逻辑"""
+        current_step = meta_data.get('current_step', '')
+        result['old_step'] = current_step
 
-                return {
-                    "hookSpecificOutput": {
-                        "hookEventName": "UserPromptSubmit",
-                        "additionalContext": u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # ========== Planning → Implementation ==========
+        if current_step == 'planning':
+            if any(kw in user_input_lower for kw in CONFIRM_KEYWORDS):
+                # 前置检查：文档数量
+                task_type = meta_data.get('task_type', 'general')
+                docs_read = meta_data.get('metrics', {}).get('docs_read', [])
+                required_docs = meta_data.get('steps', {}).get('planning', {}).get('required_doc_count', 1)
+
+                # 如果文档不足，阻止转移
+                if required_docs > 0 and len(docs_read) < required_docs:
+                    result['blocked'] = True
+                    result['block_reason'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️ 无法进入Implementation阶段
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -368,38 +363,40 @@ def handle_state_transition(user_input, cwd):
 💡 提示: 充分的文档研究能避免违反CRITICAL规范，提高修复成功率。
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """.format(
-                            docs_read=len(docs_read),
-                            required_docs=required_docs,
-                            remaining=required_docs - len(docs_read)
-                        )
-                    },
-                    "continue": True
-                }
+                        docs_read=len(docs_read),
+                        required_docs=required_docs,
+                        remaining=required_docs - len(docs_read)
+                    )
+                    sys.stderr.write(u"[UserPromptSubmit] Planning→Implementation转移被拒绝: 文档查阅不足 ({}/{}\n".format(len(docs_read), required_docs))
+                    return meta_data  # 原样返回，不修改
 
-            # ✅ 前置检查通过，允许状态转移
-            sys.stderr.write(f"[UserPromptSubmit] Planning→Implementation转移检查通过: 文档查阅数 {len(docs_read)}/{required_docs}\n")
+                # 前置检查通过，执行状态转移
+                sys.stderr.write(u"[UserPromptSubmit] Planning→Implementation转移检查通过: 文档查阅数 {}/{}\n".format(len(docs_read), required_docs))
 
-            meta_data['current_step'] = 'implementation'
+                # 修改状态
+                meta_data['current_step'] = 'implementation'
+                result['new_step'] = 'implementation'
 
-            # 更新steps字段（v3.0 Final语义化结构）
-            if 'steps' not in meta_data:
-                meta_data['steps'] = {}
+                # 更新steps字段
+                if 'steps' not in meta_data:
+                    meta_data['steps'] = {}
 
-            # 完成Planning阶段
-            if 'planning' not in meta_data['steps']:
-                meta_data['steps']['planning'] = {}
-            meta_data['steps']['planning']['user_confirmed'] = True
-            meta_data['steps']['planning']['confirmed_at'] = datetime.now().isoformat()
-            meta_data['steps']['planning']['status'] = 'completed'
-            meta_data['steps']['planning']['completed_at'] = datetime.now().isoformat()
+                # 完成Planning
+                if 'planning' not in meta_data['steps']:
+                    meta_data['steps']['planning'] = {}
+                meta_data['steps']['planning']['user_confirmed'] = True
+                meta_data['steps']['planning']['confirmed_at'] = datetime.now().isoformat()
+                meta_data['steps']['planning']['status'] = 'completed'
+                meta_data['steps']['planning']['completed_at'] = datetime.now().isoformat()
 
-            # 启动Implementation阶段
-            if 'implementation' not in meta_data['steps']:
-                meta_data['steps']['implementation'] = {}
-            meta_data['steps']['implementation']['status'] = 'in_progress'
-            meta_data['steps']['implementation']['started_at'] = datetime.now().isoformat()
+                # 启动Implementation
+                if 'implementation' not in meta_data['steps']:
+                    meta_data['steps']['implementation'] = {}
+                meta_data['steps']['implementation']['status'] = 'in_progress'
+                meta_data['steps']['implementation']['started_at'] = datetime.now().isoformat()
 
-            message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                result['occurred'] = True
+                result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ 状态转移: Planning → Implementation
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -411,15 +408,17 @@ def handle_state_transition(user_input, cwd):
 AI将开始实施代码修改。每轮修改完成后，请测试并反馈结果。
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
-            transition_occurred = True
 
-        elif any(kw in user_input_lower for kw in RESTART_KEYWORDS):
-            # 完全否定，回到Activation
-            meta_data['current_step'] = 'activation'
-            if 'planning' in meta_data:
-                meta_data['planning']['user_confirmed'] = False
+            elif any(kw in user_input_lower for kw in RESTART_KEYWORDS):
+                # 完全否定，回到Activation
+                meta_data['current_step'] = 'activation'
+                result['new_step'] = 'activation'
 
-            message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                if 'planning' in meta_data.get('steps', {}):
+                    meta_data['steps']['planning']['user_confirmed'] = False
+
+                result['occurred'] = True
+                result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️ 状态回滚: Planning → Activation
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -431,18 +430,24 @@ AI将开始实施代码修改。每轮修改完成后，请测试并反馈结果
 AI将重新分析问题并制定新方案。
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
-            transition_occurred = True
 
-    # Implementation → Finalization (修复成功)
-    elif current_step == 'implementation':
-        if any(kw in user_input_lower for kw in FIXED_KEYWORDS):
-            meta_data['current_step'] = 'finalization'
-            if 'implementation' not in meta_data:
-                meta_data['implementation'] = {}
-            meta_data['implementation']['user_confirmed'] = True
-            meta_data['implementation']['confirmed_at'] = datetime.now().isoformat()
+        # ========== Implementation → Finalization ==========
+        elif current_step == 'implementation':
+            if any(kw in user_input_lower for kw in FIXED_KEYWORDS):
+                # 修复成功，进入收尾
+                meta_data['current_step'] = 'finalization'
+                result['new_step'] = 'finalization'
 
-            message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                if 'steps' not in meta_data:
+                    meta_data['steps'] = {}
+                if 'implementation' not in meta_data['steps']:
+                    meta_data['steps']['implementation'] = {}
+
+                meta_data['steps']['implementation']['user_confirmed'] = True
+                meta_data['steps']['implementation']['confirmed_at'] = datetime.now().isoformat()
+
+                result['occurred'] = True
+                result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ 状态转移: Implementation → Finalization
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -457,47 +462,43 @@ AI将重新分析问题并制定新方案。
 AI将自动完成任务归档。
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
-            transition_occurred = True
 
-        elif any(kw in user_input_lower for kw in NOT_FIXED_KEYWORDS):
-            # 修复失败，回滚到Planning重新分析
-            meta_data['current_step'] = 'planning'
-            if 'implementation' not in meta_data:
-                meta_data['implementation'] = {}
-            meta_data['implementation']['user_confirmed'] = False
+            elif any(kw in user_input_lower for kw in NOT_FIXED_KEYWORDS):
+                # 修复失败，回滚到Planning
+                meta_data['current_step'] = 'planning'
+                result['new_step'] = 'planning'
 
-            # ✅ Phase 4 Bug Fix: 重置steps字段（v3.0 Final架构）
-            # 修复问题：回滚时必须重置planning.user_confirmed，否则Stop Hook会误判
-            if 'steps' not in meta_data:
-                meta_data['steps'] = {}
+                if 'steps' not in meta_data:
+                    meta_data['steps'] = {}
 
-            # 重置Planning阶段状态（回到进行中，等待新方案）
-            if 'planning' not in meta_data['steps']:
-                meta_data['steps']['planning'] = {}
-            meta_data['steps']['planning']['user_confirmed'] = False
-            meta_data['steps']['planning']['status'] = 'in_progress'
-            meta_data['steps']['planning']['resumed_at'] = datetime.now().isoformat()
+                # 重置Planning状态
+                if 'planning' not in meta_data['steps']:
+                    meta_data['steps']['planning'] = {}
+                meta_data['steps']['planning']['user_confirmed'] = False
+                meta_data['steps']['planning']['status'] = 'in_progress'
+                meta_data['steps']['planning']['resumed_at'] = datetime.now().isoformat()
 
-            # 重置Implementation阶段状态（回到待开始）
-            if 'implementation' not in meta_data['steps']:
-                meta_data['steps']['implementation'] = {}
-            meta_data['steps']['implementation']['status'] = 'pending'
-            meta_data['steps']['implementation']['user_confirmed'] = False
+                # 重置Implementation状态
+                if 'implementation' not in meta_data['steps']:
+                    meta_data['steps']['implementation'] = {}
+                meta_data['steps']['implementation']['status'] = 'pending'
+                meta_data['steps']['implementation']['user_confirmed'] = False
 
-            # 记录回滚历史
-            if 'rollback_history' not in meta_data:
-                meta_data['rollback_history'] = []
+                # 记录回滚历史
+                if 'rollback_history' not in meta_data:
+                    meta_data['rollback_history'] = []
 
-            rollback_entry = {
-                'from_step': 'implementation',
-                'to_step': 'planning',
-                'reason': 'user_reported_fix_failed',
-                'timestamp': datetime.now().isoformat(),
-                'code_changes': meta_data.get('implementation', {}).get('code_changes', [])
-            }
-            meta_data['rollback_history'].append(rollback_entry)
+                rollback_entry = {
+                    'from_step': 'implementation',
+                    'to_step': 'planning',
+                    'reason': 'user_reported_fix_failed',
+                    'timestamp': datetime.now().isoformat(),
+                    'code_changes': meta_data.get('metrics', {}).get('code_changes', [])
+                }
+                meta_data['rollback_history'].append(rollback_entry)
 
-            message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                result['occurred'] = True
+                result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️ 状态回滚: Implementation → Planning
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -510,11 +511,11 @@ AI将自动完成任务归档。
 AI将重新分析问题并制定新的修复方案。
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
-            transition_occurred = True
 
-        elif any(kw in user_input_lower for kw in CONTINUE_KEYWORDS):
-            # 继续修改，保持Implementation阶段
-            message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            elif any(kw in user_input_lower for kw in CONTINUE_KEYWORDS):
+                # 继续修改，保持Implementation
+                result['occurred'] = True  # 标记为发生（需要返回消息）
+                result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ▶️ 继续修改
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -526,42 +527,61 @@ AI将重新分析问题并制定新的修复方案。
 请继续提供需要调整的具体内容。
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
-            # 状态不变，但显示确认消息
-            transition_occurred = True  # 虽然状态未变，但需要向用户确认
+                # 注意：状态不变，不修改 meta_data
 
-    # 如果发生状态转移，保存并返回
-    if transition_occurred:
-        try:
-            # 使用TaskMetaManager的save方法确保原子写入和文件锁
-            if meta_manager.save_task_meta(task_id, meta_data):
-                # 同步更新.task-active.json
-                meta_manager.set_active_task(task_id, meta_data.get('current_step'))
+        return meta_data
 
-                output = {
-                    "hookSpecificOutput": {
-                        "hookEventName": "UserPromptSubmit",
-                        "additionalContext": message
-                    },
-                    "continue": True  # 允许AI继续处理
-                }
+    # ========== 执行原子更新 ==========
+    try:
+        updated_meta = meta_manager.atomic_update(task_id, apply_state_transition)
 
-                sys.stderr.write(u"[INFO v3.0] 状态转移成功: {} → {}\n".format(
-                    current_step, meta_data['current_step']
-                ))
-
-                return output
-            else:
-                sys.stderr.write(u"[ERROR] 状态转移保存失败: save_task_meta返回False\n")
-                return None
-
-        except Exception as e:
-            sys.stderr.write(u"[ERROR] 状态转移保存异常: {}\n".format(e))
-            import traceback
-            traceback.print_exc(file=sys.stderr)
+        if not updated_meta:
+            sys.stderr.write(u"[ERROR] 状态转移原子更新失败\n")
             return None
 
-    # 未检测到状态转移关键词
-    return None
+        # ========== 处理更新结果 ==========
+
+        # 情况1: 被阻止（文档不足等）
+        if result['blocked']:
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": result['block_reason']
+                },
+                "continue": True
+            }
+
+        # 情况2: 发生状态转移或需要显示消息
+        if result['occurred']:
+            # 同步更新 .task-active.json
+            if result['new_step']:  # 状态确实改变了
+                meta_manager.set_active_task(task_id, result['new_step'])
+                sys.stderr.write(u"[INFO v22.2] 状态转移成功: {} → {}\n".format(
+                    result['old_step'], result['new_step']
+                ))
+            else:  # 状态未变（如"继续修改"）
+                sys.stderr.write(u"[INFO v22.2] 用户确认，状态保持: {}\n".format(
+                    result['old_step']
+                ))
+
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": result['message']
+                },
+                "continue": True
+            }
+
+        # 情况3: 未检测到状态转移关键词
+        return None
+
+    except Exception as e:
+        sys.stderr.write(u"[ERROR] 状态转移异常: {}\n".format(e))
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return None
+
+
 
 def is_bugfix_task(task_desc):
     """v20.2: Detect if task is BUG fix related"""

@@ -1,0 +1,61 @@
+{
+    "format_version": "1.12.0",
+    "minecraft:entity": {
+        "component_groups": {
+
+        },
+        "components": {
+            "minecraft:collision_box": {
+                "height": 0.31,
+                "width": 0.31
+            },
+            "minecraft:persistent": {
+
+            },
+            "minecraft:physics": {
+
+            },
+            "minecraft:projectile": {
+                "anchor": 1,
+                "catch_fire": true,
+                "gravity": 0.0,
+                "inertia": 1,
+                "liquid_inertia": 1,
+                "offset": [
+                    0,
+                    -0.1,
+                    0
+                ],
+                "on_hit": {
+                    "definition_event": {
+                        "affect_projectile": true,
+                        "event_trigger": {
+                            "event": "ecbedwars:fireball_explode",
+                            "target": "self"
+                        }
+                    }
+                },
+                "power": 1.6,
+                "reflect_on_hurt": true,
+                "uncertainty_base": 0,
+                "uncertainty_multiplier": 0
+            },
+            "minecraft:pushable": {
+                "is_pushable": false,
+                "is_pushable_by_piston": false
+            },
+            "netease:custom_entity_type": {
+                "value": "projectile_entity"
+            }
+        },
+        "description": {
+            "identifier": "ecbedwars:fireball",
+            "is_experimental": false,
+            "is_spawnable": false,
+            "is_summonable": false
+        },
+        "events": {
+            "ecbedwars:fireball_explode": {}
+        }
+    }
+}

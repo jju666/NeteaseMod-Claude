@@ -1,0 +1,34 @@
+{
+  "_comment": "练习区域预设配置示例",
+  "_comment_usage": "将此配置应用到bedwars:practice类型的预设实例中",
+
+  "practice_range": [
+    [-2, 130, 43],
+    [23, 150, 74]
+  ],
+  "_comment_practice_range": "练习区域范围 [[min_x, min_y, min_z], [max_x, max_y, max_z]]，玩家进入此范围触发练习模式",
+
+  "placeable_range": [
+    [-2, 130, 43],
+    [23, 150, 69]
+  ],
+  "_comment_placeable_range": "可放置方块范围，通常比practice_range小，防止玩家在边缘放置方块",
+
+  "spawn_pos": [12, 135, 72],
+  "_comment_spawn_pos": "练习区出生点坐标 [x, y, z]，玩家坠落后传送到此位置",
+
+  "spawn_yaw": 0,
+  "_comment_spawn_yaw": "出生点朝向（Y轴旋转角度），可选，默认0",
+
+  "dimension_id": 0,
+  "_comment_dimension_id": "维度ID，0=主世界，可选，默认0",
+
+  "_usage_notes": [
+    "1. 在地图编辑器中放置bedwars:practice类型的预设实体",
+    "2. 将此配置应用到预设实例",
+    "3. practice_range定义触发区域，玩家进入自动给予羊毛并切换生存模式",
+    "4. placeable_range定义可放置方块范围，超出范围的放置行为会被阻止",
+    "5. 玩家离开区域时自动移除羊毛、清理方块、切换冒险模式",
+    "6. 玩家坠入虚空（Y<0）自动传送回spawn_pos"
+  ]
+}

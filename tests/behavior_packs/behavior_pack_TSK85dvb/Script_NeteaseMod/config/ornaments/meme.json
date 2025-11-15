@@ -1,0 +1,84 @@
+{
+    "meme_ornaments": [
+        {
+            "id": "smile",
+            "name": "微笑",
+            "variant": 1,
+            "entity_type": "ecbedwars:meme",
+            "duration": 5.0,
+            "display_on_death": true,
+            "display_on_resource_collect": true,
+            "description": "经典的微笑表情"
+        },
+        {
+            "id": "black",
+            "name": "黑脸",
+            "variant": 2,
+            "entity_type": "ecbedwars:meme",
+            "duration": 5.0,
+            "display_on_death": true,
+            "display_on_resource_collect": true,
+            "description": "生气的黑脸表情"
+        },
+        {
+            "id": "embrace",
+            "name": "尴尬",
+            "variant": 3,
+            "entity_type": "ecbedwars:meme",
+            "duration": 5.0,
+            "display_on_death": true,
+            "display_on_resource_collect": true,
+            "description": "尴尬的拥抱表情"
+        },
+        {
+            "id": "huaji",
+            "name": "滑稽",
+            "variant": 4,
+            "entity_type": "ecbedwars:meme",
+            "duration": 5.0,
+            "display_on_death": true,
+            "display_on_resource_collect": true,
+            "description": "滑稽表情包"
+        },
+        {
+            "id": "angry",
+            "name": "狂怒",
+            "variant": 5,
+            "entity_type": "ecbedwars:meme",
+            "duration": 5.0,
+            "display_on_death": true,
+            "display_on_resource_collect": true,
+            "description": "愤怒的表情"
+        },
+        {
+            "id": "qm",
+            "name": "问号",
+            "variant": 6,
+            "entity_type": "ecbedwars:meme",
+            "duration": 5.0,
+            "display_on_death": true,
+            "display_on_resource_collect": true,
+            "description": "疑惑的问号表情"
+        },
+        {
+            "id": "ec",
+            "name": "EC",
+            "variant": 7,
+            "entity_type": "ecbedwars:meme",
+            "duration": 5.0,
+            "display_on_death": true,
+            "display_on_resource_collect": true,
+            "description": "EC专属表情"
+        },
+        {
+            "id": "anubis",
+            "name": "阿努比斯",
+            "variant": 8,
+            "entity_type": "ecbedwars:meme",
+            "duration": 5.0,
+            "display_on_death": true,
+            "display_on_resource_collect": true,
+            "description": "神秘的阿努比斯表情"
+        }
+    ]
+}

@@ -1,0 +1,13 @@
+{
+    "format_version": "1.10",
+    "minecraft:item": {
+        "components": {
+
+        },
+        "description": {
+            "category": "Nature",
+            "identifier": "ecbedwars:iron_golem",
+            "register_to_create_menu": true
+        }
+    }
+}

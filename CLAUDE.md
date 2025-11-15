@@ -15,8 +15,8 @@
 ### 🏗️ 核心架构
 - [技术架构](./docs/developer/技术架构.md) - 系统设计与模块划分
 - [数据流设计](./docs/developer/数据流设计.md) - 工作流执行流程
-- [Hook机制](./docs/developer/Hook机制.md) - 任务隔离与上下文管理
-- [通知系统](./docs/developer/通知系统.md) - 🔔 跨平台桌面通知(v18.4+)
+- [Hook状态机机制](./docs/developer/Hook状态机机制.md) - 完整状态机运作机制（v20.2.17）
+- [通知系统](./docs/developer/通知系统.md) - 跨平台桌面通知(v18.4+)
 
 ### 📦 核心模块
 - [项目分析器](./docs/developer/项目分析器.md) - ProjectAnalyzer 模块
@@ -24,60 +24,50 @@
 - [智能文档维护](./docs/developer/智能文档维护.md) - 自适应文档系统
 - [版本管理](./docs/developer/版本管理.md) - 迁移与同步机制
 
+### 🎯 任务管理
+- [任务模板使用指南](./docs/developer/任务模板使用指南.md) - 任务模板配置与使用
+- [任务命名配置](./docs/developer/任务命名配置.md) - 任务命名规则与自定义
+- [task-meta.json 文件结构](./docs/developer/task-meta.json文件结构.md) - 任务元数据文件完整说明
+
 ### 🔧 开发指南
 - [贡献指南](./docs/developer/贡献指南.md) - 如何参与项目开发
 - [测试指南](./docs/developer/测试指南.md) - 手动测试方法与验证脚本
+- [通知功能安装指南](./docs/developer/通知功能安装指南.md) - 桌面通知功能部署
+- [Windows-UTF8-升级指南](./docs/developer/Windows-UTF8-升级指南.md) - Windows 平台编码配置
 
 ### 📖 用户文档
 - [README.md](./README.md) - 项目概述
 - [CHANGELOG.md](./CHANGELOG.md) - 版本更新记录
+- [开发者文档总览](./docs/developer/README.md) - 开发者文档入口
 
 ---
 
-## ⚠️ 重要注意事项
+## 🤖 Claude Code 官方文档
 
-### Windows 中文路径问题 (v20.2.5)
+本目录包含 Claude Code 的官方文档，用于深入理解 Claude Code 的功能和最佳实践。
 
-**关键事实：Python 3.6+ 完全支持 Windows 中文目录创建**
+### 📘 基础指南
+- [概述](./claudecode/overview.md) - Claude Code 功能概览
+- [快速开始](./claudecode/quickstart.md) - 快速上手指南
+- [安装配置](./claudecode/setup.md) - 详细安装步骤
 
-在 v20.2.5 修复过程中发现了一个容易误判的问题：
+### 🔨 进阶使用
+- [常见工作流](./claudecode/common-workflows.md) - 典型使用场景
+- [VS Code 集成](./claudecode/vs-code.md) - VS Code 扩展使用
+- [Hooks 机制](./claudecode/hooks.md) - Hook 系统详解
+- [MCP 协议](./claudecode/mcp.md) - Model Context Protocol
 
-#### ❌ 错误判断
-- 如果看到乱码的任务目录（如 `任务-1113-214915-淇���澶嶇帺瀹舵���`）
-- **不要**立即认为是 `os.makedirs()` 无法创建中文路径
-- **不要**尝试使用 Windows UNC 前缀 `\\?\` 或短路径名 API
+### ⚙️ 配置与集成
+- [设置选项](./claudecode/settings.md) - 完整配置参考
+- [第三方集成](./claudecode/third-party-integrations.md) - 外部工具集成
+- [CLI 命令参考](./claudecode/cli-reference.md) - 命令行接口
 
-#### ✅ 正确诊断
-1. **Python 文件系统 API 完全支持中文**
-   - `os.makedirs("任务-1113-测试中文")` 在 Windows 上正常工作
-   - 如果你成功创建了中文目录，说明文件系统没有问题
+### 🛡️ 安全与隐私
+- [安全指南](./claudecode/security.md) - 安全最佳实践
+- [数据使用](./claudecode/data-usage.md) - 数据处理说明
 
-2. **乱码的真正原因：stdin 编码**
-   - 问题出在读取用户输入时引入了代理字符 (surrogate characters U+D800-U+DFFF)
-   - 这些无效的 Unicode 字符传播到了文件路径中
-
-3. **解决方案：修复 stdin 编码**
-   ```python
-   # user-prompt-submit-hook.py 开头添加
-   if sys.platform == 'win32':
-       import io
-       sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8', errors='replace')
-       sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-       sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-   ```
-
-#### 📊 验证方法
-```bash
-# 如果看到成功创建的中文目录，说明文件系统没问题
-ls tasks/
-# 输出：
-# ✅ 测试-Python-中文目录         # 文件系统正常
-# ❌ 任务-1113-淇���澶�          # stdin 编码问题导致
-```
-
-#### 🔍 详细报告
-- [BUGFIX-v20.2.5.md](./BUGFIX-v20.2.5.md) - 完整的问题分析与修复过程
-- [CHANGELOG.md](./CHANGELOG.md#20.2.5) - v20.2.5 版本更新记录
+### 🔍 故障排查
+- [故障排查](./claudecode/troubleshooting.md) - 常见问题解决
 
 ---
 
@@ -87,4 +77,4 @@ MIT License - 详见 [LICENSE](./LICENSE)
 
 ---
 
-_最后更新: 2025-11-14 | v20.2.12_
+_最后更新: 2025-11-14 | v20.2.17_

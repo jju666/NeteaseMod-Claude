@@ -1,0 +1,57 @@
+{
+    "format_version": "1.13.0",
+    "minecraft:entity": {
+        "description": {
+            "identifier": "ecbedwars:shop",
+            "is_spawnable": true,
+            "is_summonable": false,
+            "runtime_identifier": "minecraft:villager_v2"
+        },
+        "component_groups": {},
+        "components": {
+            "minecraft:type_family": {
+                "family": [
+                    "villager",
+                    "mob"
+                ]
+            },
+            "minecraft:collision_box": {
+                "width": 0.6,
+                "height": 1.9
+            },
+            "minecraft:health": {
+                "value": 20,
+                "max": 20
+            },
+            "minecraft:interact": {
+                "interact_text": "打开商店"
+            },
+            "minecraft:movement": {
+                "value": 0.5
+            },
+            "minecraft:movement.basic": {},
+            "minecraft:physics": {},
+            "minecraft:pushable": {
+                "is_pushable": false,
+                "is_pushable_by_piston": false
+            },
+            "minecraft:persistent": {},
+            "minecraft:mark_variant": {
+                "value": 0
+            },
+            "minecraft:variant": {
+                "value": 0
+            },
+            "minecraft:nameable": {
+                "name": "商人",
+                "always_show": true
+            },
+            "minecraft:behavior.look_at_player": {
+                "priority": 10,
+                "look_distance": 8.0,
+                "probability": 1.0
+            }
+        },
+        "events": {}
+    }
+}

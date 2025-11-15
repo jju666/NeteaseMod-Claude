@@ -1,0 +1,346 @@
+{
+  "bed_destroy_effects": [
+    {
+      "id": "default",
+      "name": "默认特效",
+      "effect_type": "default",
+      "particles": [
+        {
+          "type": "minecraft:critical_hit_emitter",
+          "spawn_pattern": "burst",
+          "count": 20,
+          "duration": 1.0
+        }
+      ],
+      "sounds": [
+        {
+          "name": "random.explode",
+          "delay": 0.0,
+          "volume": 1.0,
+          "pitch": 1.0
+        }
+      ]
+    },
+    {
+      "id": "yanhua",
+      "name": "烟花",
+      "effect_type": "firework_sequence",
+      "description": "5波连续烟花，每波多层多方向，持续2秒",
+      "particles": [
+        {
+          "type": "minecraft:firework_emitter",
+          "spawn_pattern": "multi_wave",
+          "wave_count": 5,
+          "particles_per_wave": 30,
+          "wave_interval": 0.4,
+          "duration": 2.0,
+          "height_range": [1, 4],
+          "radius": 1.5,
+          "layers_per_wave": 3,
+          "directions_per_layer": 8,
+          "color_variants": [
+            "minecraft:firework_emitter",
+            "minecraft:critical_hit_emitter",
+            "minecraft:end_rod",
+            "minecraft:totem_particle"
+          ]
+        }
+      ],
+      "sounds": [
+        {
+          "name": "firework.blast",
+          "delay": 0.0,
+          "repeat_interval": 0.4,
+          "repeat_count": 5,
+          "volume": 1.2,
+          "pitch": 1.0,
+          "volume_decay": 0.15,
+          "pitch_increase": 0.1
+        }
+      ]
+    },
+    {
+      "id": "gold",
+      "name": "金黄螺旋",
+      "effect_type": "spiral",
+      "description": "螺旋上升粒子，颜色从金黄渐变到橙红",
+      "particles": [
+        {
+          "type": "minecraft:falling_dust_particle",
+          "spawn_pattern": "spiral_up",
+          "count": 50,
+          "duration": 2.5,
+          "height_range": [0, 3],
+          "spiral_radius": 0.8,
+          "spiral_turns": 3,
+          "phases": 3,
+          "particles_per_phase": 10,
+          "phase_interval": 0.5,
+          "color_gradient": [
+            {
+              "particle": "minecraft:end_rod",
+              "phase": 0
+            },
+            {
+              "particle": "minecraft:flame_particle",
+              "phase": 1
+            },
+            {
+              "particle": "minecraft:redstone_ore_dust_particle",
+              "phase": 2
+            }
+          ]
+        }
+      ],
+      "sounds": [
+        {
+          "name": "random.orb",
+          "delay": 0.0,
+          "volume": 2.0,
+          "pitch": 0.5
+        },
+        {
+          "name": "note.pling",
+          "delay": 0.0,
+          "volume": 1.5,
+          "pitch": 0.8
+        }
+      ]
+    },
+    {
+      "id": "cow",
+      "name": "勇敢牛牛",
+      "effect_type": "cow_charge",
+      "description": "3阶段 (奔跑扬尘 → 冲撞震动 → 得意喷气)",
+      "phases": [
+        {
+          "name": "running",
+          "duration": 0.72,
+          "particles": [
+            {
+              "type": "minecraft:smoke_particle",
+              "spawn_pattern": "ground_dust",
+              "count": 12,
+              "interval": 0.06,
+              "distance_range": [3.0, 0.5],
+              "angle_range": [-30, 30],
+              "height_offset": 0.1
+            }
+          ],
+          "sounds": [
+            {
+              "name": "mob.cow.say",
+              "delay": 0.0,
+              "volume": 1.0,
+              "pitch": 0.8
+            },
+            {
+              "name": "mob.cow.step",
+              "delay": 0.3,
+              "volume": 1.5,
+              "pitch": 0.6
+            }
+          ]
+        },
+        {
+          "name": "impact",
+          "duration": 0.4,
+          "particles": [
+            {
+              "type": "minecraft:critical_hit_emitter",
+              "spawn_pattern": "shockwave",
+              "count": 40,
+              "rings": 4,
+              "particles_per_ring": 8,
+              "ring_interval": 0.05,
+              "radius_range": [0.5, 2.1],
+              "height_offset": 0.5
+            }
+          ],
+          "sounds": [
+            {
+              "name": "random.explode",
+              "delay": 0.0,
+              "volume": 1.5,
+              "pitch": 1.0
+            }
+          ]
+        },
+        {
+          "name": "celebrate",
+          "duration": 1.0,
+          "particles": [
+            {
+              "type": "minecraft:smoke_particle",
+              "spawn_pattern": "nose_steam",
+              "count": 10,
+              "interval": 0.1
+            }
+          ],
+          "sounds": [
+            {
+              "name": "mob.cow.say",
+              "delay": 0.0,
+              "volume": 2.0,
+              "pitch": 1.5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "heart",
+      "name": "爱心",
+      "effect_type": "heart_cloud",
+      "description": "脉动3D心形粒子云，5个阶段缩放",
+      "particles": [
+        {
+          "type": "minecraft:heart_particle",
+          "spawn_pattern": "3d_heart",
+          "count": 80,
+          "duration": 3.0,
+          "pulse_phases": 3,
+          "points_per_heart": 12,
+          "layers": 3,
+          "size_range": [0.6, 1.2],
+          "heart_equation": {
+            "x": "16 * sin^3(t)",
+            "y": "13*cos(t) - 5*cos(2t) - 2*cos(3t) - cos(4t)"
+          },
+          "base_scale": 0.05,
+          "y_scale": 0.4,
+          "phase_interval": 0.4,
+          "layer_offset": 0.2
+        }
+      ],
+      "sounds": [
+        {
+          "name": "note.pling",
+          "delay": 0.0,
+          "volume": 0.8,
+          "pitch": 1.5
+        }
+      ]
+    },
+    {
+      "id": "boom",
+      "name": "爆炸",
+      "effect_type": "explosion",
+      "description": "环形冲击波，3层扩散",
+      "particles": [
+        {
+          "type": "minecraft:large_explosion_emitter",
+          "spawn_pattern": "center_burst",
+          "count": 1,
+          "height_offset": 1.0
+        },
+        {
+          "type": "minecraft:lava_particle",
+          "spawn_pattern": "ring_expand",
+          "ring_count": 3,
+          "particles_per_ring": 12,
+          "expansion_speed": 2.0,
+          "duration": 1.5,
+          "ring_interval": 0.1,
+          "radius_range": [0.8, 2.6],
+          "height_offset": 0.5,
+          "particle_variants": [
+            {
+              "ring": 0,
+              "particle": "minecraft:flame_particle"
+            },
+            {
+              "ring": 1,
+              "particle": "minecraft:lava_particle"
+            },
+            {
+              "ring": 2,
+              "particle": "minecraft:smoke_particle"
+            }
+          ]
+        }
+      ],
+      "sounds": [
+        {
+          "name": "random.explode",
+          "delay": 0.0,
+          "volume": 2.0,
+          "pitch": 1.0
+        }
+      ]
+    },
+    {
+      "id": "lightning",
+      "name": "雷击",
+      "effect_type": "lightning",
+      "description": "垂直闪电柱，随机偏移模拟不规则性",
+      "particles": [
+        {
+          "type": "minecraft:lightning_bolt",
+          "spawn_pattern": "vertical_bolts",
+          "count": 8,
+          "duration": 1.0,
+          "random_offset": 0.2,
+          "height_interval": 0.5,
+          "delay_per_layer": 0.05,
+          "particle_variants": [
+            {
+              "layer_parity": "even",
+              "particle": "minecraft:end_rod"
+            },
+            {
+              "layer_parity": "odd",
+              "particle": "minecraft:critical_hit_emitter"
+            }
+          ]
+        }
+      ],
+      "sounds": [
+        {
+          "name": "ambient.weather.thunder",
+          "delay": 0.0,
+          "volume": 1.5,
+          "pitch": 1.0
+        }
+      ]
+    }
+  ],
+  "bed_destroy_messages": [
+    {
+      "id": "default",
+      "name": "默认消息",
+      "messages": [
+        "§c{team}队§r 的床被 §6{player}§r 破坏了！（第{count}次破坏）"
+      ]
+    },
+    {
+      "id": "funny",
+      "name": "搞笑消息",
+      "messages": [
+        "§c{team}队§r 的床被 §6{player}§r 拆家啦！",
+        "§6{player}§r 偷偷摸摸破坏了 §c{team}队§r 的床！",
+        "§c{team}队§r：谁动了我的床？ §6{player}§r：是我！",
+        "§6{player}§r 把 §c{team}队§r 的床炸飞了！",
+        "§c{team}队§r 的床已经不存在了，感谢 §6{player}§r！"
+      ]
+    },
+    {
+      "id": "professional",
+      "name": "专业消息",
+      "messages": [
+        "§6{player}§r 成功摧毁了 §c{team}队§r 的复活点",
+        "§c{team}队§r 失去了重生能力 - 破坏者: §6{player}§r",
+        "战略要地被攻破！§6{player}§r 摧毁了 §c{team}队§r 的床"
+      ]
+    },
+    {
+      "id": "epic",
+      "name": "史诗消息",
+      "messages": [
+        "§c§l⚔ §6{player}§r §c§l摧毁了 §c{team}队§r §c§l的床！⚔",
+        "§6§l✦ §6{player}§r 破坏了 §c{team}队§r 的床，这是第 §e{count}§r 次破坏！§6§l✦",
+        "§4§l★ §c{team}队§r 的床被 §6{player}§r 彻底摧毁！§4§l★"
+      ]
+    }
+  ]
+}

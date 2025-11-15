@@ -1,0 +1,13 @@
+{
+    "format_version": "1.10",
+    "minecraft:item": {
+        "components": {
+            "netease:projectile": "ecbedwars:bedbug"
+        },
+        "description": {
+            "category": "Items",
+            "custom_item_type": "projectile_item",
+            "identifier": "ecbedwars:bedbug"
+        }
+    }
+}

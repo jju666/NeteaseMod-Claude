@@ -1,0 +1,30 @@
+{
+    "format_version": "1.10",
+    "minecraft:item": {
+        "components": {
+            "minecraft:foil": true,
+            "minecraft:food": {
+                "can_always_eat": true,
+                "effects": [
+                    {
+                        "amplifier": 1,
+                        "chance": 1.0,
+                        "duration": 60,
+                        "name": "speed"
+                    }
+                ],
+                "nutrition": 0
+            },
+            "minecraft:max_stack_size": 16,
+            "minecraft:use_duration": 20.0,
+            "netease:customtips": {
+                "value": "速度II 60秒"
+            }
+        },
+        "description": {
+            "category": "Items",
+            "identifier": "ecbedwars:potion_speed",
+            "register_to_create_menu": true
+        }
+    }
+}

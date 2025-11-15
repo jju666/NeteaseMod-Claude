@@ -4,18 +4,79 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9d7c2d81-304e-45b3-b045-09c8147f4f66" name="更改" comment="" />
+    <list default="true" id="9d7c2d81-304e-45b3-b045-09c8147f4f66" name="更改" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CHANGELOG.md" beforeDir="false" afterPath="$PROJECT_DIR$/CHANGELOG.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/CLAUDE.md" beforeDir="false" afterPath="$PROJECT_DIR$/CLAUDE.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/LICENSE" beforeDir="false" afterPath="$PROJECT_DIR$/LICENSE" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/RELEASE-v20.2.12.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/developer/Claude-Code-Hooks完整技术文档.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/developer/Hooks使用指南.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/developer/Hook机制.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/developer/Hook状态机数据流完整说明.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/developer/Windows-UTF8-升级指南.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/Windows-UTF8-升级指南.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/developer/任务命名配置.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/任务命名配置.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/developer/数据流设计.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/数据流设计.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/developer/文档生成器.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/文档生成器.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/developer/智能文档维护.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/智能文档维护.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/developer/测试指南.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/测试指南.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/developer/贡献指南.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/贡献指南.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/generator.js" beforeDir="false" afterPath="$PROJECT_DIR$/lib/generator.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/init-workflow.js" beforeDir="false" afterPath="$PROJECT_DIR$/lib/init-workflow.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/commands/mc.md.template" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/commands/mc.md.template" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/bug_diagnosis_helper.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/utils/bug_diagnosis.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/check-critical-rules.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/validators/critical_rules_checker.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/conversation-recorder.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/archiver/conversation_recorder.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/enforce-cleanup.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/enforce-step2.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/generate-docs-from-conversation.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/archiver/doc_generator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/hook_logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/utils/logger.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/iteration-tracker-hook.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/log-changes.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/monitors/change_logger.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/post-archive-doc-enforcer.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/archiver/doc_enforcer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/post-archive-hook.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/archiver/post_archive.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/post-tool-use-hook.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/pre-compact-reminder.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/validators/pre_compact_reminder.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/session-end-hook.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/lifecycle/session_end.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/session-start-hook.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/lifecycle/session_start.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/stop-hook.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/lifecycle/stop.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/subagent-complete-notifier.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/utils/subagent_notifier.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/subagent-stop-hook.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/lifecycle/subagent_stop.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/suggest-docs-on-error.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/monitors/error_suggester.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/track-doc-reading.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/unified-workflow-driver.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/user-prompt-submit-hook.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/orchestrator/user_prompt_handler.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/validate-api-usage.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/validators/api_usage_validator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/vscode_notify.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/utils/notify.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/workflow_config_loader.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/utils/config_loader.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/templates/.claude/settings.json.template" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/settings.json.template" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/tests/test-bugfix-guide-v20.2.4.py" beforeDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="FlaskConsoleOptions" custom-start-script="import sys; print('Python %s on %s' % (sys.version, sys.platform)); sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;from flask.cli import ScriptInfo, NoAppException&#10;for module in [&quot;main.py&quot;, &quot;wsgi.py&quot;, &quot;app.py&quot;]:&#10;    try: locals().update(ScriptInfo(app_import_path=module, create_app=None).load_app().make_shell_context()); print(&quot;\nFlask App: %s&quot; % app.import_name); break&#10;    except NoAppException: pass">
+    <envs>
+      <env key="FLASK_APP" value="app" />
+    </envs>
+    <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform)); sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;from flask.cli import ScriptInfo, NoAppException&#10;for module in [&quot;main.py&quot;, &quot;wsgi.py&quot;, &quot;app.py&quot;]:&#10;    try: locals().update(ScriptInfo(app_import_path=module, create_app=None).load_app().make_shell_context()); print(&quot;\nFlask App: %s&quot; % app.import_name); break&#10;    except NoAppException: pass" />
+    <option name="myEnvs">
+      <map>
+        <entry key="FLASK_APP" value="app" />
+      </map>
+    </option>
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 2
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 2
+}</component>
   <component name="ProjectId" id="35FFZJMawoA5VX4ZftioYkaxLik" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -25,14 +86,16 @@
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "master",
+    "git-widget-placeholder": "main",
     "last_opened_file_path": "D:/EcWork/基于Claude的MODSDK开发工作流",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "node.js.selected.package.tslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -52,10 +115,26 @@
       <option name="presentableId" value="Default" />
       <updated>1762697966718</updated>
       <workItem from="1762697968234" duration="664000" />
+      <workItem from="1763152078880" duration="2173000" />
+      <workItem from="1763155578475" duration="958000" />
+      <workItem from="1763156557486" duration="220000" />
+      <workItem from="1763156799769" duration="11866000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="javascript">
+          <url>file://$PROJECT_DIR$/bin/install-global.js</url>
+          <line>351</line>
+          <properties lambdaOrdinal="-1" />
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>

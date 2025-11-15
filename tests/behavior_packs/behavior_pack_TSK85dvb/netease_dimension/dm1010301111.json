@@ -1,0 +1,17 @@
+{
+    "format_version": "1.14.0",
+    "netease:dimension_info": {
+        "components": {
+            "netease:ban_vanilla_feature": {
+
+            },
+            "netease:biome_source": [
+
+            ],
+            "netease:dimension_type": "minecraft:overworld",
+            "netease:generator_flat": {
+
+            }
+        }
+    }
+}

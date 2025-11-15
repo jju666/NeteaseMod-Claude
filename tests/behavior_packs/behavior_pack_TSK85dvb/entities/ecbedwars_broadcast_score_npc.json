@@ -1,0 +1,55 @@
+{
+    "format_version": "1.12.0",
+    "minecraft:entity": {
+        "component_groups": {
+
+        },
+        "components": {
+            "minecraft:collision_box": {
+                "height": 1.9,
+                "width": 0.6
+            },
+            "minecraft:health": {
+                "max": 20,
+                "value": 20
+            },
+            "minecraft:mark_variant": {
+                "value": 0
+            },
+            "minecraft:physics": {
+
+            },
+            "minecraft:pushable": {
+                "is_pushable": false,
+                "is_pushable_by_piston": true
+            },
+            "minecraft:type_family": {
+                "family": [
+                    "villager",
+                    "mob"
+                ]
+            },
+            "minecraft:damage_sensor": {
+                "triggers": {
+                    "cause": "all",
+                    "deals_damage": false
+                }
+            },
+            "minecraft:scale": {
+                "value": 1.6
+            },
+            "minecraft:persistent": {
+
+            }
+        },
+        "description": {
+            "identifier": "ecbedwars:broadcast_score_npc",
+            "is_experimental": false,
+            "is_spawnable": true,
+            "is_summonable": true
+        },
+        "events": {
+
+        }
+    }
+}

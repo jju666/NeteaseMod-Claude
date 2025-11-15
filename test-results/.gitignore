@@ -1,0 +1,14 @@
+# 忽略所有测试结果文件
+*.log
+*.json
+*.txt
+analysis.md
+.ready
+.timestamp
+auto-analyze.log
+claude-output.json
+conversation.txt
+
+# 但保留 README.md 和 .gitignore
+!README.md
+!.gitignore

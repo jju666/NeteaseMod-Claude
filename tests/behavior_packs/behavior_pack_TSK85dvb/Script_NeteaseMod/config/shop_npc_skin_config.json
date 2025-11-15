@@ -1,0 +1,195 @@
+{
+  "comment": "商店NPC皮肤配置",
+  "description": "定义所有可用的商店NPC皮肤及其variant映射",
+
+  "npc_variants": {
+    "comment": "NPC variant常量定义",
+    "villager": 0,
+    "human_robot": 1,
+    "human_ender_man": 2,
+    "human_py": 3,
+    "human_py_christmas": 4,
+    "human_eily": 5,
+    "human_punk": 6,
+    "zombie": 20,
+    "skeleton": 21,
+    "zombie_pigman": 22,
+    "wither_skeleton": 23,
+    "husk": 24,
+    "stray": 25,
+    "witch": 26
+  },
+
+  "shop_npc_skins": [
+    {
+      "id": "default",
+      "name": "村民",
+      "price": 0,
+      "unlocked_by_default": true,
+      "description": "经典的村民商店NPC",
+      "npc_configs": {
+        "default_shop": {
+          "variant": 0,
+          "clone_player_texture": false
+        },
+        "upgrade_shop": {
+          "variant": 0,
+          "clone_player_texture": false
+        }
+      }
+    },
+    {
+      "id": "ghost",
+      "name": "幽灵组合",
+      "price": 500,
+      "unlocked_by_default": false,
+      "description": "僵尸商店，骷髅升级商",
+      "npc_configs": {
+        "default_shop": {
+          "variant": 20,
+          "clone_player_texture": false
+        },
+        "upgrade_shop": {
+          "variant": 21,
+          "clone_player_texture": false
+        }
+      }
+    },
+    {
+      "id": "nether",
+      "name": "下界组合",
+      "price": 800,
+      "unlocked_by_default": false,
+      "description": "僵尸猪人商店，凋灵骷髅升级商",
+      "npc_configs": {
+        "default_shop": {
+          "variant": 22,
+          "clone_player_texture": false
+        },
+        "upgrade_shop": {
+          "variant": 23,
+          "clone_player_texture": false
+        }
+      }
+    },
+    {
+      "id": "end",
+      "name": "末地使者",
+      "price": 1000,
+      "unlocked_by_default": false,
+      "description": "神秘的末影人NPC",
+      "npc_configs": {
+        "default_shop": {
+          "variant": 2,
+          "clone_player_texture": false
+        },
+        "upgrade_shop": {
+          "variant": 2,
+          "clone_player_texture": false
+        }
+      }
+    },
+    {
+      "id": "desert-ice",
+      "name": "沙漠冰原组合",
+      "price": 700,
+      "unlocked_by_default": false,
+      "description": "尸壳商店，流浪者升级商",
+      "npc_configs": {
+        "default_shop": {
+          "variant": 24,
+          "clone_player_texture": false
+        },
+        "upgrade_shop": {
+          "variant": 25,
+          "clone_player_texture": false
+        }
+      }
+    },
+    {
+      "id": "me-robot",
+      "name": "机器人组合",
+      "price": 1200,
+      "unlocked_by_default": false,
+      "description": "机器人NPC（商店克隆玩家皮肤）",
+      "npc_configs": {
+        "default_shop": {
+          "variant": 1,
+          "clone_player_texture": true
+        },
+        "upgrade_shop": {
+          "variant": 1,
+          "clone_player_texture": false
+        }
+      }
+    },
+    {
+      "id": "me-py",
+      "name": "朋友组合",
+      "price": 1200,
+      "unlocked_by_default": false,
+      "description": "朋友NPC（商店克隆玩家皮肤）",
+      "npc_configs": {
+        "default_shop": {
+          "variant": 3,
+          "clone_player_texture": true
+        },
+        "upgrade_shop": {
+          "variant": 3,
+          "clone_player_texture": false
+        }
+      }
+    },
+    {
+      "id": "halloween",
+      "name": "万圣节组合",
+      "price": 1500,
+      "unlocked_by_default": false,
+      "description": "机器人商店（克隆皮肤），女巫升级商",
+      "npc_configs": {
+        "default_shop": {
+          "variant": 1,
+          "clone_player_texture": true
+        },
+        "upgrade_shop": {
+          "variant": 26,
+          "clone_player_texture": false
+        }
+      }
+    },
+    {
+      "id": "christmas",
+      "name": "圣诞节组合",
+      "price": 1800,
+      "unlocked_by_default": false,
+      "description": "圣诞朋友NPC（商店克隆玩家皮肤）",
+      "npc_configs": {
+        "default_shop": {
+          "variant": 4,
+          "clone_player_texture": true
+        },
+        "upgrade_shop": {
+          "variant": 4,
+          "clone_player_texture": false
+        }
+      }
+    },
+    {
+      "id": "elliepunk",
+      "name": "艾莉朋克",
+      "price": 2000,
+      "unlocked_by_default": false,
+      "description": "艾莉朋克风格NPC",
+      "npc_configs": {
+        "default_shop": {
+          "variant": 5,
+          "clone_player_texture": false
+        },
+        "upgrade_shop": {
+          "variant": 5,
+          "clone_player_texture": false
+        }
+      }
+    }
+  ]
+}

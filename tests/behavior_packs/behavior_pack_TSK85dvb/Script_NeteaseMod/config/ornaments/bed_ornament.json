@@ -1,0 +1,155 @@
+{
+    "bed_ornaments": [
+        {
+            "id": "bed-ornament.default",
+            "name": "默认无装饰",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 0,
+            "mark_variant": 0,
+            "scale": 1.0,
+            "team_color_support": false,
+            "default": true
+        },
+        {
+            "id": "bed-ornament.crystal",
+            "name": "沉睡的水晶",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 1,
+            "mark_variant": 1,
+            "scale": 1.0,
+            "team_color_support": false
+        },
+        {
+            "id": "bed-ornament.green",
+            "name": "绿帽子装饰",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 2,
+            "mark_variant": 2,
+            "scale": 1.0,
+            "team_color_support": false
+        },
+        {
+            "id": "bed-ornament.rabbit",
+            "name": "兔耳朵装饰",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 3,
+            "mark_variant": 3,
+            "scale": 1.0,
+            "team_color_support": false
+        },
+        {
+            "id": "bed-ornament.steve",
+            "name": "沉睡史蒂夫装饰",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 4,
+            "mark_variant": 4,
+            "scale": 1.0,
+            "team_color_support": false
+        },
+        {
+            "id": "bed-ornament.py",
+            "name": "小彭越装饰",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 5,
+            "mark_variant": 5,
+            "scale": 1.0,
+            "team_color_support": false
+        },
+        {
+            "id": "bed-ornament.succulent",
+            "name": "多肉植物装饰",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 6,
+            "mark_variant": 6,
+            "scale": 1.0,
+            "team_color_support": false
+        },
+        {
+            "id": "bed-ornament.huaji",
+            "name": "滑稽装饰",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 7,
+            "mark_variant": 7,
+            "scale": 1.0,
+            "team_color_support": false
+        },
+        {
+            "id": "bed-ornament.bedrock",
+            "name": "基岩床",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 8,
+            "mark_variant": 8,
+            "scale": 1.0,
+            "team_color_support": false
+        },
+        {
+            "id": "bed-ornament.tnt",
+            "name": "TNT床",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 9,
+            "mark_variant": 9,
+            "scale": 1.0,
+            "team_color_support": false
+        },
+        {
+            "id": "bed-ornament.airship",
+            "name": "太空飞艇床",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 10,
+            "mark_variant_by_team": {
+                "RED": 10,
+                "YELLOW": 11,
+                "BLUE": 12,
+                "GREEN": 13
+            },
+            "scale": 1.0,
+            "team_color_support": true
+        },
+        {
+            "id": "bed-ornament.racing",
+            "name": "赛车床",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 11,
+            "mark_variant_by_team": {
+                "RED": 14,
+                "YELLOW": 15,
+                "BLUE": 16,
+                "GREEN": 17
+            },
+            "scale": 1.0,
+            "team_color_support": true
+        },
+        {
+            "id": "bed-ornament.snake",
+            "name": "积木蛇装饰",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 12,
+            "mark_variant": 18,
+            "scale": 1.0,
+            "team_color_support": false
+        },
+        {
+            "id": "bed-ornament.balloon",
+            "name": "【一周年】乘风驭舟-气球装饰",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 13,
+            "mark_variant_by_team": {
+                "RED": 19,
+                "YELLOW": 20,
+                "BLUE": 21,
+                "GREEN": 22
+            },
+            "scale": 1.0,
+            "team_color_support": true
+        },
+        {
+            "id": "bed-ornament.anubis",
+            "name": "阿努比斯",
+            "entity_type": "ecbedwars:bed_ornament",
+            "variant": 14,
+            "mark_variant": 23,
+            "scale": 1.0,
+            "team_color_support": false
+        }
+    ]
+}

@@ -1,0 +1,38 @@
+{
+  "_comment": "通用指导预设配置示例",
+  "_comment_usage": "将此配置应用到bedwars:guide类型的预设实例中",
+
+  "guide_type": "PROTECT",
+  "_comment_guide_type": "指导类型: PROTECT(保护床)、COLLECT(采矿物)、BUY(买东西)",
+
+  "runtime_entity_id": "ecbedwars:guide",
+  "_comment_runtime_entity_id": "实体标识符，固定为ecbedwars:guide",
+
+  "pos": [100, 65, 50],
+  "_comment_pos": "guide实体的位置坐标 [x, y, z]",
+
+  "rotation": {
+    "pitch": 0,
+    "yaw": 0,
+    "roll": 0
+  },
+  "_comment_rotation": "guide实体的旋转角度（可选，默认0）",
+
+  "dimension_id": 0,
+  "_comment_dimension_id": "维度ID，0=主世界（可选，默认0）",
+
+  "_usage_notes": [
+    "1. guide_type决定显示的图标类型：",
+    "   - PROTECT: 显示保护床的图标（红色盾牌）",
+    "   - COLLECT: 显示采集资源的图标（铁锭/金锭）",
+    "   - BUY: 显示购买物品的图标（金币）",
+    "2. BedWarsGuide是基础视觉组件，只负责显示图标，不包含触发检测逻辑",
+    "3. 触发逻辑在专项实现中：",
+    "   - bedwars:guide_bed: 床位指导，检测床是否被破坏",
+    "   - bedwars:guide_shop: 商店指导，检测玩家是否完成购买",
+    "4. guide实体特性：",
+    "   - 碰撞箱为0（玩家可穿过）",
+    "   - 持久化实体（不会消失）",
+    "   - 通过query.mod.guide变量控制渲染（0=COLLECT, 1=BUY, 2=PROTECT）"
+  ]
+}

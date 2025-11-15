@@ -1,0 +1,38 @@
+{
+  "modules": [
+    {
+      "type": "data",
+      "uuid": "e48a3251-b3d0-499f-9347-a543b6650325",
+      "version": [
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "type": "script",
+      "uuid": "56ac180f-7afd-41ff-aabb-751edd138b09",
+      "version": [
+        0,
+        0,
+        2
+      ],
+      "language": "python",
+      "entry": "Script_NeteaseMod/modMain.py"
+    }
+  ],
+  "header": {
+    "uuid": "5b8cdf42-68c1-4c0a-99dc-6c2e88de73af",
+    "version": [
+      0,
+      0,
+      2
+    ],
+    "min_engine_version": [
+      1,
+      18,
+      0
+    ]
+  },
+  "format_version": 1
+}

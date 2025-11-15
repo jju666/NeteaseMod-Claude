@@ -1,0 +1,10 @@
+{
+	"format_version": "0.0.1",
+	"name": "join",
+	"description": "中途加入游戏",
+	"permission_level": "any",
+	"args": [
+		{"name":"join", "type":"str", "default":"join"}
+	]
+
+}

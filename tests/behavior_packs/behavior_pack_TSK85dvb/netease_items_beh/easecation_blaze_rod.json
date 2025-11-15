@@ -1,0 +1,19 @@
+{
+    "format_version": "1.10",
+    "minecraft:item": {
+        "components": {
+            "netease:weapon": {
+                "attack_damage": 1,
+                "enchantment": 12,
+                "level": 3,
+                "speed": 5,
+                "type": "sword"
+            }
+        },
+        "description": {
+            "category": "equipment",
+            "custom_item_type": "weapon",
+            "identifier": "easecation:blaze_rod"
+        }
+    }
+}

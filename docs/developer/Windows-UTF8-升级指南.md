@@ -355,16 +355,44 @@ chcp 65001
    type .claude\settings.json
    ```
 
-   **应该包含**:
+   **应该包含** (v21.0格式):
    ```json
    {
      "hooks": {
-       "userPromptSubmit": "python .claude/hooks/user-prompt-submit-hook.py",
-       "PostToolUse": [
-         "python .claude/hooks/conversation-recorder.py",
-         "python .claude/hooks/unified-workflow-driver.py"
+       "UserPromptSubmit": [
+         {
+           "hooks": [
+             {
+               "type": "command",
+               "command": "python .claude/hooks/orchestrator/user_prompt_handler.py"
+             }
+           ]
+         }
        ],
-       "stop": "python .claude/hooks/stop-hook.py"
+       "PostToolUse": [
+         {
+           "hooks": [
+             {
+               "type": "command",
+               "command": "python .claude/hooks/orchestrator/posttooluse_updater.py"
+             },
+             {
+               "type": "command",
+               "command": "python .claude/hooks/archiver/conversation_recorder.py"
+             }
+           ]
+         }
+       ],
+       "Stop": [
+         {
+           "hooks": [
+             {
+               "type": "command",
+               "command": "python .claude/hooks/lifecycle/stop.py"
+             }
+           ]
+         }
+       ]
      }
    }
    ```
@@ -374,8 +402,8 @@ chcp 65001
    # 创建测试输入
    echo {"prompt": "/mc 测试"} > test-input.json
 
-   # 手动执行 hook
-   python .claude\hooks\user-prompt-submit-hook.py < test-input.json
+   # 手动执行 hook (v21.0)
+   python .claude\hooks\orchestrator\user_prompt_handler.py < test-input.json
 
    # 应该看到 JSON 输出包含 "injectedContext"
    ```

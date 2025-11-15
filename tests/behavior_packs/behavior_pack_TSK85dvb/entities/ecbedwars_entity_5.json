@@ -1,0 +1,65 @@
+{
+    "format_version": "1.13.0",
+    "minecraft:entity": {
+        "component_groups": {
+
+        },
+        "components": {
+            "minecraft:behavior.look_at_player": {
+                "look_distance": 8,
+                "priority": 10,
+                "probability": 1
+            },
+            "minecraft:collision_box": {
+                "height": 1.9,
+                "width": 0.6
+            },
+            "minecraft:health": {
+                "max": 20,
+                "value": 20
+            },
+            "minecraft:interact": {
+                "interact_text": "打开商店"
+            },
+            "minecraft:mark_variant": {
+                "value": 0
+            },
+            "minecraft:movement": {
+                "value": 0.5
+            },
+            "minecraft:movement.basic": {
+
+            },
+            "minecraft:nameable": {
+                "always_show": false,
+                "name": ""
+            },
+            "minecraft:persistent": {
+
+            },
+            "minecraft:physics": {
+
+            },
+            "minecraft:pushable": {
+                "is_pushable": false,
+                "is_pushable_by_piston": false
+            },
+            "minecraft:type_family": {
+                "family": [
+                    "villager",
+                    "mob"
+                ]
+            }
+        },
+        "description": {
+            "identifier": "ecbedwars:entity_5",
+            "is_experimental": false,
+            "is_spawnable": true,
+            "is_summonable": false,
+            "runtime_identifier": "minecraft:villager_v2"
+        },
+        "events": {
+
+        }
+    }
+}

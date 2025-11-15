@@ -1,0 +1,1683 @@
+# -*- coding: utf-8 -*-
+"""
+装饰系统配置文件
+
+包含所有装饰物品的配置数据
+总计186个装扮:
+- 原有59个装扮
+- 新增127个装扮(从老项目迁移)
+
+包含10种装扮类型:
+1. 击杀信息 (kill-broadcast) - 21个
+2. 亡语 (kill-sound) - 10个
+3. 床装饰 (bed-ornament) - 19个
+4. 破坏床广播 (bed-destroy-message) - 21个
+5. 破坏床特效 (bed-destroy-effect) - 16个
+6. 表情包 (meme) - 12个
+7. 商店NPC外观 (shop-npc-skin) - 13个
+8. 胜利之舞 (winner-effect) - 11个
+9. 个性商店 (personalized-shop) - 9个
+10. 喷漆 (spray) - 54个
+
+每个装饰物配置包含:
+- prop_id: 装饰物唯一标识符
+- name: 显示名称
+- introduce: 介绍
+- price: 价格(0=默认解锁, -1=活动限定, "ornament-fragment:N"=碎片兑换)
+- default_own: 是否默认拥有
+"""
+
+
+# ==================== 10种装扮类型配置 ====================
+
+ORNAMENT_TYPES = [
+    # 1. 击杀信息 (kill-broadcast)
+    {
+        "type_id": "kill-broadcast",
+        "type_name": u"{bold}{blue}击杀信息",
+        "have_state": True,
+        "introduce": u"当你击杀对手时,聊天栏将会发送的消息!",
+        "ornaments": [
+            {
+                "prop_id": "kill-broadcast.default",
+                "name": u"{bold}{light-purple}默认捆绑包",
+                "introduce": u"默认:【受害者】{dark-aqua} 被 {red}【击杀者】 {dark-aqua}终结啦!",
+                "price": 0,
+                "default_own": True
+            },
+
+            {
+                "prop_id": "kill-broadcast.arena-package",
+                "name": u"{bold}{red}竞技场捆绑包",
+                "introduce": u"竞技场风格的击杀信息",
+                "price": 450,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.cute-package",
+                "name": u"{bold}{light-purple}可爱捆绑包",
+                "introduce": u"萌萌的击杀信息",
+                "price": 600,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.music-package",
+                "name": u"{bold}{red}音游王捆绑包",
+                "introduce": u"音乐游戏风格击杀信息",
+                "price": 750,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.eight-year",
+                "name": u"{bold}{gold}【八周年】纪念捆绑包",
+                "introduce": u"八周年特别击杀信息",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.xmas-package",
+                "name": u"{bold}{red}【2022圣诞】圣诞捆绑包",
+                "introduce": u"圣诞主题击杀信息",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.adventure-package",
+                "name": u"{bold}{green}冒险者捆绑包",
+                "introduce": u"冒险主题击杀信息",
+                "price": 900,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.tech-package",
+                "name": u"{bold}{aqua}科技捆绑包",
+                "introduce": u"科技风格击杀信息",
+                "price": 1200,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.fantasy-package",
+                "name": u"{bold}{light-purple}幻想捆绑包",
+                "introduce": u"幻想主题击杀信息",
+                "price": 1500,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.legend-package",
+                "name": u"{bold}{gold}传奇捆绑包",
+                "introduce": u"传奇风格击杀信息",
+                "price": 1950,
+                "default_own": False
+            },
+
+            # ========== 以下为从老项目迁移的11个装扮 ==========
+
+            {
+                "prop_id": "kill-broadcast.hp-package",
+                "name": u"{bold}{light-purple}哈{light-purple}利法{light-purple}杖混搭{light-purple}包",
+                "introduce": u"你听说过神奇的扫帚吗?(4条消息,每次击杀时随机选择一条发送){enter}{enter}{yellow} ",
+                "price": "ornament-fragment:200",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.count-package",
+                "name": u"{bold}{red}统计次数捆绑包",
+                "introduce": u"自豪地向他人展示你的击杀次数(3条消息,每次击杀时随机选择一条发送){enter}{enter}{yellow} 内含:【受害者】成为【击杀者】击杀的第x个玩家{enter}【受害者】让【击杀者】达成了x次击杀{enter}【受害者】是【击杀者】抓捕的第x只怪兽{enter}",
+                "price": "ornament-fragment:300",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.cry-package",
+                "name": u"{bold}【梦境限定】 {red}爱哭宝宝捆绑包",
+                "introduce": u"有妈妈保护的宝宝. (5条消息,每次击杀时随机选择一条发送){enter}{enter}{yellow} 内含:【受害者】输给了有妈妈保护的【击杀者】{enter}【受害者】被【击杀者】的奶瓶击中{enter}【受害者】同样需要妈妈保护,击杀者:【击杀者】{enter}【受害者】哭了,击杀者:【击杀者】{enter}【受害者】发出奇怪的声音,击杀者:【击杀者】",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.school-package",
+                "name": u"{bold}【梦境限定】{red}老师模拟器捆绑包",
+                "introduce": u"让你在课后游玩EaseCation时感到关怀备至.{enter}{enter}具体内容详见起床战争大厅展示台",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.hunter-package",
+                "name": u"{bold}【奇迹猎人】{red} 奇迹猎人捆绑包",
+                "introduce": u"你逃不过猎手的攻击, 除非......除非你也是猎手! {enter}{enter}{yellow}【包含】{enter}射杀对手、收入囊中、掉入陷阱、囚禁等消息提示! 前往起床战争大厅展示台查看详细信息!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.halloween",
+                "name": u"{bold}【梦境限定】 {red}幽灵之夜",
+                "introduce": u"长夜漫漫,一个神秘的身影浮现在背后......{enter}{enter}{yellow}梦境限定,请到起床战争大厅的相应展示台查看所有提示消息!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.spring2023",
+                "name": u"{red}{bold}【2023春】 烟火之夜混搭包",
+                "introduce": u"新春快乐~{enter}收下这份新年礼物,或者送一份给对手!(请前往BEDWARS大厅展示台查看完整击杀广播内容)",
+                "price": "ornament-fragment:10",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.translate",
+                "name": u"{bold}{red}翻译腔捆绑包",
+                "introduce": u"给你十分纯正的翻译体验. (4条消息,在击杀敌人时随机选择一条发送){enter}{enter}请到起床战争大厅展示台查看所有消息!",
+                "price": "ornament-fragment:200",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.gold-package",
+                "name": u"{bold}{light-purple}【星火限定】 {bold}{gold}金黄{red}捆绑包",
+                "introduce": u"极度稀有的金黄色击杀信息提示! 这是实力的证明, 只有在盛大的{bold}{red}星火杯{reset}活动中斩获佳绩的冒险者才有机会获得......{enter}{enter}请前往起床战争大厅的展示台来查看详细的信息内容!",
+                "price": "ornament-fragment:200",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.cfyz-package",
+                "name": u"{bold}{red}【一周年】乘风驭舟-击杀捆绑包",
+                "introduce": u"欢迎来到起床1周年庆典!{enter}(4条消息,每次击杀时随机选择一条发送){enter}{enter}{yellow} 内含:【击杀者】用奶油蛋糕糊了【受害者】一脸{enter}【击杀者】用派对彩条捆住了【受害者】{enter}【击杀者】用蛋糕蜡烛点燃了【受害者】{enter}【击杀者】用派对烟花将【受害者】带上天空",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-broadcast.mine-package",
+                "name": u"{bold}{red}【梦境限定】 诡异矿洞混搭包",
+                "introduce": u"”关于符文那点事,唉,自己看吧.“{enter}(4条消息,每次击杀时随机选择一条发送){enter}{enter}{yellow} 内含:【击杀者】将符文贴在【受害者】的脸上{enter}【受害者】被主角团正义执行,击杀者:【击杀者】{enter}【击杀者】在【受害者】身边试图召唤矿长{enter}【击杀者】转生成矿工并击杀了【受害者】!",
+                "price": -1,
+                "default_own": False
+            },
+        ]
+    },
+
+    # 2. 亡语 (kill-sound)
+    {
+        "type_id": "kill-sound",
+        "type_name": u"{bold}{blue}亡语",
+        "have_state": True,
+        "introduce": u"达成最终击杀时，向所有人播放声音",
+        "ornaments": [
+            {
+                "prop_id": "kill-sound.default",
+                "name": u"{bold}{blue}默认亡语",
+                "introduce": u"击杀时的默认音效",
+                "price": 0,
+                "default_own": True
+            },
+
+            {
+                "prop_id": "kill-sound.laugh",
+                "name": u"{bold}{yellow}嘲讽",
+                "introduce": u"笑声音效",
+                "price": 300,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-sound.applause",
+                "name": u"{bold}{green}掌声",
+                "introduce": u"掌声音效",
+                "price": 350,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-sound.dramatic",
+                "name": u"{bold}{red}戏剧化",
+                "introduce": u"戏剧性音效",
+                "price": 400,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-sound.horn",
+                "name": u"{bold}{gold}号角",
+                "introduce": u"号角音效",
+                "price": 450,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-sound.thunder",
+                "name": u"{bold}{dark-purple}雷鸣",
+                "introduce": u"雷声音效",
+                "price": 500,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-sound.victory",
+                "name": u"{bold}{light-purple}胜利",
+                "introduce": u"胜利音效",
+                "price": 600,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-sound.epic",
+                "name": u"{bold}{gold}史诗",
+                "introduce": u"史诗级音效",
+                "price": 750,
+                "default_own": False
+            },
+
+            # ========== 以下为从老项目迁移的2个装扮 ==========
+
+            {
+                "prop_id": "kill-sound.cry-package",
+                "name": u"{bold}{light-purple}哭泣亡语捆绑包",
+                "introduce": u"充满着奇怪的哭腔,是有些奇怪吧",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "kill-sound.villager",
+                "name": u"{bold}【梦境限定】 {red}村民风格亡语",
+                "introduce": u"“别打村民,你这个海豚!”",
+                "price": -1,
+                "default_own": False
+            },
+        ]
+    },
+
+    # 3. 床装饰 (bed-ornament)
+    {
+        "type_id": "bed-ornament",
+        "type_name": u"{bold}{dark-aqua}床的装饰",
+        "have_state": True,
+        "introduce": u"本队床上的可爱装饰品！",
+        "ornaments": [
+            {
+                "prop_id": "bed-ornament.default",
+                "name": u"{bold}{red}默认床装饰",
+                "introduce": u"默认的床装饰效果",
+                "price": 0,
+                "default_own": True
+            },
+
+            {
+                "prop_id": "bed-ornament.angel",
+                "name": u"{bold}{yellow}守护天使",
+                "introduce": u"天使翅膀环绕床周围",
+                "price": 800,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.dragon",
+                "name": u"{bold}{dark-purple}末影龙",
+                "introduce": u"末影龙盘旋在床上方",
+                "price": 1200,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.star",
+                "name": u"{bold}{gold}闪耀之星",
+                "introduce": u"星星围绕床旋转",
+                "price": 900,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.rainbow",
+                "name": u"{bold}{light-purple}彩虹光环",
+                "introduce": u"彩虹光环围绕床",
+                "price": 1000,
+                "default_own": False
+            },
+
+            # ========== 以下为从老项目迁移的14个装扮 ==========
+
+            {
+                "prop_id": "bed-ornament.crystal",
+                "name": u"{bold}{light-purple}沉睡的水晶",
+                "introduce": u"水晶沉睡着, 请务必守护它的床.{enter}{enter}{yellow}(仅为装饰,没有碰撞体积.每局游戏从本队玩家中随机选择一名玩家的装饰设定作为本局的床装饰)",
+                "price": 20,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.green",
+                "name": u"{bold}{light-purple}绿帽子装饰",
+                "introduce": u"象征和平的绿色,降临在床上{enter}{enter}(床的装饰仅作为特效,没有碰撞体积,每局游戏每队随机选择一人的设定进行装饰)",
+                "price": 750,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.rabbit",
+                "name": u"{bold}{light-purple}兔耳朵装饰",
+                "introduce": u"可可爱爱的兔子耳朵{enter}{enter}(床的装饰仅作为特效,没有碰撞体积,每局游戏每队随机选择一人的设定进行装饰)",
+                "price": 950,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.steve",
+                "name": u"{bold}{light-purple}沉睡史蒂夫装饰",
+                "introduce": u"Steve你怎么了啊Steve{enter}{enter}(床的装饰仅作为特效,没有碰撞体积,每局游戏每队随机选择一人的设定进行装饰)",
+                "price": 1950,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.succulent",
+                "name": u"{bold}{light-purple}多肉植物装饰",
+                "introduce": u"生机勃勃.{enter}{enter}(床的装饰仅作为特效,没有碰撞体积,每局游戏每队随机选择一人的设定进行装饰)",
+                "price": 2250,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.huaji",
+                "name": u"{bold}{light-purple}滑稽装饰",
+                "introduce": u"让大家看看幽默的你!{enter}{enter}(床的装饰仅作为特效,没有碰撞体积,每局游戏每队随机选择一人的设定进行装饰)",
+                "price": "ornament-fragment:190",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.py",
+                "name": u"{bold}{red}小彭越装饰",
+                "introduce": u"吉祥物小彭越睡着啦!{enter}{enter}(床的装饰仅作为特效,没有碰撞体积,每局游戏每队随机选择一人的设定进行装饰)",
+                "price": "ornament-fragment:190",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.bedrock",
+                "name": u"{bold}{red}基岩床",
+                "introduce": u"“但愿它真的能那么坚固()”.{enter}{enter}{yellow}每局游戏从本队中随机选择一名玩家的装饰设定作为本局的床装饰!",
+                "price": 750,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.tnt",
+                "name": u"{bold}{red}TNT床",
+                "introduce": u"说不定里面有烈性炸药呢?{enter}{enter}(床的装饰仅作为特效,没有碰撞体积,每局游戏每队随机选择一人的设定进行装饰)",
+                "price": 750,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.airship",
+                "name": u"{red}{bold}太空飞艇床",
+                "introduce": u"“遨游太空,躺在上面一定很舒适--除了被摧毁的时候.”{enter}{enter}{yellow}每局游戏从本队中随机选择一名玩家的装饰设定作为本局的床装饰!",
+                "price": "ornament-fragment:150",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.racing",
+                "name": u"{red}{bold}赛车床",
+                "introduce": u"“绝对的超音速.”{enter}{enter}{yellow}每局游戏从本队中随机选择一名玩家的装饰设定作为本局的床装饰!",
+                "price": "ornament-fragment:120",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.snake",
+                "name": u"{bold}{light-purple}积木蛇装饰",
+                "introduce": u"快跑!你的床上有条蛇!{enter}{enter}(床的装饰仅作为特效,没有碰撞体积,每局游戏每队随机选择一人的设定进行装饰)",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.balloon",
+                "name": u"{bold}{red}【一周年】乘风驭舟-气球装饰",
+                "introduce": u"起床一周年庆典上漏气掉落在床上的气球(听说可以随着队伍的改变换颜色?){enter}{enter}(床的装饰仅作为特效,没有碰撞体积,每局游戏每队随机选择一人的设定进行装饰)",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-ornament.anubis",
+                "name": u"阿努比斯",
+                "introduce": u"阿努比斯的小可爱赖在床上不走了～",
+                "price": 1950,
+                "default_own": False
+            },
+        ]
+    },
+
+    # 4. 破坏床广播 (bed-destroy-message)
+    {
+        "type_id": "bed-destroy-message",
+        "type_name": u"{bold}{dark-aqua}破坏床广播",
+        "have_state": True,
+        "introduce": u"当你破坏床时，向全局发送的消息",
+        "ornaments": [
+            {
+                "prop_id": "bed-destroy-message.default",
+                "name": u"{bold}{red}默认破坏床广播",
+                "introduce": u"默认的床被破坏消息",
+                "price": 0,
+                "default_own": True
+            },
+
+            {
+                "prop_id": "bed-destroy-message.epic",
+                "name": u"{bold}{gold}史诗宣告",
+                "introduce": u"史诗级破坏宣告",
+                "price": 600,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.funny",
+                "name": u"{bold}{yellow}搞笑风格",
+                "introduce": u"搞笑的破坏消息",
+                "price": 500,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.serious",
+                "name": u"{bold}{dark-red}严肃播报",
+                "introduce": u"严肃的战况播报",
+                "price": 550,
+                "default_own": False
+            },
+
+            # ========== 以下为从老项目迁移的17个装扮 ==========
+
+            {
+                "prop_id": "bed-destroy-message.crap",
+                "name": u"{bold}{light-purple}废话广播",
+                "introduce": u"【队伍】床被【玩家】破坏了,所以破坏了",
+                "price": 200,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.tea",
+                "name": u"{bold}{light-purple}下午茶毁床广播",
+                "introduce": u"【队伍】床被【玩家】做成茶和烤面包",
+                "price": 750,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.fire",
+                "name": u"{bold}{light-purple}火焰广播",
+                "introduce": u"【队伍】床被【玩家】焚烧!",
+                "price": 1550,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.biaoqingbao",
+                "name": u"{bold}{light-purple}表情包广播",
+                "introduce": u"【队伍】床被【玩家】做成表情包",
+                "price": 1950,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.math",
+                "name": u"{bold}{red}数学广播",
+                "introduce": u"【队伍】没有定义域,是他干的【玩家】",
+                "price": 2200,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.wenyanwen",
+                "name": u"{bold}{red}文言文毁床广播",
+                "introduce": u"【队伍】床为【玩家】所摧,悲!",
+                "price": 2700,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.shengtian",
+                "name": u"{bold}{red}升天广播",
+                "introduce": u"【队伍】的床因【玩家】而升天",
+                "price": 2900,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.count",
+                "name": u"{bold}{red}统计广播",
+                "introduce": u"【队伍】是破坏的第X张床!",
+                "price": "ornament-fragment:300",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.qingchun",
+                "name": u"{bold}【梦境限定】{red} “青春”广播",
+                "introduce": u"他破坏床的动作太令人感动了,他真的...我哭死!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.school",
+                "name": u"{bold}【梦境限定】{red}写作业广播",
+                "introduce": u"写作业狂魔, 将作业写在对方床上?!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.hunter",
+                "name": u"{bold}【奇迹猎人】 {red}奇迹猎人广播",
+                "introduce": u"对于猎手来说,偷床轻而易举.",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.halloween",
+                "name": u"{bold}【梦境限定】 {red}万圣破坏床广播",
+                "introduce": u"在这个百鬼夜行的夜晚,和鬼魂们庆祝万圣节的到来!{enter}{enter}【队伍】 的床被【玩家】 的扫帚击中",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.christmas-a",
+                "name": u"{bold}【2022圣诞】 {red}包装礼物破坏床广播",
+                "introduce": u"让圣诞礼物中装有对方的床,这真的令人兴奋呢.",
+                "price": 750,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.ec-8-ann",
+                "name": u"{bold}【8周年限定】{red}烟花盛宴",
+                "introduce": u"在EaseCation的8周年庆典上放烟花,将这份美好的回忆带入游戏中,配合8周年粉红烟花一起使用效果拔群!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.cfyz",
+                "name": u"{bold}{red}【一周年】乘风驭舟-拆床捆绑包",
+                "introduce": u"【玩家】在室内燃放烟花,炸毁了【队伍】的床",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.rune",
+                "name": u"{bold}{red}【梦境限定】符咒破坏床广播",
+                "introduce": u"好吧,你应当承认此次拆床行动有符文的一份功劳,不是吗?{enter}{enter}{yellow}【玩家】按照符文上的教程破坏了【队伍】的床",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-message.pyramid",
+                "name": u"{bold}{light-purple}金字塔毁床广播",
+                "introduce": u"【队伍】的床被【玩家】亲手送入了金字塔",
+                "price": 1950,
+                "default_own": False
+            },
+        ]
+    },
+
+    # 5. 破坏床特效 (bed-destroy-effect)
+    {
+        "type_id": "bed-destroy-effect",
+        "type_name": u"bedwars.merchandise.bed-destroy-effect",
+        "have_state": True,
+        "introduce": u"当你破坏床时，向全局展示特效",
+        "ornaments": [
+            {
+                "prop_id": "bed-destroy-effect.default",
+                "name": u"{bold}{red}默认破坏特效",
+                "introduce": u"默认的床破坏特效",
+                "price": 0,
+                "default_own": True
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.explosion",
+                "name": u"{bold}{red}爆炸",
+                "introduce": u"爆炸特效",
+                "price": 700,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.fireworks",
+                "name": u"{bold}{light-purple}烟花",
+                "introduce": u"烟花绽放特效",
+                "price": 800,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.lightning",
+                "name": u"{bold}{blue}闪电",
+                "introduce": u"雷电击中特效",
+                "price": 850,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.magic",
+                "name": u"{bold}{dark-purple}魔法",
+                "introduce": u"魔法消散特效",
+                "price": 900,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.meteor",
+                "name": u"{bold}{gold}流星",
+                "introduce": u"流星坠落特效",
+                "price": 1000,
+                "default_own": False
+            },
+
+            # ========== 以下为从老项目迁移的10个装扮 ==========
+
+            {
+                "prop_id": "bed-destroy-effect.yanhua",
+                "name": u"{bold}{light-purple}烟花特效",
+                "introduce": u"在你破坏床时,放烟花来庆祝!",
+                "price": 200,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.gold",
+                "name": u"{bold}{light-purple}金黄毁床特效",
+                "introduce": u"金光闪闪!亮瞎狗眼!",
+                "price": 750,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.cow",
+                "name": u"{bold}{light-purple}勇敢牛牛特效",
+                "introduce": u"生成一只牛......",
+                "price": 1950,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.heart",
+                "name": u"{bold}{light-purple}爱心特效",
+                "introduce": u"在你破坏床时让世界充满爱,爱心粒子!",
+                "price": 2700,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.boom",
+                "name": u"{bold}{red}爆炸毁床特效",
+                "introduce": u"引爆TNT特效!(仅特效,没有任何伤害、击退)",
+                "price": "ornament-fragment:190",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.lightning",
+                "name": u"{bold}{red}雷击特效",
+                "introduce": u"引雷,威震天下!(仅特效,没有任何伤害、击退)",
+                "price": "ornament-fragment:300",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.qingchun",
+                "name": u"{bold}【梦境限定】 {red}青春飞扬特效",
+                "introduce": u"生机勃勃的绿色烟花,配上升天的小鸡,彰显青春活力.",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.shijuan",
+                "name": u"{bold}【梦境限定】{red}试卷特效",
+                "introduce": u"这次毁床行动,我给打满分!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.halloween",
+                "name": u"【梦境限定】 {red}百鬼夜行毁床特效",
+                "introduce": u"让他们目睹床的鬼魂消散,颤抖吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "bed-destroy-effect.ec-8-ann",
+                "name": u"{bold}【8周年限定】{red}粉红烟花",
+                "introduce": u"在EaseCation的8周年庆典上放烟花,让这粉红的烟花升上天空,庆祝床被摧毁的喜悦.",
+                "price": -1,
+                "default_own": False
+            },
+        ]
+    },
+
+    # 6. 表情包 (meme)
+    {
+        "type_id": "meme",
+        "type_name": u"{bold}{blue}表情包",
+        "have_state": True,
+        "introduce": u"收集绿宝石/钻石时，在产矿机上方展示",
+        "ornaments": [
+            {
+                "prop_id": "meme.default",
+                "name": u"{bold}{yellow}默认表情包",
+                "introduce": u"默认表情包",
+                "price": 0,
+                "default_own": True
+            },
+
+            {
+                "prop_id": "meme.thumbs-up",
+                "name": u"{bold}{green}点赞",
+                "introduce": u"竖起大拇指",
+                "price": 200,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "meme.wave",
+                "name": u"{bold}{aqua}招手",
+                "introduce": u"友好地招手",
+                "price": 200,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "meme.cry",
+                "name": u"{bold}{blue}哭泣",
+                "introduce": u"伤心落泪",
+                "price": 250,
+                "default_own": False
+            },
+
+            # ========== 以下为从老项目迁移的8个装扮 ==========
+
+            {
+                "prop_id": "meme.smile",
+                "name": u"{bold}{red}笑脸表情包",
+                "introduce": u"炫耀自己拿到高级资源时的喜悦{enter}{enter}(收集到绿宝石/钻石时,产矿机上方将展示表情!)",
+                "price": 200,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "meme.black",
+                "name": u"{bold}{red}黑脸表情包",
+                "introduce": u"好吧......我们暂时沉默.{enter}{enter}(收集到绿宝石/钻石时,产矿机上方将展示表情!)",
+                "price": 750,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "meme.embrace",
+                "name": u"{bold}{red}尴尬表情包",
+                "introduce": u"你做了什么奇怪的事情吗{enter}{enter}(收集到绿宝石/钻石时,产矿机上方将展示表情!)",
+                "price": 1900,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "meme.huaji",
+                "name": u"{bold}{red}滑稽表情包",
+                "introduce": u"滑稽(斜眼笑~~~{enter}{enter}(收集到绿宝石/钻石时,产矿机上方将展示表情!)",
+                "price": 1950,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "meme.angry",
+                "name": u"{bold}{red}狂怒表情包",
+                "introduce": u"谁又惹你生气啦{enter}{enter}(收集到绿宝石/钻石时,产矿机上方将展示表情!)",
+                "price": 2250,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "meme.qm",
+                "name": u"{bold}{red}问号表情包",
+                "introduce": u"???你说什么??{enter}{enter}(收集到绿宝石/钻石时,产矿机上方将展示表情!)",
+                "price": 2900,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "meme.ec",
+                "name": u"{bold}{red}ECLOGO表情包",
+                "introduce": u"壮哉我大EaseCation!!!{enter}{enter}(收集到绿宝石/钻石时,产矿机上方将展示表情!)",
+                "price": "ornament-fragment:200",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "meme.anubis",
+                "name": u"阿努比斯",
+                "introduce": u"阿努比斯的小可爱",
+                "price": 1950,
+                "default_own": False
+            },
+        ]
+    },
+
+    # 7. 商店NPC外观 (shop-npc-skin)
+    {
+        "type_id": "shop-npc-skin",
+        "type_name": u"{bold}{blue}商店NPC外观",
+        "have_state": True,
+        "introduce": u"本队的两个商店NPC皮肤外观！",
+        "ornaments": [
+            {
+                "prop_id": "shop-npc-skin.default",
+                "name": u"{bold}{green}默认商人",
+                "introduce": u"默认的商店NPC外观",
+                "price": 0,
+                "default_own": True
+            },
+
+            {
+                "prop_id": "shop-npc-skin.wizard",
+                "name": u"{bold}{dark-purple}魔法师",
+                "introduce": u"神秘的魔法师商人",
+                "price": 1000,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "shop-npc-skin.knight",
+                "name": u"{bold}{gray}骑士",
+                "introduce": u"勇敢的骑士商人",
+                "price": 950,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "shop-npc-skin.elf",
+                "name": u"{bold}{green}精灵",
+                "introduce": u"优雅的精灵商人",
+                "price": 1100,
+                "default_own": False
+            },
+
+            # ========== 以下为从老项目迁移的9个装扮 ==========
+
+            {
+                "prop_id": "shop-npc-skin.ghost",
+                "name": u"{bold}{light-purple}亡灵商人外观",
+                "introduce": u"僵尸和骷髅{enter}{enter}(每局游戏每队随机选择一名玩家的设定应用)",
+                "price": 250,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "shop-npc-skin.nether",
+                "name": u"{bold}{light-purple}下界商人外观",
+                "introduce": u"猪人+凋零骷髅{enter}{enter}(每局游戏每队随机选择一名玩家的设定应用)",
+                "price": 950,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "shop-npc-skin.end",
+                "name": u"{bold}{light-purple}末地商人外观",
+                "introduce": u"末影人,末影龙人{enter}{enter}(每局游戏每队随机选择一名玩家的设定应用)",
+                "price": 1900,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "shop-npc-skin.desert-ice",
+                "name": u"{bold}{light-purple}沙漠冰河商人外观",
+                "introduce": u"尸壳+流浪者{enter}{enter}(每局游戏每队随机选择一名玩家的设定应用)",
+                "price": 2900,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "shop-npc-skin.me-robot",
+                "name": u"{bold}{red}我与机器人商人外观",
+                "introduce": u"你的皮肤+机器人{enter}{enter}(每局游戏每队随机选择一名玩家的设定应用)",
+                "price": "ornament-fragment:200",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "shop-npc-skin.me-py",
+                "name": u"{bold}{red}我与彭越商人外观",
+                "introduce": u"你的皮肤+彭越NPC{enter}{enter}(每局游戏每队随机选择一名玩家的设定应用)",
+                "price": "ornament-fragment:320",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "shop-npc-skin.halloween",
+                "name": u"{bold}【梦境限定】 {red}我和女巫商人皮肤",
+                "introduce": u"带上南瓜头,和女巫站在一起!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "shop-npc-skin.me-py-chr",
+                "name": u"{bold}【2022圣诞梦境】{red} 我和圣诞彭越商人外观",
+                "introduce": u"圣诞版本彭越化身商人进入《起床战争》啦! 参与2022圣诞梦境挑战来获得!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "shop-npc-skin.elliepunk",
+                "name": u"{bold}{red}【DREAM】Rune Legend NPC(s)",
+                "introduce": u"不要误解,艾莉和庞克一直是很好的朋友,仅此而已.",
+                "price": -1,
+                "default_own": False
+            },
+        ]
+    },
+
+    # 8. 胜利之舞 (winner-effect)
+    {
+        "type_id": "winner-effect",
+        "type_name": u"{bold}{dark-aqua}胜利之舞",
+        "have_state": True,
+        "introduce": u"在你赢得游戏后的庆祝特效！",
+        "ornaments": [
+            {
+                "prop_id": "winner-effect.default",
+                "name": u"{bold}{gold}默认胜利之舞",
+                "introduce": u"默认的胜利庆祝效果",
+                "price": 0,
+                "default_own": True
+            },
+
+            {
+                "prop_id": "winner-effect.fireworks",
+                "name": u"{bold}{red}烟花绽放",
+                "introduce": u"烟花四射庆祝胜利",
+                "price": 1200,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "winner-effect.confetti",
+                "name": u"{bold}{yellow}彩纸雨",
+                "introduce": u"彩纸飘落庆祝",
+                "price": 1100,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "winner-effect.spotlight",
+                "name": u"{bold}{gold}聚光灯",
+                "introduce": u"聚光灯照耀",
+                "price": 1300,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "winner-effect.crown",
+                "name": u"{bold}{gold}王冠",
+                "introduce": u"王冠降临",
+                "price": 1500,
+                "default_own": False
+            },
+
+            # ========== 以下为从老项目迁移的6个装扮 ==========
+
+            {
+                "prop_id": "winner-effect.futou",
+                "name": u"{bold}{light-purple}斧头胜利之舞",
+                "introduce": u"头顶喷斧头特效,让别人看看你有多快乐()",
+                "price": 450,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "winner-effect.lightining",
+                "name": u"{bold}{red}闪电胜利之舞",
+                "introduce": u"召唤闪电!电闪雷鸣欢庆胜利!",
+                "price": 750,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "winner-effect.space",
+                "name": u"{bold}{light-purple}外太空胜利之舞",
+                "introduce": u"来自外太空的祝福,你们将获得太空人的效果",
+                "price": 1750,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "winner-effect.yanhua",
+                "name": u"{bold}{light-purple}圣灵烟花胜利之舞",
+                "introduce": u"放烟花!砰!------{enter}纯洁的烟花象征正义的胜利",
+                "price": 2700,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "winner-effect.dragon",
+                "name": u"{bold}{red}末影龙胜利之舞",
+                "introduce": u"骑着末影龙环顾四周!享受最美妙的庆祝方式!",
+                "price": "ornament-fragment:2700",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "winner-effect.chr",
+                "name": u"{bold}【2022圣诞】{red}圣诞烟火",
+                "introduce": u"用烟花来庆祝圣诞!",
+                "price": -1,
+                "default_own": False
+            },
+        ]
+    },
+
+    # 9. 个性商店 (personalized-shop)
+    {
+        "type_id": "personalized-shop",
+        "type_name": u"{bold}{dark-aqua}个性商店",
+        "have_state": True,
+        "introduce": u"解锁局内商店购买方块的材质！",
+        "ornaments": [
+            {
+                "prop_id": "personalized-shop.default",
+                "name": u"{bold}{aqua}默认商店",
+                "introduce": u"默认的个性商店",
+                "price": 0,
+                "default_own": True
+            },
+
+            {
+                "prop_id": "personalized-shop.fantasy",
+                "name": u"{bold}{light-purple}幻想商店",
+                "introduce": u"魔法主题的商店",
+                "price": 1500,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "personalized-shop.tech",
+                "name": u"{bold}{aqua}科技商店",
+                "introduce": u"科技风格的商店",
+                "price": 1600,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "personalized-shop.nature",
+                "name": u"{bold}{green}自然商店",
+                "introduce": u"自然主题的商店",
+                "price": 1400,
+                "default_own": False
+            },
+
+            # ========== 以下为从老项目迁移的5个装扮 ==========
+
+            {
+                "prop_id": "personalized-shop.baihua",
+                "name": u"{bold}{light-purple}白桦木木板外观",
+                "introduce": u"{yellow}白桦木木板{white}{enter}{enter}注意!解锁并装备后,在游戏内商店购买木板时会给予这个材质的木板!这些材质的性能相同,不会破坏游戏平衡.",
+                "price": 450,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "personalized-shop.jinhehuan",
+                "name": u"{bold}{light-purple}金合欢木板外观",
+                "introduce": u"{yellow}金合欢木板{white}{enter}{enter}注意!解锁并装备后,在游戏内商店购买木板时会给予这个材质的木板!这些材质的性能相同,不会破坏游戏平衡.",
+                "price": 450,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "personalized-shop.shensexiangmu",
+                "name": u"{bold}{light-purple}深色橡木木板外观",
+                "introduce": u"{yellow}深色橡木木板{white}{enter}{enter}注意!解锁并装备后,在游戏内商店购买木板时会给予这个材质的木板!这些材质的性能相同,不会破坏游戏平衡.",
+                "price": 450,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "personalized-shop.conglin",
+                "name": u"{bold}{light-purple}丛林木板外观",
+                "introduce": u"{yellow}从林木木板{white}{enter}{enter}注意!解锁并装备后,在游戏内商店购买木板时会给予这个材质的木板!这些材质的性能相同,不会破坏游戏平衡.",
+                "price": 450,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "personalized-shop.yunshan",
+                "name": u"{bold}{light-purple}云杉木板外观",
+                "introduce": u"{yellow}云杉木木板{white}{enter}{enter}注意!解锁并装备后,在游戏内商店购买木板时会给予这个材质的木板!这些材质的性能相同,不会破坏游戏平衡.",
+                "price": 450,
+                "default_own": False
+            },
+        ]
+    },
+
+    # 10. 喷漆 (spray)
+    {
+        "type_id": "spray",
+        "type_name": u"{bold}{dark-aqua}喷漆",
+        "have_state": True,
+        "introduce": u"向他人展示你对岛屿的的占有欲！",
+        "ornaments": [
+            {
+                "prop_id": "spray.default",
+                "name": u"{bold}{white}默认喷漆",
+                "introduce": u"默认的喷漆图案",
+                "price": 0,
+                "default_own": True
+            },
+
+            {
+                "prop_id": "spray.smile",
+                "name": u"{bold}{yellow}笑脸",
+                "introduce": u"开心的笑脸图案",
+                "price": 150,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.heart",
+                "name": u"{bold}{red}爱心",
+                "introduce": u"爱心图案",
+                "price": 150,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.star",
+                "name": u"{bold}{yellow}星星",
+                "introduce": u"闪亮的星星",
+                "price": 180,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.skull",
+                "name": u"{bold}{dark-gray}骷髅",
+                "introduce": u"骷髅图案",
+                "price": 200,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.sword",
+                "name": u"{bold}{gray}利剑",
+                "introduce": u"锋利的剑",
+                "price": 200,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.shield",
+                "name": u"{bold}{blue}盾牌",
+                "introduce": u"坚固的盾牌",
+                "price": 200,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.crown",
+                "name": u"{bold}{gold}皇冠",
+                "introduce": u"华丽的皇冠",
+                "price": 250,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.diamond",
+                "name": u"{bold}{aqua}钻石",
+                "introduce": u"闪耀的钻石",
+                "price": 300,
+                "default_own": False
+            },
+
+            # ========== 以下为从老项目迁移的45个装扮 ==========
+
+            {
+                "prop_id": "spray.logo_aids",
+                "name": u"{bold}{red}公益宣传logo",
+                "introduce": u"这个喷漆只能会通过我们的“人文关怀”以及相关公益活动获取!{enter}用红丝带结出温温暖情,为艾滋病伸出关怀之手. {enter}{enter}{yellow}【使用方法】{enter}点击地图中的物品展示框",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py1",
+                "name": u"{bold}{red}彭越嘲笑",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py2",
+                "name": u"{red}{bold}圣诞彭越の疑惑",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py3",
+                "name": u"{red}{bold}魔术师彭越",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py4",
+                "name": u"{bold}{red}彭越你好",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py5",
+                "name": u"{bold}{red}新春彭越",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py6",
+                "name": u"{bold}{red}圣诞彭越",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py7",
+                "name": u"{bold}{red}音乐家彭越",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py8",
+                "name": u"{bold}{red}彭越和EC宝典",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py9",
+                "name": u"{bold}{red}彭越小姐和草帽",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py10",
+                "name": u"{red}{bold}神父彭越",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py11",
+                "name": u"{red}{bold}花嫁彭越小姐",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.pangbai",
+                "name": u"{bold}{red}旁白(旧版)-Vilrot",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.gezi",
+                "name": u"{red}{bold}鸽子-黑原灵",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.dao",
+                "name": u"{red}{bold}终界一刀-黑原灵",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.huli",
+                "name": u"{bold}{red}狐狸_GuGu",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.hua",
+                "name": u"{red}{bold}游戏画面改编-画画的嗨皮",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.shou",
+                "name": u"{bold}{red}兽兽EC娘-汤圆喵ink",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.bao",
+                "name": u"{bold}{red}下界夺宝-触屏defend弱鸡",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.color",
+                "name": u"{red}{bold}色盲海洋之旅-GOOD_Sh1X1n",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.dream",
+                "name": u"{bold}追逐梦想",
+                "introduce": u"驿路相逢,为了共同的梦想.{enter}{enter}【使用方法】{enter}在《起床战争》游戏中点击地图内的物品展示框即可喷漆!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.qingchun",
+                "name": u"{bold}【梦境限定】{red}青春·喷漆",
+                "introduce": u"我好像看懂你的表情了. (点击地图中的物品展示框来使用)",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.sun",
+                "name": u"{bold}【梦境限定】{red}太阳当空照",
+                "introduce": u"好大的太阳啊{enter}(点击地图内物品展示框使用)",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py_sgqs",
+                "name": u"{bold}{red}圣光骑士彭越",
+                "introduce": u"【像素EC活动作品】{enter}点击地图内的物品展示框喷漆!{enter}收集更多的喷漆样式吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py_football",
+                "name": u"PY足球盛宴喷漆",
+                "introduce": u"可爱的彭彭正在灯光璀璨球场上,赶紧来一起享受这场足球盛宴吧!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.snow",
+                "name": u"{bold}【2022圣诞梦境】{red} 初雪林喷漆",
+                "introduce": u"似乎在下雪的静谧森林......(点击地图中的物品展示框来使用)",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.gingerbread",
+                "name": u"{bold}【2022圣诞】 {red}诡笑姜饼人",
+                "introduce": u"姜饼人将以诡异的笑容面对将会享用它的人.(点击地图内物品展示框来使用)",
+                "price": "ornament-fragment:10",
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.rl",
+                "name": u"{bold}【RL】{gold}圣符传说喷漆",
+                "introduce": u"参与沉浸式解密&PVE剧情游戏《圣符传说》相关活动来获得!(点击游戏内的物品展示框来使用)",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.vilrot",
+                "name": u"Vilrot",
+                "introduce": u"Vilrot!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.rl_minemaster",
+                "name": u"诅咒矿长",
+                "introduce": u"愚人节快乐!{enter}奖励一个矿长和庞克的地下矿洞一日游({enter}真是难得的和谐啊",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.purple-cry",
+                "name": u"{bold}{dark-purple}【S4赛季限定】紫光水晶喷漆",
+                "introduce": u"(点击地图内物品展示框来使用!){enter}S4赛季限定喷漆",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.purple-night",
+                "name": u"{bold}{dark-purple}【S4赛季限定】紫光之夜喷漆",
+                "introduce": u"(点击地图内物品展示框来使用!){enter}S4赛季限定喷漆",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py-ysj",
+                "name": u"艺术家PY",
+                "introduce": u"【八周年同人创作活动精选奖限定喷漆】{enter}拿起画笔,绘出美好的回忆{enter}感谢您一路的支持",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.ec-8-ann",
+                "name": u"{bold}【8周年限定】{red}2023周年庆",
+                "introduce": u"庆祝EaseCation的8周年,一路走来,一路有你!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.ecgirl",
+                "name": u"EC娘",
+                "introduce": u"新晋EC吉祥物之一!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.cfyz",
+                "name": u"{bold}{red}【一周年】乘风驭舟-喷漆",
+                "introduce": u"起床一周年派对上的美丽蛋糕(点击地图中的物品展示框来使用)",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.villahead",
+                "name": u"村长私人照片喷漆",
+                "introduce": u"不要误解,但他的确是个称职的村长(点击地图中的物品展示框来使用)",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py-px",
+                "name": u"圣光骑士PY·捧星",
+                "introduce": u"shop.bedwars.spray.py-px.intro",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.rl_miner",
+                "name": u"庞克探险队",
+                "introduce": u"曾经的庞克探险队",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.la",
+                "name": u"太阳神·拉",
+                "introduce": u"这可能就是太阳神?",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py-sb",
+                "name": u"赛博彭越",
+                "introduce": u"酷酷的彭越,谁能不喜欢呢?",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.py-naughty",
+                "name": u"调皮的小PY",
+                "introduce": u"小PY又调皮了!",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.ecgirl-winter",
+                "name": u"冬季EC娘",
+                "introduce": u"冬天到了,大家要注意保暖呀",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.ycxndxrkhs",
+                "name": u"永存信念的向日葵花神",
+                "introduce": u"【2024频道新春同人创作活动奖励】{enter}“成神之路并不简单,对吧.”",
+                "price": -1,
+                "default_own": False
+            },
+
+            {
+                "prop_id": "spray.ecnal",
+                "name": u"EC娘·爱恋",
+                "introduce": u"【wiki编辑者的特别奖励】{enter}感谢您对EaseCation Wiki的贡献!",
+                "price": -1,
+                "default_own": False
+            },
+        ]
+    },
+]
+
+
+# ==================== 配置数据统计 ====================
+# 总装扮数: 186个
+# 原有装扮: 59个
+# 新增装扮: 127个(从老项目迁移)
+# 生成日期: 2025-11-06
+
+
+# ==================== 兼容性配置常量 ====================
+# 为各个Manager提供独立的配置常量（兼容老代码）
+# 这些常量从ORNAMENT_TYPES中自动提取
+
+KILL_SOUND_CONFIG = {}
+KILL_BROADCAST_CONFIG = {}
+VICTORY_DANCE_CONFIG = {}
+SPRAY_CONFIG = {}
+BED_ORNAMENT_CONFIG = {}
+BED_DESTROY_EFFECT_CONFIG = {}
+BED_DESTROY_MESSAGE_CONFIG = {}
+MEME_CONFIG = {}
+SHOP_NPC_SKIN_CONFIG = {}
+PERSONALIZED_SHOP_CONFIG = {}
+
+# 从ORNAMENT_TYPES中提取各类型的配置
+for ornament_type in ORNAMENT_TYPES:
+    type_id = ornament_type["type_id"]
+    ornaments = ornament_type.get("ornaments", [])
+
+    # 构建以prop_id为键的字典
+    ornaments_dict = {orn["prop_id"]: orn for orn in ornaments}
+
+    if type_id == "kill-sound":
+        KILL_SOUND_CONFIG = ornaments_dict
+    elif type_id == "kill-broadcast":
+        KILL_BROADCAST_CONFIG = ornaments_dict
+    elif type_id == "winner-effect":
+        VICTORY_DANCE_CONFIG = ornaments_dict
+    elif type_id == "spray":
+        SPRAY_CONFIG = ornaments_dict
+    elif type_id == "bed-ornament":
+        BED_ORNAMENT_CONFIG = ornaments_dict
+    elif type_id == "bed-destroy-effect":
+        BED_DESTROY_EFFECT_CONFIG = ornaments_dict
+    elif type_id == "bed-destroy-message":
+        BED_DESTROY_MESSAGE_CONFIG = ornaments_dict
+    elif type_id == "meme":
+        MEME_CONFIG = ornaments_dict
+    elif type_id == "shop-npc-skin":
+        SHOP_NPC_SKIN_CONFIG = ornaments_dict
+    elif type_id == "personalized-shop":
+        PERSONALIZED_SHOP_CONFIG = ornaments_dict

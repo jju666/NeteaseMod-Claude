@@ -1,0 +1,199 @@
+{
+    "format_version": "1.13.0",
+    "minecraft:entity": {
+        "components": {
+            "minecraft:attack": {
+                "damage": 5
+            },
+            "minecraft:balloonable": {
+
+            },
+            "minecraft:behavior.look_at_player": {
+                "look_distance": 6.0,
+                "priority": 7,
+                "probability": 0.02
+            },
+            "minecraft:behavior.melee_attack": {
+                "priority": 1,
+                "target_dist": 1.0,
+                "track_target": true
+            },
+            "minecraft:behavior.move_towards_target": {
+                "priority": 2,
+                "speed_multiplier": 0.9,
+                "within_radius": 32
+            },
+            "minecraft:behavior.random_look_around": {
+                "priority": 8
+            },
+            "minecraft:behavior.random_stroll": {
+                "priority": 6,
+                "speed_multiplier": 0.5,
+                "xz_dist": 2
+            },
+            "minecraft:can_climb": {
+
+            },
+            "minecraft:collision_box": {
+                "height": 2.9,
+                "width": 1.4
+            },
+            "minecraft:damage_sensor": {
+                "triggers": {
+                    "cause": "fall",
+                    "deals_damage": false
+                }
+            },
+            "minecraft:follow_range": {
+                "value": 64
+            },
+            "minecraft:health": {
+                "max": 50,
+                "value": 50
+            },
+            "minecraft:hurt_on_condition": {
+                "damage_conditions": [
+                    {
+                        "cause": "lava",
+                        "damage_per_tick": 4,
+                        "filters": {
+                            "operator": "==",
+                            "subject": "self",
+                            "test": "in_lava",
+                            "value": true
+                        }
+                    }
+                ]
+            },
+            "minecraft:jump.static": {
+
+            },
+            "minecraft:knockback_resistance": {
+                "value": 1.0
+            },
+            "minecraft:loot": {
+
+            },
+            "minecraft:movement": {
+                "value": 0.25
+            },
+            "minecraft:movement.basic": {
+
+            },
+            "minecraft:nameable": {
+
+            },
+            "minecraft:navigation.walk": {
+                "avoid_damage_blocks": true,
+                "avoid_water": true,
+                "can_path_over_water": false
+            },
+            "minecraft:persistent": {
+
+            },
+            "minecraft:physics": {
+
+            },
+            "minecraft:preferred_path": {
+                "default_block_cost": 1.5,
+                "jump_cost": 5,
+                "max_fall_blocks": 1,
+                "preferred_path_blocks": [
+                    {
+                        "blocks": [
+                            "grass_path"
+                        ],
+                        "cost": 0
+                    },
+                    {
+                        "blocks": [
+                            "cobblestone",
+                            "stone",
+                            "stonebrick",
+                            "sandstone",
+                            "mossy_cobblestone",
+                            "stone_slab",
+                            "stone_slab2",
+                            "stone_slab3",
+                            "stone_slab4",
+                            "double_stone_slab",
+                            "double_stone_slab2",
+                            "double_stone_slab3",
+                            "double_stone_slab4",
+                            "wooden_slab",
+                            "double_wooden_slab",
+                            "planks",
+                            "brick_block",
+                            "nether_brick",
+                            "red_nether_brick",
+                            "end_bricks",
+                            "red_sandstone",
+                            "stained_glass",
+                            "glass",
+                            "glowstone",
+                            "prismarine",
+                            "emerald_block",
+                            "diamond_block",
+                            "lapis_block",
+                            "gold_block",
+                            "redstone_block",
+                            "purple_glazed_terracotta",
+                            "white_glazed_terracotta",
+                            "orange_glazed_terracotta",
+                            "magenta_glazed_terracotta",
+                            "light_blue_glazed_terracotta",
+                            "yellow_glazed_terracotta",
+                            "lime_glazed_terracotta",
+                            "pink_glazed_terracotta",
+                            "gray_glazed_terracotta",
+                            "silver_glazed_terracotta",
+                            "cyan_glazed_terracotta",
+                            "blue_glazed_terracotta",
+                            "brown_glazed_terracotta",
+                            "green_glazed_terracotta",
+                            "red_glazed_terracotta",
+                            "black_glazed_terracotta"
+                        ],
+                        "cost": 1
+                    },
+                    {
+                        "blocks": [
+                            "bed",
+                            "lectern",
+                            "composter",
+                            "grindstone",
+                            "blast_furnace",
+                            "smoker",
+                            "fletching_table",
+                            "cartography_table",
+                            "brewing_stand",
+                            "smithing_table",
+                            "cauldron",
+                            "barrel",
+                            "loom",
+                            "stonecutter"
+                        ],
+                        "cost": 50
+                    }
+                ]
+            },
+            "minecraft:pushable": {
+                "is_pushable": true,
+                "is_pushable_by_piston": true
+            },
+            "minecraft:type_family": {
+                "family": [
+                    "irongolem",
+                    "mob"
+                ]
+            }
+        },
+        "description": {
+            "identifier": "ecbedwars:iron_golem",
+            "is_experimental": false,
+            "is_spawnable": false,
+            "is_summonable": true,
+            "runtime_identifier": "minecraft:iron_golem"
+        }
+    }
+}

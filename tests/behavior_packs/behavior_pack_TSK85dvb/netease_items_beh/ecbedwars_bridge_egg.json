@@ -1,0 +1,13 @@
+{
+    "format_version": "1.10",
+    "minecraft:item": {
+        "components": {
+            "netease:projectile": "ecbedwars:bridge_egg"
+        },
+        "description": {
+            "category": "Items",
+            "custom_item_type": "projectile_item",
+            "identifier": "ecbedwars:bridge_egg"
+        }
+    }
+}

@@ -1,0 +1,87 @@
+{
+    "format_version": "1.13.0",
+    "minecraft:entity": {
+        "component_groups": {
+
+        },
+        "components": {
+            "minecraft:behavior.look_at_entity": {
+                "angle_of_view_horizontal": 170,
+                "angle_of_view_vertical": 135,
+                "filters": {
+                    "all_of": [
+                        {
+                            "subject": "other",
+                            "test": "is_family",
+                            "value": "player"
+                        },
+                        {
+                            "subject": "other",
+                            "test": "is_owner",
+                            "value": true
+                        }
+                    ]
+                },
+                "look_distance": 6.0,
+                "priority": 2,
+                "probability": 1.0
+            },
+            "minecraft:collision_box": {
+                "height": 0.93,
+                "width": 0.6
+            },
+            "minecraft:conditional_bandwidth_optimization": {
+
+            },
+            "minecraft:damage_sensor": {
+                "triggers": {
+                    "cause": "all",
+                    "deals_damage": false
+                }
+            },
+            "minecraft:fire_immune": true,
+            "minecraft:health": {
+                "value": 1,
+                "max": 1
+            },
+            "minecraft:inventory": {
+                "container_type": "container",
+                "inventory_size": 27,
+                "restrict_to_owner": true
+            },
+            "minecraft:movement": {
+                "max": 1,
+                "value": 1
+            },
+            "minecraft:nameable": {
+                "allow_name_tag_renaming": false,
+                "always_show": true
+            },
+            "minecraft:persistent": {
+
+            },
+            "minecraft:physics": {
+
+            },
+            "minecraft:pushable": {
+                "is_pushable": false,
+                "is_pushable_by_piston": true
+            },
+            "minecraft:scale": {
+                "value": 1.0
+            },
+            "minecraft:tick_world": {
+
+            }
+        },
+        "description": {
+            "identifier": "ecbedwars:entity_1",
+            "is_experimental": false,
+            "is_spawnable": false,
+            "is_summonable": true
+        },
+        "events": {
+
+        }
+    }
+}

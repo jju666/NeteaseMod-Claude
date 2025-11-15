@@ -1,0 +1,21 @@
+{
+    "format_version": "1.10",
+    "minecraft:item": {
+        "components": {
+            "minecraft:icon": {
+                "texture": "fireball"
+            },
+            "minecraft:on_use": {
+                "on_use": {
+                    "event": "throw"
+                }
+            },
+            "netease:projectile": "ecbedwars:fireball"
+        },
+        "description": {
+            "category": "Items",
+            "custom_item_type": "projectile_item",
+            "identifier": "ecbedwars:fireball"
+        }
+    }
+}

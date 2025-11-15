@@ -1,7 +1,7 @@
 {
   "name": "netease-mod-claude",
-  "version": "20.2.12",
-  "description": "v20.2.12: 智能单命令模式 - initmc自动完成所有操作(版本管理统一+缓存彻底清除+npm link推荐) - Claude Code驱动的网易我的世界MODSDK开发工作流",
+  "version": "21.0.1",
+  "description": "v21.0.1: 核心BUG修复 - metrics追踪同步 + 步骤状态校正 + 文件初始化 - Claude Code驱动的网易我的世界MODSDK开发工作流",
   "main": "lib/init-workflow.js",
   "scripts": {
     "deploy": "node bin/install-global.js",

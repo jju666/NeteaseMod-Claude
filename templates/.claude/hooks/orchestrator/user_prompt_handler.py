@@ -1,16 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Hook 1: UserPromptSubmit - 任务初始化拦截器 + 玩法包注入器 (v19.0)
-当检测到 /mc 命令时，自动创建任务追踪基础设施并注入匹配的玩法包
+UserPromptSubmit Hook - 任务初始化拦截器 + 状态转移处理器 (v3.0 Final / v22.0)
+
+核心功能:
+1. /mc 命令处理 - 创建任务追踪基础设施并注入匹配的玩法包
+2. 用户状态转移 - 处理用户确认（"同意"）和反馈（"修复了"/"没修复"）
+3. 任务恢复 - 检测并恢复已存在的任务
+4. 任务取消 - 处理任务取消和失败标记
 
 触发时机: 用户提交提示词后
-工作机制:
-1. 检测 /mc 命令
-2. 自动创建 tasks/{task_id}/ 目录结构
-3. 初始化 context.md, solution.md, .task-meta.json
-4. 匹配玩法知识库，注入完整代码实现
-5. 注入任务追踪提醒到对话
 
 退出码:
 - 0: 成功，继续执行
@@ -24,7 +23,7 @@ import os
 from datetime import datetime
 import io
 
-# 修复Windows编码问题：强制使用UTF-8 (v20.2.5增强)
+# 修复Windows编码问题：强制使用UTF-8
 if sys.platform == 'win32':
     sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8', errors='replace')
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
@@ -39,14 +38,14 @@ except ImportError:
     def notify_warning(msg, detail=""): sys.stderr.write(u"⚠️ {} {}\n".format(msg, detail))
     def notify_error(msg, detail=""): sys.stderr.write(u"❌ {} {}\n".format(msg, detail))
 
-# 导入工作流配置加载器 (v20.2.4)
+# 导入工作流配置加载器
 try:
     from workflow_config_loader import get_max_task_desc_length
 except ImportError:
     def get_max_task_desc_length(project_path=None):
         return 8  # 默认值
 
-# v20.3.1: 导入任务取消处理器
+# 导入任务取消处理器
 try:
     from task_cancellation_handler import handle_cancellation_from_user_prompt
 except ImportError:
@@ -55,7 +54,7 @@ except ImportError:
         return None
     sys.stderr.write(u"[WARN] 任务取消功能不可用（task_cancellation_handler模块缺失）\n")
 
-# v21.0: 导入任务元数据管理器（单一数据源架构）
+# 导入任务元数据管理器（v3.0 Final单一数据源架构）
 HOOK_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HOOK_DIR)
 
@@ -66,7 +65,7 @@ except ImportError:
     TaskMetaManager = None
 
 def ensure_dir(path):
-    """确保目录存在 - 增强验证版 (v20.2.6)
+    """确保目录存在
 
     返回:
         bool: 成功返回True, 失败返回False
@@ -288,6 +287,281 @@ def format_gameplay_pack(pattern):
 """
 
     return result
+
+def handle_state_transition(user_input, cwd):
+    """处理用户状态转移（v3.0 Final新增）
+
+    检测用户输入中的确认关键词并执行状态转移:
+    - Planning阶段: "同意" → Implementation
+    - Implementation阶段: "修复了" → Finalization, "没修复" → Planning, "继续" → Implementation
+
+    返回:
+        dict or None: 如果是状态转移命令，返回Hook输出JSON；否则返回None
+    """
+    if not TaskMetaManager:
+        return None
+
+    # 获取活跃任务
+    meta_manager = TaskMetaManager(cwd)
+    task_id = meta_manager.get_active_task_id()
+
+    if not task_id:
+        # 无活跃任务，不处理状态转移
+        return None
+
+    # 读取任务元数据
+    meta_path = meta_manager._get_meta_path(task_id)
+    if not os.path.exists(meta_path):
+        return None
+
+    try:
+        with open(meta_path, 'r', encoding='utf-8') as f:
+            meta_data = json.load(f)
+    except:
+        return None
+
+    current_step = meta_data.get('current_step', '')
+    user_input_lower = user_input.lower().strip()
+
+    # 定义关键词映射
+    CONFIRM_KEYWORDS = ['同意', '可以', 'ok', '没问题', '确认', 'yes', '好的', '行']
+    FIXED_KEYWORDS = ['修复了', '完成', '好了', '可以了', '成功', 'done', 'fixed', '已完成']
+    NOT_FIXED_KEYWORDS = ['没修复', '还有问题', '没解决', '重新分析', '不行', '失败', '没用']
+    CONTINUE_KEYWORDS = ['继续', '继续修改', '再改', '还有', 'continue']
+    RESTART_KEYWORDS = ['重来', '重新开始', '不对', '完全错了', 'restart']
+
+    transition_occurred = False
+    message = ""
+
+    # Planning → Implementation (用户确认方案)
+    if current_step == 'planning':
+        if any(kw in user_input_lower for kw in CONFIRM_KEYWORDS):
+            # ✅ Phase 4: 前置检查 - 验证文档查阅数量（P0优先级）
+            task_type = meta_data.get('task_type', 'feature_design')
+            docs_read = meta_data.get('metrics', {}).get('docs_read', [])
+            required_docs = meta_data.get('steps', {}).get('planning', {}).get('required_doc_count', 3)
+
+            # 功能设计强制3个文档，BUG修复无要求（由专家审查替代）
+            if task_type == 'feature_design' and len(docs_read) < required_docs:
+                sys.stderr.write(f"[UserPromptSubmit] Planning→Implementation转移被拒绝: 文档查阅不足 ({len(docs_read)}/{required_docs})\n")
+
+                return {
+                    "hookSpecificOutput": {
+                        "hookEventName": "UserPromptSubmit",
+                        "additionalContext": u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 无法进入Implementation阶段
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+当前文档查阅: {docs_read}/{required_docs}
+
+❌ 问题: Planning阶段要求至少查阅{required_docs}个相关文档
+
+✅ 解决方案:
+1. 继续使用Read工具查阅{remaining}个文档
+2. 重点查阅:
+   - CRITICAL规范（markdown/core/开发规范.md）
+   - 相关系统实现文档
+   - 问题排查指南
+
+完成文档查阅后，再次输入"同意"即可推进。
+
+💡 提示: 充分的文档研究能避免违反CRITICAL规范，提高修复成功率。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(
+                            docs_read=len(docs_read),
+                            required_docs=required_docs,
+                            remaining=required_docs - len(docs_read)
+                        )
+                    },
+                    "continue": True
+                }
+
+            # ✅ 前置检查通过，允许状态转移
+            sys.stderr.write(f"[UserPromptSubmit] Planning→Implementation转移检查通过: 文档查阅数 {len(docs_read)}/{required_docs}\n")
+
+            meta_data['current_step'] = 'implementation'
+
+            # 更新steps字段（v3.0 Final语义化结构）
+            if 'steps' not in meta_data:
+                meta_data['steps'] = {}
+
+            # 完成Planning阶段
+            if 'planning' not in meta_data['steps']:
+                meta_data['steps']['planning'] = {}
+            meta_data['steps']['planning']['user_confirmed'] = True
+            meta_data['steps']['planning']['confirmed_at'] = datetime.now().isoformat()
+            meta_data['steps']['planning']['status'] = 'completed'
+            meta_data['steps']['planning']['completed_at'] = datetime.now().isoformat()
+
+            # 启动Implementation阶段
+            if 'implementation' not in meta_data['steps']:
+                meta_data['steps']['implementation'] = {}
+            meta_data['steps']['implementation']['status'] = 'in_progress'
+            meta_data['steps']['implementation']['started_at'] = datetime.now().isoformat()
+
+            message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ 状态转移: Planning → Implementation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+你已确认方案，工作流进入代码实施阶段。
+
+**当前阶段**: Implementation (实施)
+**允许操作**: Write, Edit, NotebookEdit 等代码修改工具
+
+AI将开始实施代码修改。每轮修改完成后，请测试并反馈结果。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+            transition_occurred = True
+
+        elif any(kw in user_input_lower for kw in RESTART_KEYWORDS):
+            # 完全否定，回到Activation
+            meta_data['current_step'] = 'activation'
+            if 'planning' in meta_data:
+                meta_data['planning']['user_confirmed'] = False
+
+            message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 状态回滚: Planning → Activation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+你否定了当前方案，工作流已重置到激活阶段。
+
+**当前阶段**: Activation (激活)
+**建议操作**: 重新描述任务需求，或提供更多上下文信息
+
+AI将重新分析问题并制定新方案。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+            transition_occurred = True
+
+    # Implementation → Finalization (修复成功)
+    elif current_step == 'implementation':
+        if any(kw in user_input_lower for kw in FIXED_KEYWORDS):
+            meta_data['current_step'] = 'finalization'
+            if 'implementation' not in meta_data:
+                meta_data['implementation'] = {}
+            meta_data['implementation']['user_confirmed'] = True
+            meta_data['implementation']['confirmed_at'] = datetime.now().isoformat()
+
+            message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ 状态转移: Implementation → Finalization
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+你确认修复成功，工作流进入收尾归档阶段。
+
+**当前阶段**: Finalization (收尾)
+**自动操作**:
+- 清理临时文件
+- 生成任务摘要
+- 归档到 tasks/{task_id}/
+
+AI将自动完成任务归档。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+            transition_occurred = True
+
+        elif any(kw in user_input_lower for kw in NOT_FIXED_KEYWORDS):
+            # 修复失败，回滚到Planning重新分析
+            meta_data['current_step'] = 'planning'
+            if 'implementation' not in meta_data:
+                meta_data['implementation'] = {}
+            meta_data['implementation']['user_confirmed'] = False
+
+            # ✅ Phase 4 Bug Fix: 重置steps字段（v3.0 Final架构）
+            # 修复问题：回滚时必须重置planning.user_confirmed，否则Stop Hook会误判
+            if 'steps' not in meta_data:
+                meta_data['steps'] = {}
+
+            # 重置Planning阶段状态（回到进行中，等待新方案）
+            if 'planning' not in meta_data['steps']:
+                meta_data['steps']['planning'] = {}
+            meta_data['steps']['planning']['user_confirmed'] = False
+            meta_data['steps']['planning']['status'] = 'in_progress'
+            meta_data['steps']['planning']['resumed_at'] = datetime.now().isoformat()
+
+            # 重置Implementation阶段状态（回到待开始）
+            if 'implementation' not in meta_data['steps']:
+                meta_data['steps']['implementation'] = {}
+            meta_data['steps']['implementation']['status'] = 'pending'
+            meta_data['steps']['implementation']['user_confirmed'] = False
+
+            # 记录回滚历史
+            if 'rollback_history' not in meta_data:
+                meta_data['rollback_history'] = []
+
+            rollback_entry = {
+                'from_step': 'implementation',
+                'to_step': 'planning',
+                'reason': 'user_reported_fix_failed',
+                'timestamp': datetime.now().isoformat(),
+                'code_changes': meta_data.get('implementation', {}).get('code_changes', [])
+            }
+            meta_data['rollback_history'].append(rollback_entry)
+
+            message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 状态回滚: Implementation → Planning
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+你反馈修复失败，工作流已回滚到方案制定阶段。
+
+**当前阶段**: Planning (方案)
+**已保留**: 所有代码修改历史已记录到 rollback_history
+**允许操作**: Read, Grep 等分析工具
+
+AI将重新分析问题并制定新的修复方案。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+            transition_occurred = True
+
+        elif any(kw in user_input_lower for kw in CONTINUE_KEYWORDS):
+            # 继续修改，保持Implementation阶段
+            message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+▶️ 继续修改
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+你要求继续修改，工作流保持在实施阶段。
+
+**当前阶段**: Implementation (实施)
+**操作**: AI将进入下一轮修改
+
+请继续提供需要调整的具体内容。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+            # 状态不变，但显示确认消息
+            transition_occurred = True  # 虽然状态未变，但需要向用户确认
+
+    # 如果发生状态转移，保存并返回
+    if transition_occurred:
+        try:
+            # 使用TaskMetaManager的save方法确保原子写入和文件锁
+            if meta_manager.save_task_meta(task_id, meta_data):
+                # 同步更新.task-active.json
+                meta_manager.set_active_task(task_id, meta_data.get('current_step'))
+
+                output = {
+                    "hookSpecificOutput": {
+                        "hookEventName": "UserPromptSubmit",
+                        "additionalContext": message
+                    },
+                    "continue": True  # 允许AI继续处理
+                }
+
+                sys.stderr.write(u"[INFO v3.0] 状态转移成功: {} → {}\n".format(
+                    current_step, meta_data['current_step']
+                ))
+
+                return output
+            else:
+                sys.stderr.write(u"[ERROR] 状态转移保存失败: save_task_meta返回False\n")
+                return None
+
+        except Exception as e:
+            sys.stderr.write(u"[ERROR] 状态转移保存异常: {}\n".format(e))
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            return None
+
+    # 未检测到状态转移关键词
+    return None
 
 def is_bugfix_task(task_desc):
     """v20.2: Detect if task is BUG fix related"""
@@ -632,7 +906,7 @@ def detect_existing_task_dir(prompt, cwd):
     return {"is_resume": False}
 
 def resume_existing_task(task_dir, task_id, new_user_input, cwd):
-    """v21.0: 恢复已有任务的工作流（简化版）
+    """v2.0: 恢复已有任务的工作流（简化版）
 
     职责:
     1. 加载 .task-meta.json（唯一数据源）
@@ -663,10 +937,10 @@ def resume_existing_task(task_dir, task_id, new_user_input, cwd):
     if not mgr.save_task_meta(task_id, task_meta):
         sys.stderr.write(u"[WARN] 保存任务元数据失败\n")
 
-    sys.stderr.write(u"[INFO v21.0] 任务元数据已加载（单一数据源模式）\n")
+    sys.stderr.write(u"[INFO v2.0] 任务元数据已加载（单一数据源模式）\n")
 
-    # 3. 更新.task-active.json
-    current_step = task_meta.get('current_step', 'step3_execute')
+    # 3. 更新.task-active.json (v3.0 Final: 默认值使用语义化命名)
+    current_step = task_meta.get('current_step', 'implementation')
     if not mgr.set_active_task(task_id, current_step):
         sys.stderr.write(u"[WARN] 设置活跃任务失败\n")
 
@@ -688,7 +962,7 @@ def resume_existing_task(task_dir, task_id, new_user_input, cwd):
         sys.stderr.write(u"[WARN] 记录会话历史失败: {}\n".format(e))
 
     # 5. 生成智能恢复提示(包含迭代历史)
-    # v21.0: bug_fix_tracking 现在直接在 task_meta 中
+    # v2.0: bug_fix_tracking 现在直接在 task_meta 中
     bug_fix_tracking = task_meta.get('bug_fix_tracking', {})
     feature_tracking = task_meta.get('feature_tracking', {})
 
@@ -710,7 +984,7 @@ def resume_existing_task(task_dir, task_id, new_user_input, cwd):
     # 构建恢复提示
     resume_prompt = u"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔄 **任务恢复模式已激活** (v21.0)
+🔄 **任务恢复模式已激活** (v2.0)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 **任务ID**: {}
@@ -806,6 +1080,7 @@ def resume_existing_task(task_dir, task_id, new_user_input, cwd):
     return resume_prompt
 
 def main():
+    """主入口（v3.0 Final增强错误诊断）"""
     try:
         # 读取stdin输入
         data = json.load(sys.stdin)
@@ -815,10 +1090,18 @@ def main():
 
         # 检测是否是 /mc 命令
         if not prompt.strip().startswith('/mc '):
-            # 非 /mc 命令，放行（输出控制JSON）
-            output = {"continue": True}
-            print(json.dumps(output, ensure_ascii=False))
-            sys.exit(0)
+            # 非 /mc 命令，先检查是否是状态转移关键词（v3.0 Final新增）
+            state_transition_result = handle_state_transition(prompt, cwd)
+
+            if state_transition_result:
+                # 是状态转移命令，输出结果并退出
+                print(json.dumps(state_transition_result, ensure_ascii=False))
+                sys.exit(0)
+            else:
+                # 非状态转移命令，放行
+                output = {"continue": True}
+                print(json.dumps(output, ensure_ascii=False))
+                sys.exit(0)
 
         # === v20.3.1: 任务取消/失败检测 ===
         cancellation_message = handle_cancellation_from_user_prompt(prompt, cwd)
@@ -976,10 +1259,10 @@ def main():
                 pack_info = u"未匹配,使用通用指南"
                 sys.stderr.write(u"[INFO] 未匹配到玩法包,使用降级方案\n")
 
-        # v21.0/v22.0: 创建任务元数据（唯一数据源，包含完整运行时状态）
+        # v2.0/v3.0 Final: 创建任务元数据（唯一数据源，包含完整运行时状态）
         task_type = "bug_fix" if is_bugfix_task(task_desc) else "general"
 
-        # v22.0: 动态required_doc_count（玩法包2个，标准3个）
+        # v3.0 Final: 动态required_doc_count（玩法包2个，标准3个）
         required_doc_count = 2 if matched_pattern else 3
 
         task_meta = {
@@ -990,37 +1273,33 @@ def main():
             "task_complexity": "standard",
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
-            "architecture_version": "v21.0",
+            "architecture_version": "v3.0 Final",
 
-            # 运行时状态（v22.0: 所有任务强制从step2_research开始）
-            "current_step": "step2_research",
+            # 运行时状态（v3.0 Final: 语义化4步状态机 - 从planning开始）
+            "current_step": "planning",
             "last_injection_step": None,
             "steps": {
-                # v21.0: step0_context 和 step1_understand 已废弃（保留以兼容旧数据）
-                "step0_context": {
-                    "description": u"阅读项目CLAUDE.md（已废弃）",
-                    "status": "skipped",
-                    "prompt": u"（v21.0: 已废弃，所有任务从 step2_research 开始）"
+                # v3.0 Final: 语义化4步状态机
+                "activation": {
+                    "description": u"任务激活（自动）",
+                    "status": "completed",
+                    "completed_at": datetime.now().isoformat(),
+                    "prompt": u"（v3.0 Final: 任务类型识别已自动完成）"
                 },
-                "step1_understand": {
-                    "description": u"理解任务需求（已废弃）",
-                    "status": "skipped",
-                    "prompt": u"（v21.0: 已废弃，所有任务从 step2_research 开始）"
-                },
-                "step2_research": {
-                    "description": u"任务研究阶段（强制）",
+                "planning": {
+                    "description": u"方案制定阶段",
                     "status": "in_progress",
                     "started_at": datetime.now().isoformat(),
                     "required_doc_count": required_doc_count,
-                    "prompt": u"查阅至少{}个相关文档，理解问题根因和技术约束，明确说明研究结论后Hook自动推进到step3。".format(required_doc_count)
+                    "prompt": u"查阅至少{}个相关文档，制定修复/实现方案，等待用户确认后进入implementation。".format(required_doc_count)
                 },
-                "step3_execute": {
-                    "description": u"执行实施",
+                "implementation": {
+                    "description": u"代码实施",
                     "status": "pending",
                     "user_confirmed": False,
-                    "prompt": u"基于充分的文档研究，实施代码修改，测试验证，直到用户确认修复完成。"
+                    "prompt": u"基于确认的方案，实施代码修改，测试验证，直到用户确认完成。"
                 },
-                "step4_cleanup": {
+                "finalization": {
                     "description": u"收尾归档",
                     "status": "pending",
                     "prompt": u"清理DEBUG代码，更新文档，归档任务。"
@@ -1031,11 +1310,12 @@ def main():
             "gameplay_pack_matched": matched_pattern['id'] if matched_pattern else None,
             "gameplay_pack_name": matched_pattern['name'] if matched_pattern else None,
 
-            # v21.0: 性能指标（BUG修复：必须初始化，PostToolUse Hook依赖）
+            # v2.0: 性能指标（BUG修复：必须初始化，PostToolUse Hook依赖）
+            # v3.0 Final: 修复字段名 tool_calls → tools_used（匹配文档标准）
             "metrics": {
                 "docs_read": [],
                 "code_changes": [],
-                "tool_calls": [],
+                "tools_used": [],  # Fix: 使用v3.0 Final标准字段名
                 "failure_count": 0,
                 "expert_review_triggered": False
             },
@@ -1049,7 +1329,7 @@ def main():
             "failed": False
         }
 
-        # v21.0: BUG修复模式 - 立即初始化追踪状态
+        # v2.0: BUG修复模式 - 立即初始化追踪状态
         if is_bugfix_task(task_desc):
             task_meta["bug_fix_tracking"] = {
                 "enabled": True,
@@ -1064,7 +1344,7 @@ def main():
                 },
                 "expert_triggered": False
             }
-            sys.stderr.write(u"[INFO v21.0] BUG修复追踪已初始化（玩法包: %s）\n" % (matched_pattern['id'] if matched_pattern else "None"))
+            sys.stderr.write(u"[INFO v2.0] BUG修复追踪已初始化（玩法包: %s）\n" % (matched_pattern['id'] if matched_pattern else "None"))
 
         # 使用 TaskMetaManager 保存任务元数据
         if TaskMetaManager:
@@ -1078,19 +1358,19 @@ def main():
             with open(meta_file, 'w', encoding='utf-8') as f:
                 json.dump(task_meta, f, indent=2, ensure_ascii=False)
 
-        sys.stderr.write(u"[INFO v21.0] 任务元数据已创建（单一数据源模式）\n")
+        sys.stderr.write(u"[INFO v2.0] 任务元数据已创建（单一数据源模式）\n")
 
-        # 创建 .task-active.json（使用 TaskMetaManager）
+        # 创建 .task-active.json（使用 TaskMetaManager，v3.0 Final: 语义化命名）
         if TaskMetaManager:
             mgr = TaskMetaManager(cwd)
-            if not mgr.set_active_task(task_id, "step2_research"):
+            if not mgr.set_active_task(task_id, "planning"):
                 sys.stderr.write(u"[WARN] 设置活跃任务失败\n")
         else:
-            # 降级方案：直接写入文件
+            # 降级方案：直接写入文件 (v3.0 Final: 语义化命名)
             active_flag = {
                 "task_id": task_id,
                 "task_dir": task_dir,
-                "current_step": "step2_research",
+                "current_step": "planning",
                 "created_at": datetime.now().isoformat()
             }
             active_file = os.path.join(cwd, '.claude', '.task-active.json')
@@ -1176,7 +1456,7 @@ def main():
         except:
             pass  # 通知失败不影响主流程
 
-        # v21.0: 生成任务头部信息 + 任务边界声明
+        # v2.0: 生成任务头部信息 + 任务边界声明
         project_name = os.path.basename(cwd)
         task_header = generate_task_header(task_id, task_type, task_desc, project_name)
         task_boundary = generate_task_boundary_notice(task_id, task_desc, task_type)
@@ -1221,11 +1501,36 @@ def main():
         sys.exit(0)
 
     except Exception as e:
-        sys.stderr.write(u"[ERROR] Hook执行失败: {}\n".format(e))
+        # [v3.0 Final增强] 详细错误诊断
+        sys.stderr.write("=" * 80 + "\n")
+        sys.stderr.write(u"[HOOK ERROR] UserPromptSubmit Hook 执行失败\n")
+        sys.stderr.write("=" * 80 + "\n")
+        sys.stderr.write(u"错误类型: {}\n".format(type(e).__name__))
+        sys.stderr.write(u"错误消息: {}\n".format(str(e)))
+        sys.stderr.write("\n完整堆栈:\n")
         import traceback
         traceback.print_exc(file=sys.stderr)
 
-        # v21.0: 错误回滚 - 清理不完整的状态文件
+        # 输出上下文信息
+        sys.stderr.write("\n上下文信息:\n")
+        try:
+            cwd = os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd())
+            sys.stderr.write(u"  cwd: {}\n".format(cwd))
+            sys.stderr.write(u"  HOOK_DIR: {}\n".format(HOOK_DIR))
+            sys.stderr.write(u"  sys.path[0:3]: {}\n".format(sys.path[:3]))
+            sys.stderr.write(u"  TaskMetaManager可用: {}\n".format(TaskMetaManager is not None))
+
+            # 检查活跃任务文件
+            active_file = os.path.join(cwd, '.claude', '.task-active.json')
+            sys.stderr.write(u"  .task-active.json存在: {}\n".format(os.path.exists(active_file)))
+            if os.path.exists(active_file):
+                sys.stderr.write(u"  .task-active.json大小: {} bytes\n".format(os.path.getsize(active_file)))
+        except Exception as ctx_err:
+            sys.stderr.write(u"  (上下文信息收集失败: {})\n".format(ctx_err))
+
+        sys.stderr.write("=" * 80 + "\n")
+
+        # v2.0: 错误回滚 - 清理不完整的状态文件
         try:
             cwd = os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd())
             active_file = os.path.join(cwd, '.claude', '.task-active.json')
@@ -1242,6 +1547,9 @@ def main():
         except Exception as rollback_err:
             sys.stderr.write(u"[WARN] 回滚清理失败: {}\n".format(rollback_err))
 
+        # 降级：允许继续执行（避免完全阻塞工作流）
+        output = {"continue": True}
+        print(json.dumps(output, ensure_ascii=False))
         sys.exit(1)  # 非阻塞错误
 
 if __name__ == '__main__':

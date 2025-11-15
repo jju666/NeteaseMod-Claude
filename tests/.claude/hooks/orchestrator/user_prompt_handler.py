@@ -979,8 +979,17 @@ def main():
         # v21.0/v22.0: 创建任务元数据（唯一数据源，包含完整运行时状态）
         task_type = "bug_fix" if is_bugfix_task(task_desc) else "general"
 
-        # v22.0: 动态required_doc_count（玩法包2个，标准3个）
-        required_doc_count = 2 if matched_pattern else 3
+        # v22.1: 动态required_doc_count（差异化配置）
+        # BUG修复: 0文档（依赖专家审查）
+        # 玩法包匹配: 2文档（降低难度）
+        # 通用任务: 1文档（简化流程，避免过度严格）
+        if task_type == "bug_fix":
+            required_doc_count = 0
+        elif matched_pattern:
+            required_doc_count = 2
+        else:
+            # 通用任务：简化文档要求（从3降低到1）
+            required_doc_count = 1
 
         task_meta = {
             # 基础元数据

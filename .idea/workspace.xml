@@ -6,53 +6,8 @@
   <component name="ChangeListManager">
     <list default="true" id="9d7c2d81-304e-45b3-b045-09c8147f4f66" name="更改" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/CHANGELOG.md" beforeDir="false" afterPath="$PROJECT_DIR$/CHANGELOG.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/CLAUDE.md" beforeDir="false" afterPath="$PROJECT_DIR$/CLAUDE.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/LICENSE" beforeDir="false" afterPath="$PROJECT_DIR$/LICENSE" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/RELEASE-v20.2.12.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/developer/Claude-Code-Hooks完整技术文档.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/developer/Hooks使用指南.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/developer/Hook机制.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/developer/Hook状态机数据流完整说明.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/developer/Windows-UTF8-升级指南.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/Windows-UTF8-升级指南.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/developer/任务命名配置.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/任务命名配置.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/developer/数据流设计.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/数据流设计.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/developer/文档生成器.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/文档生成器.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/developer/智能文档维护.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/智能文档维护.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/developer/测试指南.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/测试指南.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/developer/贡献指南.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/developer/贡献指南.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/generator.js" beforeDir="false" afterPath="$PROJECT_DIR$/lib/generator.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/init-workflow.js" beforeDir="false" afterPath="$PROJECT_DIR$/lib/init-workflow.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/package-lock.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/commands/mc.md.template" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/commands/mc.md.template" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/bug_diagnosis_helper.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/utils/bug_diagnosis.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/check-critical-rules.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/validators/critical_rules_checker.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/conversation-recorder.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/archiver/conversation_recorder.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/enforce-cleanup.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/enforce-step2.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/generate-docs-from-conversation.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/archiver/doc_generator.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/hook_logger.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/utils/logger.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/iteration-tracker-hook.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/log-changes.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/monitors/change_logger.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/post-archive-doc-enforcer.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/archiver/doc_enforcer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/post-archive-hook.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/archiver/post_archive.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/post-tool-use-hook.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/pre-compact-reminder.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/validators/pre_compact_reminder.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/session-end-hook.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/lifecycle/session_end.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/session-start-hook.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/lifecycle/session_start.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/stop-hook.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/lifecycle/stop.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/subagent-complete-notifier.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/utils/subagent_notifier.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/subagent-stop-hook.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/lifecycle/subagent_stop.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/suggest-docs-on-error.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/monitors/error_suggester.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/track-doc-reading.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/unified-workflow-driver.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/user-prompt-submit-hook.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/orchestrator/user_prompt_handler.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/validate-api-usage.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/validators/api_usage_validator.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/vscode_notify.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/utils/notify.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/hooks/workflow_config_loader.py" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/hooks/utils/config_loader.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/templates/.claude/settings.json.template" beforeDir="false" afterPath="$PROJECT_DIR$/templates/.claude/settings.json.template" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/tests/test-bugfix-guide-v20.2.4.py" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -118,7 +73,7 @@
       <workItem from="1763152078880" duration="2173000" />
       <workItem from="1763155578475" duration="958000" />
       <workItem from="1763156557486" duration="220000" />
-      <workItem from="1763156799769" duration="11866000" />
+      <workItem from="1763156799769" duration="13247000" />
     </task>
     <servers />
   </component>

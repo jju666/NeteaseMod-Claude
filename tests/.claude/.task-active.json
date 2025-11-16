@@ -144,6 +144,51 @@
       "session_history": [
         "6bf79c20-9a87-460a-93a1-9cfbefc68a25"
       ]
+    },
+    "73d13ca2-0f41-43a3-843c-d1830c28adb0": {
+      "task_id": "任务-1117-022655-启动一个可以测试",
+      "task_dir": "D:\\EcWork\\基于Claude的MODSDK开发工作流\\tests\\tasks\\任务-1117-022655-启动一个可以测试",
+      "current_step": "planning",
+      "bound_at": "2025-11-17T02:26:55.267684",
+      "session_history": [
+        "73d13ca2-0f41-43a3-843c-d1830c28adb0"
+      ]
+    },
+    "043c6fbd-12d3-4450-8087-383692694b8c": {
+      "task_id": "任务-1117-022757-修复床无法破坏的",
+      "task_dir": "D:\\EcWork\\基于Claude的MODSDK开发工作流\\tests\\tasks\\任务-1117-022757-修复床无法破坏的",
+      "current_step": "planning",
+      "bound_at": "2025-11-17T02:27:57.389140",
+      "session_history": [
+        "043c6fbd-12d3-4450-8087-383692694b8c"
+      ]
+    },
+    "87323f26-c560-4e2d-b5d2-00ba42693373": {
+      "task_id": "任务-1117-023814-修复床被破坏后没",
+      "task_dir": "D:\\EcWork\\基于Claude的MODSDK开发工作流\\tests\\tasks\\任务-1117-023814-修复床被破坏后没",
+      "current_step": "planning",
+      "bound_at": "2025-11-17T02:38:14.240020",
+      "session_history": [
+        "87323f26-c560-4e2d-b5d2-00ba42693373"
+      ]
+    },
+    "af3882f9-e27b-479c-aed8-ced2ad168d27": {
+      "task_id": "任务-1117-033007-修复一个测试BU",
+      "task_dir": "D:\\EcWork\\基于Claude的MODSDK开发工作流\\tests\\tasks\\任务-1117-033007-修复一个测试BU",
+      "current_step": "planning",
+      "bound_at": "2025-11-17T03:30:07.902146",
+      "session_history": [
+        "af3882f9-e27b-479c-aed8-ced2ad168d27"
+      ]
+    },
+    "1bcd4d87-36e3-43f6-8203-f8a1b69fe503": {
+      "task_id": "任务-1117-041201-修复床被破坏后没",
+      "task_dir": "D:\\EcWork\\基于Claude的MODSDK开发工作流\\tests\\tasks\\任务-1117-041201-修复床被破坏后没",
+      "current_step": "planning",
+      "bound_at": "2025-11-17T04:12:01.663845",
+      "session_history": [
+        "1bcd4d87-36e3-43f6-8203-f8a1b69fe503"
+      ]
     }
   }
 }

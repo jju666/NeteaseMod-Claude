@@ -52,6 +52,7 @@ def log_to_file(message):
 
 # 修复Windows GBK编码问题：强制使用UTF-8输出
 if sys.platform == 'win32':
+    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
@@ -70,94 +71,6 @@ except ImportError:
     sys.stderr.write("[ERROR] TaskMetaManager 模块缺失\n")
     sys.exit(0)
 
-
-def extract_subagent_result_with_llm(content: str) -> Optional[Dict]:
-    """
-    使用LLM解析子代理输出（v3.1：兜底机制）
-
-    策略：发送子代理的最后一条消息给Haiku，要求提取审查结果
-
-    Args:
-        content: 子代理的输出内容
-
-    Returns:
-        解析后的审查结果，失败返回None
-    """
-    try:
-        # 动态导入anthropic（避免没有安装时影响启动）
-        try:
-            import anthropic
-        except ImportError:
-            sys.stderr.write("[WARN] anthropic库未安装，无法使用LLM解析兜底\n")
-            sys.stderr.write("[WARN] 安装方法: pip install anthropic\n")
-            return None
-
-        # 检查API Key（支持两种环境变量名）
-        # 优先使用ANTHROPIC_API_KEY，降级到ANTHROPIC_AUTH_TOKEN
-        api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
-        if not api_key:
-            sys.stderr.write("[WARN] ANTHROPIC_API_KEY或ANTHROPIC_AUTH_TOKEN环境变量未设置，无法使用LLM解析\n")
-            return None
-
-        # 构建提取prompt
-        extract_prompt = f"""你是一个结果提取专家。以下是一个专家审查子代理的输出，请提取审查结果。
-
-子代理输出:
-{content[:2000]}  # 限制长度防止超出token限制
-
-请分析上述输出，以JSON格式返回：
-{{
-  "approved": true/false,  // 是否通过审查（关键词：通过、pass、可以实施、approved、looks good等表示通过；需要调整、有问题、建议修改、rejected等表示不通过）
-  "issues": ["问题1", "问题2"],  // 发现的问题列表（如果没有问题，返回空数组[]）
-  "suggestions": ["建议1", "建议2"]  // 改进建议列表（如果没有建议，返回空数组[]）
-}}
-
-**重要提示**:
-- 如果输出中包含"通过"、"pass"、"可以实施"、"approved"、"looks good"等词，approved应为true
-- 如果输出中包含"需要调整"、"有问题"、"建议修改"、"rejected"、"不通过"等词，approved应为false
-- 如果无法判断，默认approved为true（保守策略）
-- 只返回JSON，不要其他内容"""
-
-        sys.stderr.write("[INFO v3.1] 使用LLM解析子代理输出...\n")
-
-        # 调用Haiku API
-        client = anthropic.Anthropic(api_key=api_key)
-        response = client.messages.create(
-            model="claude-3-haiku-20240307",
-            max_tokens=500,
-            messages=[{"role": "user", "content": extract_prompt}]
-        )
-
-        # 提取响应文本
-        result_text = response.content[0].text.strip()
-        sys.stderr.write(f"[DEBUG v3.1] LLM响应: {result_text[:200]}...\n")
-
-        # 提取JSON（可能包含markdown代码块）
-        # 尝试多种格式
-        json_patterns = [
-            r'```json\s*(\{.*?\})\s*```',  # ```json {...} ```
-            r'```\s*(\{.*?\})\s*```',      # ``` {...} ```
-            r'(\{.*?\})'                    # {...}
-        ]
-
-        for pattern in json_patterns:
-            json_match = re.search(pattern, result_text, re.DOTALL)
-            if json_match:
-                try:
-                    result = json.loads(json_match.group(1))
-                    sys.stderr.write("[INFO v3.1] LLM解析成功\n")
-                    return result
-                except json.JSONDecodeError:
-                    continue
-
-        sys.stderr.write("[WARN] LLM响应格式无法解析\n")
-        return None
-
-    except Exception as e:
-        sys.stderr.write(f"[ERROR] LLM解析异常: {e}\n")
-        import traceback
-        traceback.print_exc(file=sys.stderr)
-        return None
 
 
 def extract_subagent_result(transcript_path: str) -> Optional[Dict]:
@@ -222,8 +135,15 @@ def extract_subagent_result(transcript_path: str) -> Optional[Dict]:
 
     # 查找子代理的最后一条消息
     for msg in reversed(messages):
-        if msg.get('role') == 'assistant':
-            content = msg.get('content', '')
+        # 🔥 v22.3.8修复：使用正确的字段路径
+        # transcript JSONL结构：msg['type']='assistant', msg['message']['role']='assistant'
+        # 优先检查外层的type字段（更简单且可靠）
+        msg_type = msg.get('type')
+        message_data = msg.get('message', {})
+
+        if msg_type == 'assistant' or message_data.get('role') == 'assistant':
+            # 从message字段中获取content
+            content = message_data.get('content', '')
             if isinstance(content, list):
                 # 处理多段content
                 content = '\n'.join([
@@ -248,17 +168,7 @@ def extract_subagent_result(transcript_path: str) -> Optional[Dict]:
                     sys.stderr.write(f"[DEBUG] JSON内容: {match.group(1)}\n")
                     # JSON格式错误，尝试LLM解析兜底
 
-            # 🔥 v3.1新增：标记缺失或格式错误，使用LLM解析兜底
-            sys.stderr.write(f"[INFO v3.1] 未找到SUBAGENT_RESULT标记，尝试LLM解析兜底\n")
-
-            # 使用LLM解析当前消息内容
-            llm_result = extract_subagent_result_with_llm(content)
-            if llm_result:
-                sys.stderr.write(f"[INFO v3.1] LLM解析兜底成功\n")
-                return llm_result
-            else:
-                sys.stderr.write(f"[WARN v3.1] LLM解析兜底失败\n")
-                # 继续尝试下一条消息
+            # 🔥 v22.3.9: 已删除LLM解析兜底机制
 
     # 所有尝试均失败
     sys.stderr.write(f"[WARN] 未找到SUBAGENT_RESULT标记，且LLM解析失败\n")
@@ -397,16 +307,17 @@ def main():
         sys.stderr.write("[INFO v22.3] stop_hook_active=false, 首次触发，开始处理结果\n")
         log_to_file("决策: stop_hook_active=false, 首次触发, 开始处理")
 
-        # 2. 获取子代理transcript路径（v22.3.8关键修复）
-        # 🔥 BUG修复: 必须使用agent_transcript_path，而非transcript_path
-        # transcript_path是主会话的记录，agent_transcript_path才是子代理的记录
-        transcript_path = hook_input.get('agent_transcript_path')
-        log_to_file(f"agent_transcript_path = {repr(transcript_path)}")
+        # 2. 获取子代理transcript路径（v22.3.9官方规范修复）
+        # 🔥 官方文档明确：SubagentStop Hook的 transcript_path 就是子代理的记录
+        # 参考：https://code.claude.com/docs/en/hooks#subagent-stop
+        # 格式：agent-{agentId}.jsonl
+        transcript_path = hook_input.get('transcript_path')
+        log_to_file(f"transcript_path = {repr(transcript_path)}")
 
-        # 兜底：如果agent_transcript_path不存在，尝试使用transcript_path（向后兼容）
+        # 兜底：某些Claude Code版本可能提供非官方的agent_transcript_path字段
         if not transcript_path:
-            transcript_path = hook_input.get('transcript_path')
-            log_to_file(f"[WARN] agent_transcript_path不存在，降级使用transcript_path: {repr(transcript_path)}")
+            transcript_path = hook_input.get('agent_transcript_path')
+            log_to_file(f"[WARN] transcript_path不存在，降级使用agent_transcript_path（非官方字段）: {repr(transcript_path)}")
 
         if not transcript_path:
             sys.stderr.write("[WARN] 未提供agent_transcript_path或transcript_path，跳过\n")
@@ -424,44 +335,31 @@ def main():
         subagent_result = extract_subagent_result(transcript_path)
         log_to_file(f"提取结果: {json.dumps(subagent_result, ensure_ascii=False) if subagent_result else 'None'}")
 
-        # 🔥 v22.3.6: 如果提取失败，尝试使用默认结果（针对专家审查）
+        # 🔥 v22.3.9: 删除兜底机制，遵循快速失败原则
         if not subagent_result:
-            sys.stderr.write("[WARN] 未提取到子代理结果（标记缺失或LLM解析失败）\n")
-            log_to_file("⚠️ 未提取到子代理结果，检查是否需要使用默认结果")
+            log_to_file("❌ 提取子代理结果失败")
+            log_to_file(f"transcript路径: {transcript_path}")
+            sys.stderr.write(f"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+❌ SubagentStop Hook - 提取子代理结果失败
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-            # 🔥 v22.3.6: 检查是否是BUG修复类型的专家审查
-            # 如果是，使用默认结果（保守策略：默认通过）
-            cwd_temp = os.getcwd()
-            mgr_temp = TaskMetaManager(cwd_temp)
-            session_id_temp = hook_input.get('session_id')
+transcript: {transcript_path}
 
-            if session_id_temp:
-                active_task_temp = mgr_temp.get_active_task_by_session(session_id_temp)
-                if active_task_temp:
-                    task_meta_temp = mgr_temp.load_task_meta(active_task_temp['task_id'])
-                    if task_meta_temp:
-                        current_step_temp = task_meta_temp.get('current_step')
-                        task_type_temp = task_meta_temp.get('task_type')
+可能原因：
+1. 子代理输出缺少 <!-- SUBAGENT_RESULT --> 标记
+2. 标记中的JSON格式错误
+3. transcript文件损坏
 
-                        log_to_file(f"临时检查: current_step={current_step_temp}, task_type={task_type_temp}")
+排查步骤：
+1. 检查 pretooluse-debug.log 确认标记是否注入
+2. 查看 subagent-stop-debug.log 详细日志
+3. 手动检查transcript文件
 
-                        if current_step_temp == 'planning' and task_type_temp == 'bug_fix':
-                            sys.stderr.write("[INFO v22.3.6] 使用默认专家审查结果（兜底机制）\n")
-                            log_to_file("✓ 使用默认专家审查结果（兜底机制）")
-                            subagent_result = {
-                                "approved": True,  # 保守策略：默认通过
-                                "issues": [],
-                                "suggestions": ["建议手动验证子代理输出（自动解析失败）"]
-                            }
-                        else:
-                            log_to_file(f"✗ 不符合默认结果条件，退出")
-
-            if not subagent_result:
-                sys.stderr.write("[INFO] 未提取到子代理结果，跳过\n")
-                log_to_file("退出: 未提取到子代理结果")
-                # ✅ v22.3修复：使用官方标准格式
-                print(json.dumps({}, ensure_ascii=False))
-                sys.exit(0)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""")
+            print(json.dumps({}, ensure_ascii=False))
+            sys.exit(0)
 
         # 4. 获取活跃任务（v3.1: 使用session_id获取）
         cwd = os.getcwd()

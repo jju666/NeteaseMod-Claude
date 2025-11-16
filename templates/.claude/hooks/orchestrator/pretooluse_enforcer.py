@@ -24,6 +24,9 @@ from datetime import datetime
 
 # Windows UTF-8编码修复（防止中文乱码）
 if sys.platform == 'win32':
+    # 🔥 v22.3.8修复：添加stdin的UTF-8编码设置（解决Task工具JSON解析失败问题）
+    # 参考：https://code.claude.com/docs/en/hooks (Windows中文处理)
+    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
     # 强制stdout/stderr使用UTF-8编码
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')

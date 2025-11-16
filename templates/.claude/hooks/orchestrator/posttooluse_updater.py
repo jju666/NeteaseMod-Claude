@@ -26,6 +26,7 @@ from typing import Dict, Optional, Tuple
 # v3.0 Final Bug Fix: Windows UTF-8编码支持（emoji输出）
 if sys.platform == 'win32':
     import io
+    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 

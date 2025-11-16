@@ -15,7 +15,7 @@
 ### 🏗️ 核心架构
 - [技术架构](./docs/developer/技术架构.md) - 系统设计与模块划分
 - [数据流设计](./docs/developer/数据流设计.md) - 工作流执行流程
-- [Hook状态机机制](./docs/developer/Hook状态机机制.md) - 完整状态机运作机制（v21.1.2）
+- [Hook状态机机制](./docs/developer/Hook状态机机制.md) - 完整状态机运作机制（v22.0 - Phase 3完成）
 - [通知系统](./docs/developer/通知系统.md) - 跨平台桌面通知(v18.4+)
 
 ### 📦 核心模块
@@ -77,4 +77,37 @@ MIT License - 详见 [LICENSE](./LICENSE)
 
 ---
 
-_最后更新: 2025-11-15 | v21.1.2_
+## 📝 版本历史
+
+### v22.0 (2025-11-15) - Phase 3 用户体验增强完成 ✅
+
+**核心改进**:
+1. **SessionStart Hook** - 新增状态仪表盘
+   - 显示任务进度条（语义化4步：激活→方案→实施→收尾）
+   - 显示当前阶段和轮次信息
+   - 友好的可视化界面
+
+2. **PreToolUse Hook** - 增强拒绝消息格式
+   - 阶段显示映射（图标+语义化名称）
+   - 更清晰的消息格式
+   - 明确的下一步指引
+
+3. **PostToolUse Hook** - 状态更新提示
+   - 代码修改后显示轮次和修改次数
+   - 用户可见的进度反馈
+
+4. **SubagentStop Hook** - 结果摘要
+   - 增强专家审查结果展示
+   - 友好的通过/不通过消息
+
+**技术细节**:
+- 所有Hook输出符合Claude Code官方规范
+- 语义化命名替代序号命名（activation/planning/implementation/finalization）
+- 向后兼容v21.x的task-meta.json格式
+
+**下一步**:
+- Phase 4: 测试与文档完善
+
+---
+
+_最后更新: 2025-11-15 | v22.0 (Phase 3完成)_

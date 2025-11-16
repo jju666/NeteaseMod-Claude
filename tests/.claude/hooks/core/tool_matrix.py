@@ -2,21 +2,63 @@
 Tool Matrix - 工具矩阵配置
 定义：阶段-工具-路径-语义 四维验证规则
 
-Version: v20.3.0 - 重新引入Step2任务流路由阶段
+Version: v3.0 Final - 完整4步语义化状态机
 """
 
 # ============== 核心矩阵配置 ==============
 
 STAGE_TOOL_MATRIX = {
-    # ========== Step2: 任务研究阶段 (v22.0 PreToolUse强制驱动) ==========
-    # 注: v21.0 重构后，step0_context 和 step1_understand 已废弃，所有任务直接从 step2_research 开始
-    "step2_research": {
-        "display_name": "任务研究阶段（强制）",
-        "description": "深度研究问题根因和技术约束，禁止修改任何文件",
+    # ========== Activation: 任务激活与类型识别 (v3.0新增) ==========
+    "activation": {
+        "display_name": "任务激活",
+        "description": "任务初始化与类型识别（自动执行，AI无需关注）",
 
-        "allowed_tools": ["Read", "Grep", "Glob"],
+        "allowed_tools": [],  # 此阶段由UserPromptSubmit Hook自动完成，AI不介入
 
-        "preconditions": [],  # v21.0: step2 为起始阶段，无前置条件
+        "preconditions": [],  # 起始阶段，无前置条件
+
+        "path_rules": {},
+
+        "semantic_rules": {},
+
+        "completion_condition": {
+            "type": "automatic",
+            "auto_advance": True,  # 自动推进到planning
+            "next_step": "planning",
+            "description": "UserPromptSubmit Hook识别任务类型后自动推进到planning"
+        },
+
+        "ai_guidance": """
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📌 任务激活阶段
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+此阶段由系统自动完成任务类型识别：
+- BUG修复任务
+- 功能设计任务
+
+你无需执行任何操作，系统将自动推进到Planning阶段。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+    },
+
+    # ========== Planning: 方案制定阶段 (v3.0差异化流程) ==========
+    "planning": {
+        "display_name": "方案制定",
+        "description": "深度研究问题根因和技术约束,制定解决方案,禁止修改任何文件",
+
+        # ✅ Phase 5: 完整的白名单定义（默认拒绝原则）
+        # 注意: Update/Patch等工具别名会被StageValidator归一化为Edit，因此无需在此列出
+        "allowed_tools": [
+            "Read",        # 阅读文件（代码/文档）
+            "Grep",        # 搜索代码关键词
+            "Glob",        # 查找文件模式匹配
+            "Task",        # 启动子代理（专家审查/文档查询）
+            "WebFetch",    # 获取在线文档（如官方Wiki）
+            "WebSearch"    # 搜索技术资料
+        ],
+
+        "preconditions": ["activation_completed"],  # v3.0: 需要activation完成
 
         "path_rules": {
             "Read": {
@@ -30,11 +72,11 @@ STAGE_TOOL_MATRIX = {
                     ".task-meta.json",
                     "workflow-state.json"
                 ],
-                "description": "可以阅读文档和代码，但禁止修改"
+                "description": "可以阅读文档和代码,但禁止修改"
             },
             "Grep": {
                 "allowed": True,
-                "description": "允许搜索代码，了解现有实现"
+                "description": "允许搜索代码,了解现有实现"
             },
             "Glob": {
                 "allowed": True,
@@ -45,25 +87,40 @@ STAGE_TOOL_MATRIX = {
         "semantic_rules": {
             "Read": {
                 "purpose": "deep_research",
-                "min_reads": 3,  # ⭐ v22.0: 强制最少文档数
-                "description": "必须查阅至少3个相关文档（玩法包模式降为2个）"
+                "min_reads": 3,  # v3.0: 功能设计强制3个，BUG修复可选（动态判断）
+                "min_reads_bug_fix": 0,  # v3.0新增: BUG修复无强制文档要求
+                "description": "功能设计必须查阅至少3个文档，BUG修复可选"
             },
             "Write": {
                 "forbidden": True,
-                "reason": "研究阶段严禁修改任何文件"
+                "reason": "方案制定阶段严禁修改任何文件"
             },
             "Edit": {
                 "forbidden": True,
-                "reason": "研究阶段严禁修改任何文件"
+                "reason": "方案制定阶段严禁修改任何文件"
+            },
+            # ✅ Phase 4 Bug Fix: 添加Update和NotebookEdit禁止规则（Claude Code v2.0）
+            "Update": {
+                "forbidden": True,
+                "reason": "方案制定阶段严禁修改任何文件"
+            },
+            "NotebookEdit": {
+                "forbidden": True,
+                "reason": "方案制定阶段严禁修改任何文件"
             },
             "Bash": {
                 "forbidden": True,
-                "reason": "研究阶段禁止执行命令"
+                "reason": "方案制定阶段禁止执行命令"
+            },
+            "Task": {
+                "purpose": "launch_subagent",
+                "allowed_subagent_types": ["expert_review", "doc_research"],
+                "description": "启动专家审查或文档查询子代理"
             }
         },
 
         "completion_condition": {
-            "type": "ai_explicit_confirm",  # ⭐ v22.0: AI必须明确确认
+            "type": "ai_explicit_confirm",  # ⭐ v3.0 Final: AI必须明确确认
             "confirmation_keywords": [
                 "研究完成",
                 "已理解问题根因",
@@ -72,17 +129,17 @@ STAGE_TOOL_MATRIX = {
                 "可以开始编码"
             ],
             "min_doc_count": 3,  # 最少文档数（由task-meta.json的required_doc_count动态覆盖）
-            "auto_advance": False,  # ⭐ v22.0: 不自动推进，需AI明确确认
-            "next_step": "step3_execute",
-            "description": "查阅至少3个文档并明确说明研究结论后，Hook检测关键词并推进到step3"
+            "auto_advance": False,  # ⭐ v3.0 Final: 不自动推进,需AI明确确认
+            "next_step": "implementation",
+            "description": "查阅至少3个文档并明确说明研究结论后,Hook检测关键词并推进到implementation"
         },
 
         "ai_guidance": """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ 当前阶段: 任务研究（Step2 - 强制）
+⚠️ 当前阶段: 方案制定（Planning - 强制）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-你现在处于强制研究阶段，需要完成：
+你现在处于强制方案制定阶段,需要完成：
 
 1. **查阅文档**（至少3个）：
    - 理解问题根因和技术约束
@@ -104,18 +161,31 @@ STAGE_TOOL_MATRIX = {
 - ✅ Glob查找文件
 
 **完成研究后**：
-Hook会检测你的确认关键词，自动推进到step3执行阶段。
+Hook会检测你的确认关键词,自动推进到implementation执行阶段。
 """
     },
 
-    # ========== Step3: 执行实施 ==========
-    "step3_execute": {
-        "display_name": "执行实施",
-        "description": "代码修改、测试、迭代，直到用户确认完成",
+    # ========== Implementation: 代码实施 ==========
+    "implementation": {
+        "display_name": "代码实施",
+        "description": "代码修改、测试、迭代,直到用户确认完成",
 
-        "allowed_tools": ["Read", "Write", "Edit", "Bash", "Grep", "Glob", "WebFetch", "WebSearch"],
+        # ✅ Phase 5: 完整的白名单定义（默认拒绝原则）
+        # 注意: Update/Patch/NotebookEdit等别名会被StageValidator归一化，无需在此列出
+        "allowed_tools": [
+            "Read",         # 阅读文件
+            "Write",        # 写入新文件
+            "Edit",         # 修改现有文件（包括Update/Patch别名）
+            "NotebookEdit", # 修改Jupyter Notebook
+            "Bash",         # 执行测试命令
+            "Grep",         # 搜索代码
+            "Glob",         # 查找文件
+            "WebFetch",     # 获取在线文档
+            "WebSearch",    # 搜索技术资料
+            "Task"          # 启动子代理（如需专家审查）
+        ],
 
-        "preconditions": ["step2_completed"],
+        "preconditions": ["planning_completed"],
 
         "path_rules": {
             "Write": {
@@ -131,7 +201,7 @@ Hook会检测你的确认关键词，自动推进到step3执行阶段。
                     ".task-active.json",
                     ".cleanup-subagent.lock"
                 ],
-                "description": "可以写入代码文件，但禁止直接修改元数据"
+                "description": "可以写入代码文件,但禁止直接修改元数据"
             },
             "Edit": {
                 "whitelist_patterns": [
@@ -145,7 +215,7 @@ Hook会检测你的确认关键词，自动推进到step3执行阶段。
                     "workflow-state.json",
                     ".task-active.json"
                 ],
-                "description": "可以修改代码文件，但禁止直接修改元数据"
+                "description": "可以修改代码文件,但禁止直接修改元数据"
             },
             "Bash": {
                 "allowed_commands_patterns": [
@@ -162,7 +232,7 @@ Hook会检测你的确认关键词，自动推进到step3执行阶段。
                     r"mkfs\b",
                     r"dd\s+if="
                 ],
-                "description": "允许测试命令和安全的git命令，禁止危险操作"
+                "description": "允许测试命令和安全的git命令,禁止危险操作"
             }
         },
 
@@ -170,12 +240,12 @@ Hook会检测你的确认关键词，自动推进到step3执行阶段。
             "Write": {
                 "purpose": "implement_solution",
                 "requires_read_first": True,
-                "description": "实现解决方案，写入新代码前必须先Read目标文件"
+                "description": "实现解决方案,写入新代码前必须先Read目标文件"
             },
             "Edit": {
                 "purpose": "modify_code",
                 "max_same_file_edits": 5,
-                "description": "修改代码，同一文件修改超过5次将触发专家审查"
+                "description": "修改代码,同一文件修改超过5次将触发专家审查"
             },
             "Bash": {
                 "purpose": "test_execution",
@@ -184,10 +254,10 @@ Hook会检测你的确认关键词，自动推进到step3执行阶段。
         },
 
         "completion_condition": {
-            "trigger_expr": "workflow_state.get('steps', {}).get('step3_execute', {}).get('user_confirmed', False)",
+            "trigger_expr": "workflow_state.get('steps', {}).get('implementation', {}).get('user_confirmed', False)",
             "auto_advance": False,  # 需要用户明确确认
-            "next_step": "step4_cleanup",
-            "description": "用户明确确认修复完成（输入'/mc-confirm'或'已修复'）后推进到step4",
+            "next_step": "finalization",
+            "description": "用户明确确认修复完成（输入'/mc-confirm'或'已修复'）后推进到finalization",
             "confirmation_keywords": [
                 "/mc-confirm",
                 "已修复",
@@ -202,15 +272,15 @@ Hook会检测你的确认关键词，自动推进到step3执行阶段。
         }
     },
 
-    # ========== Step4: 收尾归档 ==========
-    "step4_cleanup": {
+    # ========== Finalization: 收尾归档 ==========
+    "finalization": {
         "display_name": "收尾归档",
         "description": "文档更新、DEBUG清理、任务归档（强制子代理执行）",
 
-        # 父代理只能Task，子代理可以全部工具
+        # 父代理只能Task,子代理可以全部工具
         "allowed_tools": ["Task", "Read"],
 
-        "preconditions": ["step2_completed", "user_confirmed"],
+        "preconditions": ["planning_completed", "user_confirmed"],
 
         "path_rules": {
             "Task": {
@@ -234,15 +304,15 @@ Hook会检测你的确认关键词，自动推进到step3执行阶段。
                 "purpose": "launch_cleanup_subagent",
                 "max_launches": 1,
                 "creates_lock": True,
-                "description": "启动收尾子代理，创建锁文件"
+                "description": "启动收尾子代理,创建锁文件"
             },
             "Write": {
                 "forbidden_in_parent": True,
-                "reason": "父代理禁止直接Write，必须通过子代理"
+                "reason": "父代理禁止直接Write,必须通过子代理"
             },
             "Edit": {
                 "forbidden_in_parent": True,
-                "reason": "父代理禁止直接Edit，必须通过子代理"
+                "reason": "父代理禁止直接Edit,必须通过子代理"
             },
             "Bash": {
                 "forbidden_in_parent": True,
@@ -277,9 +347,9 @@ Hook会检测你的确认关键词，自动推进到step3执行阶段。
                     "purpose": "update_metadata_and_docs",
                     "required_updates": {
                         ".task-meta.json": {
-                            "field": "workflow_state.steps.step4_cleanup.status",
+                            "field": "workflow_state.steps.finalization.status",
                             "value": "completed",
-                            "description": "子代理必须标记step4_cleanup为completed"
+                            "description": "子代理必须标记finalization为completed"
                         }
                     }
                 }
@@ -287,10 +357,10 @@ Hook会检测你的确认关键词，自动推进到step3执行阶段。
         },
 
         "completion_condition": {
-            "trigger_expr": "workflow_state.get('steps', {}).get('step4_cleanup', {}).get('status') == 'completed'",
+            "trigger_expr": "workflow_state.get('steps', {}).get('finalization', {}).get('status') == 'completed'",
             "auto_advance": False,  # 完成后自动归档
             "next_step": None,
-            "description": "子代理标记step4_cleanup.status=completed后，post-archive-hook自动归档任务"
+            "description": "子代理标记finalization.status=completed后,post-archive-hook自动归档任务"
         }
     }
 }
@@ -299,7 +369,15 @@ Hook会检测你的确认关键词，自动推进到step3执行阶段。
 # ============== 辅助函数 ==============
 
 def get_stage_config(stage_name: str) -> dict:
-    """获取阶段配置"""
+    """
+    获取阶段配置 (v3.0 Final: 语义化命名)
+
+    Args:
+        stage_name: 阶段名称 (activation, planning, implementation, finalization)
+
+    Returns:
+        阶段配置字典
+    """
     return STAGE_TOOL_MATRIX.get(stage_name, {})
 
 
@@ -330,9 +408,17 @@ def get_semantic_rules(stage_name: str, tool_name: str) -> dict:
 
 
 def get_next_step(current_step: str) -> str:
-    """获取下一个步骤"""
-    # v21.0: 简化为 step2_research -> step3_execute -> step4_cleanup
-    step_order = ["step2_research", "step3_execute", "step4_cleanup"]
+    """
+    获取下一个步骤 (v3.0: 完整4步语义化)
+
+    Args:
+        current_step: 当前步骤(activation, planning, implementation, finalization)
+
+    Returns:
+        下一个步骤名称,如果已是最后一步则返回None
+    """
+    # v3.0: 完整4步顺序
+    step_order = ["activation", "planning", "implementation", "finalization"]
 
     try:
         current_idx = step_order.index(current_step)
@@ -354,9 +440,10 @@ def is_auto_advance(stage_name: str) -> bool:
 # ============== 步骤顺序配置 ==============
 
 STEP_ORDER = [
-    "step2_research",   # v22.0 PreToolUse强制驱动（v21.0: 起始阶段）
-    "step3_execute",
-    "step4_cleanup"
+    "activation",        # v3.0: 任务激活阶段（自动完成）
+    "planning",          # v3.0: 方案制定阶段（差异化流程）
+    "implementation",    # v3.0: 代码实施阶段（轮次循环）
+    "finalization"       # v3.0: 收尾归档阶段（子代理执行）
 ]
 
 
@@ -393,3 +480,64 @@ STRATEGY_TYPES = {
         "loop_detection_enabled": False
     }
 }
+
+
+# ============== v3.0新增: 差异化流程配置 ==============
+
+DIFFERENTIATED_WORKFLOWS = {
+    "bug_fix": {
+        "planning": {
+            "min_doc_count": 0,  # BUG修复无需强制文档
+            "expert_review_required": True,  # 必须触发专家审查
+            "expert_review_auto_trigger": True,  # 方案制定完成后自动触发
+            "doc_query_subagent": False,  # 不启动文档查询子代理
+            "ai_guidance_template": "ai_guidance_bug_fix"  # 使用BUG修复专属引导
+        },
+        "implementation": {
+            "test_after_each_round": True,  # 每轮建议测试
+            "max_rounds_before_expert": 3  # 3轮未修复触发专家审查
+        }
+    },
+    "feature_design": {
+        "planning": {
+            "min_doc_count": 3,  # 功能设计强制3个文档
+            "expert_review_required": False,  # 不强制专家审查
+            "gameplay_pack_matching": True,  # 启用玩法包匹配
+            "doc_query_subagent": True,  # 可选启动文档查询子代理
+            "ai_guidance_template": "ai_guidance_feature_design"  # 使用功能设计专属引导
+        },
+        "implementation": {
+            "test_after_each_round": False,  # 不强制每轮测试
+            "max_rounds_before_expert": 5  # 5轮触发专家审查
+        }
+    }
+}
+
+
+def get_workflow_config(task_type: str, stage: str) -> dict:
+    """
+    获取差异化流程配置 (v3.0新增)
+
+    Args:
+        task_type: 任务类型（bug_fix/feature_design）
+        stage: 当前阶段（activation/planning/implementation/finalization）
+
+    Returns:
+        差异化配置字典
+    """
+    workflows = DIFFERENTIATED_WORKFLOWS.get(task_type, DIFFERENTIATED_WORKFLOWS["feature_design"])
+    return workflows.get(stage, {})
+
+
+def get_min_doc_count(task_type: str) -> int:
+    """
+    获取最少文档数要求 (v3.0差异化)
+
+    Args:
+        task_type: 任务类型（bug_fix/feature_design）
+
+    Returns:
+        最少文档数
+    """
+    config = get_workflow_config(task_type, "planning")
+    return config.get("min_doc_count", 0)  # v3.0: 默认0（未知类型不强制文档）

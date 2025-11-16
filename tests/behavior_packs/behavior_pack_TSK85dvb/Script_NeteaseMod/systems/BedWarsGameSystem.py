@@ -1344,10 +1344,12 @@ class BedWarsGameSystem(GamingStateSystem):
             for instance_id, spawn_instance in all_presets.items():
                 # 检查预设类型是否为spawn
                 if spawn_instance.preset_type == "bedwars:spawn":
-                    spawn_team = spawn_instance.get_data("team")
+                    # [FIX] 修复API调用：使用 instance.data.get() 而不是 instance.get_data()
+                    # 参考同文件1597-1599行的正确用法
+                    spawn_team = spawn_instance.data.get("team")
                     if spawn_team == team_id:
-                        spawn_pos = spawn_instance.get_data("spawn_position")
-                        spawn_rot = spawn_instance.get_data("spawn_rotation")
+                        spawn_pos = spawn_instance.data.get("spawn_position")
+                        spawn_rot = spawn_instance.data.get("spawn_rotation")
                         if spawn_pos:
                             team_spawns.append((spawn_pos, spawn_rot))
 

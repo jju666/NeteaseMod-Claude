@@ -1,0 +1,19 @@
+{
+  "version": "v3.1",
+  "active_tasks": {
+    "session_abc123": {
+      "task_id": "任务-1116-161424-修复玩家掉落BUG",
+      "task_dir": "tasks/任务-1116-161424-修复玩家掉落BUG",
+      "current_step": "implementation",
+      "bound_at": "2025-11-16T16:14:24",
+      "session_history": ["session_abc123", "session_xyz789"]
+    },
+    "session_def456": {
+      "task_id": "任务-1116-143000-实现商店系统",
+      "task_dir": "tasks/任务-1116-143000-实现商店系统",
+      "current_step": "planning",
+      "bound_at": "2025-11-16T14:30:00",
+      "session_history": ["session_def456"]
+    }
+  }
+}

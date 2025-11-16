@@ -1,0 +1,179 @@
+# Implementation Stage Rules - 代码实施阶段规则
+# Version: v3.0 Final
+# 轮次循环：修改 → Stop Hook → 用户反馈 → 继续/调整/完成
+
+display_name: "代码实施"
+description: "代码修改、测试、迭代，直到用户确认完成"
+
+# 允许的工具列表
+allowed_tools:
+  - "Read"
+  - "Write"
+  - "Edit"
+  - "Bash"
+  - "Grep"
+  - "Glob"
+  - "WebFetch"
+  - "WebSearch"
+
+# 前置条件
+preconditions:
+  - "planning_completed"  # planning阶段已完成
+  - "user_confirmed_plan"  # 用户已确认方案
+
+# 路径规则
+path_rules:
+  Write:
+    whitelist_patterns:
+      - "behavior_packs/**/*.py"
+      - "resource_packs/**/*.json"
+      - "scripts/**/*.js"
+      - "scripts/**/*.py"
+      - "*.py"
+      - "*.js"
+      - "*.json"
+    blacklist:
+      - ".task-meta.json"
+      - "workflow-state.json"
+      - ".task-active.json"
+      - ".cleanup-subagent.lock"
+    description: "可以写入代码文件，但禁止直接修改元数据"
+
+  Edit:
+    whitelist_patterns:
+      - "behavior_packs/**/*.py"
+      - "resource_packs/**/*.json"
+      - "scripts/**/*.js"
+      - "scripts/**/*.py"
+      - "*.py"
+      - "*.js"
+      - "*.json"
+    blacklist:
+      - ".task-meta.json"
+      - "workflow-state.json"
+      - ".task-active.json"
+    description: "可以修改代码文件，但禁止直接修改元数据"
+
+  Bash:
+    allowed_commands_patterns:
+      - "^pytest\\b"
+      - "^python\\b"
+      - "^node\\b"
+      - "^npm\\s+(test|run)\\b"
+      - "^git\\s+(status|diff|log)\\b"
+      - "^ls\\b"
+      - "^pwd\\b"
+      - "^cat\\b"
+    forbidden_commands_patterns:
+      - "rm\\s+-rf\\s+/"
+      - "git\\s+push\\s+--force"
+      - "sudo\\b"
+      - "mkfs\\b"
+      - "dd\\s+if="
+      - "format\\b"
+    description: "允许测试命令和安全的git命令，禁止危险操作"
+
+# 语义规则
+semantic_rules:
+  Write:
+    purpose: "implement_solution"
+    requires_read_first: true
+    description: "实现解决方案，写入新代码前必须先Read目标文件"
+
+  Edit:
+    purpose: "modify_code"
+    max_same_file_edits: 5
+    description: "修改代码，同一文件修改超过5次将触发专家审查"
+
+  Bash:
+    purpose: "test_execution"
+    description: "执行测试命令验证修改"
+
+  Read:
+    purpose: "understand_context"
+    description: "阅读代码理解上下文"
+
+# 完成条件
+completion_condition:
+  type: "user_confirmation"
+  auto_advance: false
+  next_step: "finalization"
+  confirmation_keywords:
+    - "/mc-confirm"
+    - "已修复"
+    - "修复完成"
+    - "已解决"
+    - "解决了"
+    - "好了"
+    - "可以了"
+    - "没问题了"
+    - "work了"
+    - "成功了"
+  continue_keywords:
+    - "继续"
+    - "continue"
+    - "再试试"
+  回调planning_keywords:
+    - "没修复"
+    - "不对"
+    - "需要调整"
+    - "重新设计"
+  description: "用户明确确认修复完成后推进到finalization"
+
+# AI引导提示
+ai_guidance: |
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ⚙️ 当前阶段: 代码实施（Implementation）
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  **轮次循环流程**：
+
+  1. **修改代码**：
+     - 根据Planning阶段的方案实施修改
+     - 使用 Write/Edit 修改代码
+     - 使用 Bash 执行测试
+
+  2. **Stop Hook触发**（每轮结束）：
+     - 系统汇总本轮所有代码修改
+     - 向用户展示修改摘要
+     - 阻止会话结束，等待用户反馈
+
+  3. **用户反馈**：
+     - "已修复"/"修复完成" → 推进到Finalization
+     - "没修复"/"需要调整" → 回到Planning重新设计
+     - "继续" → 开始新一轮修改
+     - 其他反馈 → AI继续优化
+
+  **允许操作**：
+  - ✅ Write创建新文件
+  - ✅ Edit修改现有文件
+  - ✅ Bash执行测试和安全命令
+  - ✅ Read/Grep/Glob阅读和搜索
+
+  **禁止操作**：
+  - ❌ 修改.task-meta.json等元数据
+  - ❌ 执行危险Bash命令（rm -rf /等）
+
+  **专家审查触发**：
+  - 同一文件修改超过5次
+  - 连续3轮用户反馈"没修复"
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# 轮次循环配置
+round_based_iteration:
+  enabled: true
+  max_rounds: 10  # 最多10轮，超过触发专家审查
+  round_boundary: "Stop"  # 轮次边界 = Stop Hook触发
+  metrics_tracking:
+    - "code_changes"  # 代码修改记录
+    - "files_modified"  # 修改的文件列表
+    - "test_results"  # 测试结果
+    - "user_feedback"  # 用户反馈
+
+# 专家审查触发条件
+expert_review_trigger:
+  same_file_edits_threshold: 5  # 同一文件修改5次
+  consecutive_failures: 3  # 连续3轮失败
+  max_rounds_exceeded: 10  # 超过10轮
+  description: "触发专家审查，分析问题根因"

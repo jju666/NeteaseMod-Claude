@@ -1,0 +1,177 @@
+# Planning Stage Rules - 方案制定阶段规则
+# Version: v3.0 Final
+# 差异化流程：BUG修复 vs 功能设计
+
+display_name: "方案制定"
+description: "深度研究问题根因和技术约束，制定解决方案，禁止修改任何文件"
+
+# 允许的工具列表
+allowed_tools:
+  - "Read"
+  - "Grep"
+  - "Glob"
+  - "Task"  # 允许启动子代理（专家审查/文档查询）
+
+# 前置条件
+preconditions:
+  - "activation_completed"  # activation阶段已完成
+
+# 路径规则
+path_rules:
+  Read:
+    whitelist_patterns:
+      - "**/*.md"
+      - "**/*.py"
+      - "**/*.js"
+      - "**/*.json"
+      - "docs/**/*"
+      - "markdown/**/*"
+    blacklist:
+      - ".task-meta.json"
+      - "workflow-state.json"
+    description: "可以阅读文档和代码，但禁止修改"
+
+  Grep:
+    allowed: true
+    description: "允许搜索代码，了解现有实现"
+
+  Glob:
+    allowed: true
+    description: "允许查找文件"
+
+  Task:
+    allowed: true
+    required_params:
+      subagent_type: "general-purpose"
+    allowed_descriptions:
+      - "专家审查"
+      - "文档查询"
+      - "API研究"
+    description: "允许启动专家审查或文档查询子代理"
+
+# 语义规则
+semantic_rules:
+  Read:
+    purpose: "deep_research"
+    min_reads: 3  # BUG修复任务动态调整为0
+    description: "必须查阅至少3个相关文档（BUG修复任务可选）"
+
+  Write:
+    forbidden: true
+    reason: "方案制定阶段严禁修改任何文件"
+
+  Edit:
+    forbidden: true
+    reason: "方案制定阶段严禁修改任何文件"
+
+  Bash:
+    forbidden: true
+    reason: "方案制定阶段禁止执行命令"
+
+  Task:
+    purpose: "launch_subagent"
+    max_launches: 2  # 最多启动2个子代理（专家审查+文档查询）
+    description: "启动专家审查或文档查询子代理"
+
+# 完成条件
+completion_condition:
+  type: "user_confirmation"
+  auto_advance: false
+  next_step: "implementation"
+  confirmation_keywords:
+    - "同意"
+    - "可以"
+    - "OK"
+    - "ok"
+    - "好的"
+    - "开始实施"
+  rejection_keywords:
+    - "不对"
+    - "不行"
+    - "重来"
+    - "重新"
+  description: "用户确认方案后推进到implementation"
+
+# AI引导提示（差异化）
+ai_guidance_bug_fix: |
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🐛 当前阶段: 方案制定（BUG修复）
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  **BUG修复流程**：
+
+  1. **定位问题**：
+     - 使用 Read/Grep/Glob 定位问题代码
+     - 理解BUG的根本原因
+     - 无需强制查阅文档（可选）
+
+  2. **制定修复方案**：
+     - 描述修复方案（文本形式）
+     - 说明修改哪些文件、修改原因
+
+  3. **专家审查**（自动触发）：
+     - 系统将启动专家审查子代理
+     - 检查方案是否违反CRITICAL规范
+     - 如未通过，根据建议调整方案
+
+  4. **用户确认**：
+     - 向用户展示最终方案
+     - 等待用户确认（输入"同意"/"可以"）
+
+  **禁止操作**：
+  - ❌ Write/Edit任何文件（PreToolUse会拦截）
+  - ❌ Bash执行命令
+
+  **允许操作**：
+  - ✅ Read阅读代码
+  - ✅ Grep搜索相关实现
+  - ✅ Glob查找文件
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ai_guidance_feature_design: |
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ⭐ 当前阶段: 方案制定（功能设计）
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  **功能设计流程**：
+
+  1. **文档研究**（强制）：
+     - 查阅至少3个相关文档
+     - 理解API使用方法和约束
+     - 查阅CRITICAL规范
+
+  2. **玩法包匹配**（可选）：
+     - 系统会推荐相似玩法包
+     - 参考玩法包代码实现
+
+  3. **制定设计方案**：
+     - 描述功能设计（文本形式）
+     - 说明实现步骤和文件组织
+
+  4. **用户确认**：
+     - 向用户展示设计方案
+     - 等待用户确认（输入"同意"/"可以"）
+
+  **禁止操作**：
+  - ❌ Write/Edit任何文件（PreToolUse会拦截）
+  - ❌ Bash执行命令
+
+  **允许操作**：
+  - ✅ Read阅读文档和代码（至少3个文档）
+  - ✅ Grep搜索相关实现
+  - ✅ Glob查找文件
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# BUG修复专属规则
+bug_fix_rules:
+  min_doc_count: 0  # BUG修复无需强制文档
+  expert_review_required: true  # 必须触发专家审查
+  expert_review_trigger:
+    - "方案制定完成"
+    - "plan_content存在"
+
+# 功能设计专属规则
+feature_design_rules:
+  min_doc_count: 3  # 功能设计强制3个文档
+  gameplay_pack_matching: true  # 启用玩法包匹配
+  doc_query_subagent: true  # 可选启动文档查询子代理

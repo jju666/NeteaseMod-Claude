@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Task Cancellation Handler - 任务取消/失败处理器 (v21.0)
+Task Cancellation Handler - 任务取消/失败处理器 (v2.0)
 
 职责:
 1. 检测任务取消/失败意图 (/mc-cancel, /mc-fail)
@@ -9,7 +9,7 @@ Task Cancellation Handler - 任务取消/失败处理器 (v21.0)
 3. 清理运行时状态文件
 4. 生成取消确认消息
 
-核心变更(v21.0):
+核心变更(v2.0):
 - 使用 TaskMetaManager 替代 StateManager
 - 使用 atomic_update() 更新任务元数据
 - 使用 clear_active_task() 清理状态
@@ -94,15 +94,17 @@ def detect_cancellation_intent(user_input: str) -> Tuple[bool, str, Optional[str
 def cancel_or_fail_task(
     cancel_type: str,
     reason: Optional[str],
-    cwd: str
+    cwd: str,
+    session_id: str
 ) -> str:
     """
-    执行任务取消或失败归档 (v21.0)
+    执行任务取消或失败归档 (v3.1: 支持会话隔离)
 
     Args:
         cancel_type: "cancel" | "fail"
         reason: 失败原因
         cwd: 工作目录
+        session_id: 会话ID（v3.1新增）
 
     Returns:
         确认消息文本
@@ -110,25 +112,27 @@ def cancel_or_fail_task(
     # 1. 初始化 TaskMetaManager
     mgr = TaskMetaManager(cwd)
 
-    # 2. 获取活跃任务ID
-    task_id = mgr.get_active_task_id()
-    if not task_id:
+    # 2. v3.1: 根据session_id获取绑定任务
+    binding = mgr.get_active_task_by_session(session_id)
+    if not binding:
         return """
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ 无活跃任务
+⚠️ 无绑定任务
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-当前没有进行中的任务，无法执行取消操作。
+当前会话没有绑定任务，无法执行取消操作。
 
 **提示**: 使用 `/mc 任务描述` 创建新任务
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
+    task_id = binding['task_id']
+
     # 3. 加载任务元数据
     task_meta = mgr.load_task_meta(task_id)
     if not task_meta:
-        # 任务元数据不存在，但仍清理活跃标记
-        mgr.clear_active_task()
+        # 任务元数据不存在，但仍解除绑定
+        mgr.unbind_task_from_session(session_id)
         return f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️ 任务元数据缺失
@@ -149,8 +153,8 @@ def cancel_or_fail_task(
 
     if not os.path.exists(task_dir):
         sys.stderr.write(f"[WARN] 任务目录不存在: {task_dir}\n")
-        # 仍然清理状态文件
-        mgr.clear_active_task()
+        # v3.1: 仍然解除会话绑定
+        mgr.unbind_task_from_session(session_id)
         return f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️ 任务目录缺失
@@ -219,8 +223,8 @@ def cancel_or_fail_task(
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
-    # 8. 清理运行时状态（v21.0: 使用 clear_active_task）
-    mgr.clear_active_task()
+    # 8. v3.1: 解除会话绑定
+    mgr.unbind_task_from_session(session_id)
 
     # 9. 生成确认消息
     confirmation_message = f"""
@@ -294,13 +298,14 @@ def calculate_duration(task_meta: Dict) -> str:
         return "未知"
 
 
-def handle_cancellation_from_user_prompt(user_input: str, cwd: str) -> Optional[str]:
+def handle_cancellation_from_user_prompt(user_input: str, cwd: str, session_id: str) -> Optional[str]:
     """
-    从UserPromptSubmit Hook调用的入口函数 (v21.0)
+    从UserPromptSubmit Hook调用的入口函数 (v3.1: 支持会话隔离)
 
     Args:
         user_input: 用户输入
         cwd: 工作目录
+        session_id: 会话ID（v3.1新增）
 
     Returns:
         如果是取消操作，返回确认消息；否则返回None
@@ -311,8 +316,8 @@ def handle_cancellation_from_user_prompt(user_input: str, cwd: str) -> Optional[
     if not is_cancellation:
         return None
 
-    # 2. 执行取消/失败
-    confirmation_message = cancel_or_fail_task(cancel_type, reason, cwd)
+    # 2. v3.1: 执行取消/失败（传入session_id）
+    confirmation_message = cancel_or_fail_task(cancel_type, reason, cwd, session_id)
 
     return confirmation_message
 
@@ -320,16 +325,23 @@ def handle_cancellation_from_user_prompt(user_input: str, cwd: str) -> Optional[
 # ============== 独立运行模式（用于测试）==============
 
 def main():
-    """独立运行入口（测试用）"""
+    """独立运行入口（v3.1: 测试用）"""
     try:
         # 读取stdin输入
         data = json.load(sys.stdin)
 
         prompt = data.get('prompt', '')
         cwd = os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd())
+        session_id = data.get('session_id')
 
-        # 处理取消
-        confirmation = handle_cancellation_from_user_prompt(prompt, cwd)
+        if not session_id:
+            sys.stderr.write("[ERROR] 缺少session_id，v3.1架构要求session_id\n")
+            output = {"continue": True}
+            print(json.dumps(output, ensure_ascii=False))
+            sys.exit(0)
+
+        # v3.1: 处理取消（传入session_id）
+        confirmation = handle_cancellation_from_user_prompt(prompt, cwd, session_id)
 
         if confirmation:
             # 输出控制JSON

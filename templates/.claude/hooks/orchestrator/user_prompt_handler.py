@@ -20,6 +20,7 @@ UserPromptSubmit Hook - 任务初始化拦截器 + 状态转移处理器 (v3.0 F
 import sys
 import json
 import os
+import re
 from datetime import datetime
 import io
 
@@ -29,25 +30,25 @@ if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-# 导入VSCode通知模块
+# 导入通知模块（修复路径）
 try:
-    from vscode_notify import notify_info, notify_warning, notify_error
+    from utils.notify import notify_info, notify_warning, notify_error
 except ImportError:
     # 降级方案：纯文本输出
     def notify_info(msg, detail=""): sys.stderr.write(u"ℹ️ {} {}\n".format(msg, detail))
     def notify_warning(msg, detail=""): sys.stderr.write(u"⚠️ {} {}\n".format(msg, detail))
     def notify_error(msg, detail=""): sys.stderr.write(u"❌ {} {}\n".format(msg, detail))
 
-# 导入工作流配置加载器
+# 导入工作流配置加载器（修复路径）
 try:
-    from workflow_config_loader import get_max_task_desc_length
+    from utils.config_loader import get_max_task_desc_length
 except ImportError:
     def get_max_task_desc_length(project_path=None):
         return 8  # 默认值
 
-# 导入任务取消处理器
+# 导入任务取消处理器（修复相对导入）
 try:
-    from task_cancellation_handler import handle_cancellation_from_user_prompt
+    from .task_cancellation_handler import handle_cancellation_from_user_prompt
 except ImportError:
     # 降级方案：禁用取消功能
     def handle_cancellation_from_user_prompt(user_input, cwd):
@@ -288,14 +289,29 @@ def format_gameplay_pack(pattern):
 
     return result
 
-def handle_state_transition(user_input, cwd):
-    """处理用户状态转移（v22.2: 使用atomic_update增强并发安全性）"""
+def handle_state_transition(user_input, cwd, session_id=None):
+    """处理用户状态转移（v22.2: 使用atomic_update增强并发安全性）
+
+    Args:
+        user_input: 用户输入
+        cwd: 工作目录
+        session_id: 会话ID（v3.1+需要）
+    """
     if not TaskMetaManager:
         return None
 
-    # 获取活跃任务
+    # v3.1: 获取当前会话绑定的任务
     meta_manager = TaskMetaManager(cwd)
-    task_id = meta_manager.get_active_task_id()
+
+    if session_id:
+        # v3.1: 使用session_id获取绑定的任务
+        active_task = meta_manager.get_active_task_by_session(session_id)
+        if not active_task:
+            return None
+        task_id = active_task['task_id']
+    else:
+        # 降级处理：无session_id时返回None
+        return None
 
     if not task_id:
         return None
@@ -340,7 +356,7 @@ def handle_state_transition(user_input, cwd):
                 docs_read = meta_data.get('metrics', {}).get('docs_read', [])
                 required_docs = meta_data.get('steps', {}).get('planning', {}).get('required_doc_count', 1)
 
-                # 如果文档不足，阻止转移
+                # 前置检查1：文档数量（仅非BUG修复任务）
                 if required_docs > 0 and len(docs_read) < required_docs:
                     result['blocked'] = True
                     result['block_reason'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -370,8 +386,49 @@ def handle_state_transition(user_input, cwd):
                     sys.stderr.write(u"[UserPromptSubmit] Planning→Implementation转移被拒绝: 文档查阅不足 ({}/{}\n".format(len(docs_read), required_docs))
                     return meta_data  # 原样返回，不修改
 
+                # 🔥 v22.1新增前置检查2：专家审查完成（仅BUG修复任务）
+                planning_step = meta_data.get('steps', {}).get('planning', {})
+                expert_review_required = planning_step.get('expert_review_required', False)
+                expert_review_completed = planning_step.get('expert_review_completed', False)
+
+                if expert_review_required and not expert_review_completed:
+                    result['blocked'] = True
+                    result['block_reason'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 无法进入Implementation阶段
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+当前任务类型: BUG修复
+专家审查状态: 未完成
+
+❌ 问题: BUG修复任务必须先完成专家审查才能进入Implementation阶段
+
+✅ 解决方案:
+1. 使用 Task 工具启动专家审查子代理：
+   - subagent_type: "general-purpose"
+   - description: "BUG修复方案审查"
+   - prompt: 详细描述你的方案，包括：
+     * 你对BUG根本原因的分析
+     * 计划修改的文件和具体逻辑
+     * 潜在风险和验证方法
+     * 请专家验证方案正确性
+
+2. 等待子代理完成审查并返回结果
+
+3. 根据审查结果调整方案（如需要）
+
+4. 重新输入"同意"推进到Implementation阶段
+
+💡 提示: 专家审查能有效避免循环修复，提高一次性修复成功率。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+                    sys.stderr.write(u"[UserPromptSubmit v22.1] Planning→Implementation转移被拒绝: 专家审查未完成\n")
+                    return meta_data  # 原样返回，不修改
+
                 # 前置检查通过，执行状态转移
-                sys.stderr.write(u"[UserPromptSubmit] Planning→Implementation转移检查通过: 文档查阅数 {}/{}\n".format(len(docs_read), required_docs))
+                sys.stderr.write(u"[UserPromptSubmit] Planning→Implementation转移检查通过: 文档{}/{}, 专家审查{}\n".format(
+                    len(docs_read), required_docs,
+                    "已完成" if expert_review_completed else "未要求"
+                ))
 
                 # 修改状态
                 meta_data['current_step'] = 'implementation'
@@ -627,127 +684,75 @@ def format_fallback_guide():
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
-def analyze_bug_symptom(task_desc):
-    """v20.2: 分析BUG症状类型"""
-    import re
-    task_lower = task_desc.lower()
-
-    # API错误
-    if re.search(r'(attributeerror|notimplementederror|keyerror|api.*not.*work)', task_lower):
-        return ("api_error", u"API调用错误")
-
-    # 生命周期错误
-    if re.search(r'(初始化|加载|卸载|生命周期|lifecycle)', task_lower):
-        return ("lifecycle_error", u"生命周期管理问题")
-
-    # CRITICAL违规
-    if re.search(r'(client.*server|同步|tick)', task_lower):
-        return ("critical_violation", u"CRITICAL规范违规")
-
-    # 性能问题
-    if re.search(r'(卡顿|延迟|性能|performance)', task_lower):
-        return ("performance", u"性能问题")
-
-    # 业务逻辑 (默认)
-    return ("business_logic", u"业务逻辑BUG")
-
-def route_knowledge_sources(symptom_type, task_desc):
-    """v20.2: 根据症状类型路由知识源"""
-    routes = {
-        "business_logic": {
-            "strategy": u"项目文档优先 → 代码实现",
-            "guidance_note": u"💡 业务逻辑问题通常记录在项目markdown文档中"
-        },
-        "api_error": {
-            "strategy": u"常见问题速查 → API文档",
-            "guidance_note": u"💡 11个常见问题覆盖90%的API错误"
-        },
-        "lifecycle_error": {
-            "strategy": u"CRITICAL规范 → 生命周期文档",
-            "guidance_note": u"💡 生命周期问题多为违反规范导致"
-        },
-        "critical_violation": {
-            "strategy": u"CRITICAL规范 → 双端隔离文档",
-            "guidance_note": u"💡 检查是否违反12项CRITICAL规则"
-        },
-        "performance": {
-            "strategy": u"性能优化指南 → Profiling",
-            "guidance_note": u"💡 常见性能问题已有标准化解决方案"
-        }
-    }
-    return routes.get(symptom_type, routes["business_logic"])
-
-def extract_business_keywords(task_desc):
-    """v20.2: 提取业务关键词（用于文档搜索）"""
-    import re
-    # 移除常见停用词
-    stop_words = [u'修复', u'问题', u'BUG', u'bug', u'错误', u'不', u'无法', u'没有', u'tests', u'目录', u'中']
-    words = re.findall(r'[\u4e00-\u9fa5]+', task_desc)
-    keywords = [w for w in words if w not in stop_words and len(w) >= 2]
-    return keywords[:3]  # 返回前3个关键词
-
 def format_bugfix_guide(task_desc):
-    """v20.2: BUG修复智能指引"""
-    # 分析症状
-    symptom_type, symptom_desc = analyze_bug_symptom(task_desc)
-    route = route_knowledge_sources(symptom_type, task_desc)
-    keywords = []
-    if symptom_type == "business_logic":
-        keywords = extract_business_keywords(task_desc)
+    """v22.1: BUG修复流程指引（强制专家审查）"""
 
-    # 构建指引
     guidance = u"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    guidance += u"🐛 智能BUG修复系统 v20.2\n"
+    guidance += u"🐛 BUG修复工作流 v22.1（强制专家审查）\n"
     guidance += u"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-    guidance += u"**症状**: {}\n".format(symptom_desc)
-    guidance += u"**策略**: {}\n\n".format(route["strategy"])
 
-    # 差异化指引
-    if symptom_type == "business_logic" and keywords:
-        guidance += u"### 第1步: 查阅项目文档（⭐优先）\n\n"
-        guidance += u"关键词: {}\n".format(u', '.join(keywords[:2]))
-        # v20.3.1增强: 明确区分Glob和Grep的使用场景（解决BUG #5）
-        guidance += u"```python\n"
-        guidance += u"# 查找文件名包含关键词的文档（使用Glob工具）\n"
-        guidance += u"Glob(\"markdown/**/*{}*.md\")\n".format(keywords[0])
-        guidance += u"\n# 如果没有找到，再搜索文件内容（使用Grep工具）\n"
-        guidance += u"Grep(pattern=\"{}\", path=\"markdown\", output_mode=\"files_with_matches\")\n".format(keywords[0])
-        guidance += u"```\n"
-        guidance += u"**工具选择原则**:\n"
-        guidance += u"- Glob: 查找文件名（快速定位）\n"
-        guidance += u"- Grep: 搜索文件内容（深度查找）\n"
-        guidance += u"- Read: 阅读具体文件\n\n"
-        guidance += u"理解设计意图 → 定位代码 → 验证一致性\n\n"
-        guidance += route.get("guidance_note", u"") + u"\n\n"
-    elif symptom_type == "api_error":
-        guidance += u"### 第1步: 快速匹配常见错误\n\n"
-        guidance += u"```python\n"
-        guidance += u"Read(\"markdown/core/问题排查.md\", offset=1, limit=150)\n"
-        guidance += u"```\n"
-        guidance += u"11个常见问题速查 → 验证API用法\n\n"
-        guidance += route.get("guidance_note", u"") + u"\n\n"
-    elif symptom_type in ["lifecycle_error", "critical_violation"]:
-        guidance += u"### 第1步: 查阅CRITICAL规范\n\n"
-        guidance += u"```python\n"
-        guidance += u"Read(\"markdown/core/开发规范.md\", offset=20, limit=100)\n"
-        guidance += u"```\n"
-        guidance += u"验证规范违规 → 定位问题代码\n\n"
-        guidance += route.get("guidance_note", u"") + u"\n\n"
-    elif symptom_type == "performance":
-        guidance += u"### 第1步: 性能优化指南\n\n"
-        guidance += u"```python\n"
-        guidance += u"Read(\"markdown/深度指南/性能优化完整指南.md\")\n"
-        guidance += u"```\n"
-        guidance += u"问题12-15: 卡顿/延迟/内存问题\n\n"
-    else:
-        guidance += u"### 混合探索\n\n"
-        guidance += u"先查项目文档 → 再查常见问题 → 动态调整\n\n"
+    guidance += u"**当前阶段**: Planning（方案制定）\n"
+    guidance += u"**核心策略**: 代码分析 → 方案制定 → **强制专家审查** → 用户确认 → Implementation\n\n"
 
-    # 通用结尾
+    guidance += u"### 第1步：代码分析定位BUG\n\n"
+    guidance += u"**推荐流程**:\n"
+    guidance += u"1. 使用 Grep/Glob 定位相关代码文件\n"
+    guidance += u"2. 使用 Read 阅读关键代码逻辑\n"
+    guidance += u"3. 分析根本原因（而非表象）\n"
+    guidance += u"4. 制定修复方案（明确要修改的文件和逻辑）\n\n"
+
+    guidance += u"**可选**：如果代码逻辑不清楚，可以查阅项目文档理解设计意图\n\n"
+
+    guidance += u"### 第2步：启动专家审查子代理（必须）\n\n"
+    guidance += u"**重要**: BUG修复任务必须通过专家审查才能进入Implementation阶段\n\n"
+    guidance += u"**操作**: 使用 Task 工具启动专家审查\n"
+    guidance += u"```\n"
+    guidance += u"Tool: Task\n"
+    guidance += u"Parameters:\n"
+    guidance += u"  subagent_type: \"general-purpose\"\n"
+    guidance += u"  description: \"BUG修复方案审查\"\n"
+    guidance += u"  prompt: |\n"
+    guidance += u"    你是一位资深代码审查专家。请审查以下BUG修复方案：\n"
+    guidance += u"    \n"
+    guidance += u"    ## 问题描述\n"
+    guidance += u"    [用户报告的BUG现象]\n"
+    guidance += u"    \n"
+    guidance += u"    ## 根本原因分析\n"
+    guidance += u"    [你的分析：为什么会出现这个BUG]\n"
+    guidance += u"    \n"
+    guidance += u"    ## 修复方案\n"
+    guidance += u"    [你计划修改的文件和具体逻辑]\n"
+    guidance += u"    \n"
+    guidance += u"    ## 潜在风险\n"
+    guidance += u"    [这个修改可能引入的新问题]\n"
+    guidance += u"    \n"
+    guidance += u"    请验证：\n"
+    guidance += u"    1. 根本原因分析是否正确（避免表象修复）\n"
+    guidance += u"    2. 修复方案是否会引入新问题\n"
+    guidance += u"    3. 是否有更好的替代方案\n"
+    guidance += u"    \n"
+    guidance += u"    请以以下格式返回审查结果：\n"
+    guidance += u"    - 审查结论: pass / 需要调整\n"
+    guidance += u"    - 问题点: [如果需要调整，说明具体问题]\n"
+    guidance += u"    - 改进建议: [具体建议]\n"
+    guidance += u"```\n\n"
+
+    guidance += u"### 第3步：根据审查结果调整方案\n\n"
+    guidance += u"**操作**: 等待子代理返回审查结果，根据建议调整方案\n\n"
+
+    guidance += u"### 第4步：向用户确认\n\n"
+    guidance += u"**触发关键词**: \"同意\" / \"可以\" / \"确认\"\n"
+    guidance += u"**效果**: Hook会检查专家审查是否完成，完成后推进到Implementation阶段\n\n"
+
     guidance += u"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    guidance += u"⚠️ 提示: 文档不存在→降级探索 | 文档过期→以代码为准\n"
-    guidance += u"**重要**: 本次BUG修复无需启动子代理，Hook会自动检查规范\n"
-    guidance += u"**立即开始**: 严格按照上述工具调用示例执行第1步\n"  # v20.3.1强化引导
+    guidance += u"⚠️ 重要提醒\n"
+    guidance += u"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    guidance += u"1. **无需强制查阅文档**：required_doc_count=0\n"
+    guidance += u"2. **禁止直接修改代码**：Planning阶段只能分析和制定方案\n"
+    guidance += u"3. **强制专家审查**：未完成专家审查无法进入Implementation阶段\n"
+    guidance += u"4. **状态持久化**：专家审查状态保存在task-meta.json，不受压缩影响\n\n"
+
+    guidance += u"**立即开始**: 使用代码分析工具定位BUG根本原因\n"
     guidance += u"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
 
     return guidance
@@ -925,17 +930,24 @@ def detect_existing_task_dir(prompt, cwd):
 
     return {"is_resume": False}
 
-def resume_existing_task(task_dir, task_id, new_user_input, cwd):
-    """v2.0: 恢复已有任务的工作流（简化版）
+def resume_existing_task(task_dir, task_id, new_user_input, cwd, session_id):
+    """v3.1: 恢复已有任务的工作流（增加session_id参数）
 
     职责:
     1. 加载 .task-meta.json（唯一数据源）
     2. 更新恢复信息
-    3. 更新 .task-active.json
+    3. 绑定任务到当前会话（v3.1核心改动）
     4. 生成智能恢复提示(包含历史上下文)
     5. 记录恢复事件到 .conversation.jsonl
 
-    返回:
+    Args:
+        task_dir: 任务目录路径
+        task_id: 任务ID
+        new_user_input: 用户输入的新指令
+        cwd: 工作目录
+        session_id: 会话ID（v3.1新增）
+
+    Returns:
         str: 智能恢复提示文本
     """
     # 使用 TaskMetaManager 加载任务元数据
@@ -957,14 +969,14 @@ def resume_existing_task(task_dir, task_id, new_user_input, cwd):
     if not mgr.save_task_meta(task_id, task_meta):
         sys.stderr.write(u"[WARN] 保存任务元数据失败\n")
 
-    sys.stderr.write(u"[INFO v2.0] 任务元数据已加载（单一数据源模式）\n")
+    sys.stderr.write(u"[INFO v3.1] 任务元数据已加载（单一数据源模式）\n")
 
-    # 3. 更新.task-active.json (v3.0 Final: 默认值使用语义化命名)
+    # 3. 绑定任务到当前会话（v3.1核心改动）
     current_step = task_meta.get('current_step', 'implementation')
-    if not mgr.set_active_task(task_id, current_step):
-        sys.stderr.write(u"[WARN] 设置活跃任务失败\n")
+    if not mgr.bind_task_to_session(task_id, session_id):
+        sys.stderr.write(u"[WARN] 绑定任务到会话失败\n")
 
-    sys.stderr.write(u"[INFO] .task-active.json已更新\n")
+    sys.stderr.write(u"[INFO v3.1] 任务已绑定到会话 {}\n".format(session_id[:8] + "..."))
 
     # 4. 记录恢复事件到 .conversation.jsonl
     conversation_file = os.path.join(task_dir, '.conversation.jsonl')
@@ -1099,19 +1111,162 @@ def resume_existing_task(task_dir, task_id, new_user_input, cwd):
 
     return resume_prompt
 
+def extract_slash_command_info(prompt):
+    """
+    提取SlashCommand展开后的信息 (v3.2修复)
+
+    支持两种格式：
+    1. XML标记格式（SlashCommand展开后）：
+       <command-name>/mc</command-name>
+       <command-args>任务描述</command-args>
+
+    2. 传统格式（直接输入）：
+       /mc 任务描述
+
+    Args:
+        prompt: Hook接收到的prompt字段
+
+    Returns:
+        {
+            "is_mc_command": bool,
+            "command_args": str or None,
+            "format": "xml" | "plain" | "none"
+        }
+    """
+    import re
+
+    # 格式1：检测XML标记（SlashCommand展开后的格式）
+    command_name_match = re.search(r'<command-name>(/mc)</command-name>', prompt)
+
+    if command_name_match:
+        # 提取 <command-args>...</command-args>
+        args_match = re.search(r'<command-args>([^<]+)</command-args>', prompt)
+
+        if args_match:
+            return {
+                "is_mc_command": True,
+                "command_args": args_match.group(1).strip(),
+                "format": "xml"
+            }
+        else:
+            # /mc cancel 或无参数情况
+            return {
+                "is_mc_command": True,
+                "command_args": "",
+                "format": "xml"
+            }
+
+    # 格式2：传统格式检测（直接输入 /mc <任务描述>）
+    if prompt.strip().startswith('/mc '):
+        return {
+            "is_mc_command": True,
+            "command_args": prompt.replace('/mc ', '').strip(),
+            "format": "plain"
+        }
+
+    # 格式3：仅 /mc（无空格）
+    if prompt.strip() == '/mc':
+        return {
+            "is_mc_command": True,
+            "command_args": "",
+            "format": "plain"
+        }
+
+    # 非 /mc 命令
+    return {
+        "is_mc_command": False,
+        "command_args": None,
+        "format": "none"
+    }
+
 def main():
-    """主入口（v3.0 Final增强错误诊断）"""
+    """主入口（v3.1增强：会话隔离支持；v3.2修复：SlashCommand格式识别）"""
     try:
         # 读取stdin输入
         data = json.load(sys.stdin)
 
         prompt = data.get('prompt', '')
         cwd = os.environ.get('CLAUDE_PROJECT_DIR', os.getcwd())
+        session_id = data.get('session_id')  # v3.1新增：获取session_id
 
-        # 检测是否是 /mc 命令
-        if not prompt.strip().startswith('/mc '):
+        if not session_id:
+            # 缺少session_id（不应该发生），放行
+            sys.stderr.write("[ERROR] UserPromptSubmit缺少session_id\n")
+            output = {"continue": True}
+            print(json.dumps(output, ensure_ascii=False))
+            sys.exit(0)
+
+        # === v3.2: SlashCommand格式解析 ===
+        cmd_info = extract_slash_command_info(prompt)
+
+        # Debug日志：命令解析结果
+        sys.stderr.write(u"[DEBUG v3.2] 命令检测: is_mc={}, format={}, args={}\n".format(
+            cmd_info['is_mc_command'],
+            cmd_info['format'],
+            cmd_info['command_args'][:40] if cmd_info['command_args'] else 'None'
+        ))
+
+        # === v3.1: /mc cancel 检测 ===
+        if cmd_info['is_mc_command'] and cmd_info['command_args'].strip() == 'cancel':
+            sys.stderr.write(u"[INFO v3.1] 检测到取消命令\n")
+
+            # 解除当前会话的绑定
+            if TaskMetaManager:
+                mgr = TaskMetaManager(cwd)
+                if mgr.unbind_task_from_session(session_id):
+                    cancel_message = u"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ 工作流已解除
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+当前会话的工作流绑定已清除。
+
+**下一步**:
+- 你可以正常使用所有工具，不受工作流限制
+- 如需重新启动工作流，使用 `/mc <任务描述>`
+- 如需恢复已有任务，使用 `/mc <任务路径>`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+                    output = {
+                        "hookSpecificOutput": {
+                            "hookEventName": "UserPromptSubmit",
+                            "additionalContext": cancel_message
+                        },
+                        "continue": True
+                    }
+                    print(json.dumps(output, ensure_ascii=False))
+
+                    # VSCode通知
+                    try:
+                        notify_info(u"✅ 工作流已解除", u"当前会话不再受工作流限制")
+                    except:
+                        pass
+
+                    sys.exit(0)
+                else:
+                    # 解除失败（可能本来就没绑定）
+                    output = {
+                        "hookSpecificOutput": {
+                            "hookEventName": "UserPromptSubmit",
+                            "additionalContext": u"⚠️ 当前会话没有绑定任务"
+                        },
+                        "continue": True
+                    }
+                    print(json.dumps(output, ensure_ascii=False))
+                    sys.exit(0)
+            else:
+                # TaskMetaManager不可用
+                sys.stderr.write(u"[ERROR] TaskMetaManager不可用\n")
+                output = {"continue": True}
+                print(json.dumps(output, ensure_ascii=False))
+                sys.exit(0)
+
+        # === v3.2: 检测是否是 /mc 命令 ===
+        if not cmd_info['is_mc_command']:
             # 非 /mc 命令，先检查是否是状态转移关键词（v3.0 Final新增）
-            state_transition_result = handle_state_transition(prompt, cwd)
+            # 注意：状态转移检测仍然使用原始prompt（因为用户可能直接输入"同意"、"修复了"等）
+            state_transition_result = handle_state_transition(prompt, cwd, session_id)
 
             if state_transition_result:
                 # 是状态转移命令，输出结果并退出
@@ -1124,7 +1279,8 @@ def main():
                 sys.exit(0)
 
         # === v20.3.1: 任务取消/失败检测 ===
-        cancellation_message = handle_cancellation_from_user_prompt(prompt, cwd)
+        # v3.2修复：使用提取的command_args而非原始prompt
+        cancellation_message = handle_cancellation_from_user_prompt(cmd_info['command_args'], cwd)
 
         if cancellation_message:
             # 输出取消确认消息
@@ -1146,8 +1302,98 @@ def main():
 
             sys.exit(0)
 
+        # === v3.1: 时间戳模糊匹配检测 ===
+        # 检测格式：161424 继续修改 或 1116-161424（注意：v3.2已剥离/mc前缀）
+        # v3.2修复：直接在command_args中匹配，不再需要/mc前缀
+        timestamp_pattern = r'^([\d-]{4,11})(?:\s+(.*))?$'
+        timestamp_match = re.match(timestamp_pattern, cmd_info['command_args'].strip())
+
+        if timestamp_match:
+            timestamp = timestamp_match.group(1)  # 提取时间戳
+            new_user_input = timestamp_match.group(2) or ""  # 提取补充描述
+
+            sys.stderr.write(u"[INFO v3.1] 检测到时间戳模糊匹配: {}\n".format(timestamp))
+
+            if TaskMetaManager:
+                mgr = TaskMetaManager(cwd)
+                task_id = mgr.fuzzy_match_task_by_timestamp(timestamp)
+
+                if task_id:
+                    sys.stderr.write(u"[INFO v3.1] 匹配到任务: {}\n".format(task_id))
+
+                    # 执行任务恢复流程
+                    try:
+                        task_dir = mgr.get_task_dir(task_id)
+                        resume_prompt = resume_existing_task(
+                            task_dir,
+                            task_id,
+                            new_user_input,
+                            cwd,
+                            session_id  # v3.1新增：传入session_id
+                        )
+
+                        # 输出恢复提示
+                        output = {
+                            "hookSpecificOutput": {
+                                "hookEventName": "UserPromptSubmit",
+                                "additionalContext": resume_prompt
+                            },
+                            "continue": True
+                        }
+                        print(json.dumps(output, ensure_ascii=False))
+
+                        # VSCode通知
+                        try:
+                            notify_info(
+                                u"✅ 任务已恢复（时间戳匹配）| {}".format(task_id[:30]),
+                                u"继续执行: {}".format(new_user_input[:40] if new_user_input else "继续上一次工作")
+                            )
+                        except:
+                            pass
+
+                        sys.exit(0)
+
+                    except Exception as e:
+                        sys.stderr.write(u"[ERROR] 时间戳匹配恢复失败: {}\n".format(e))
+                        import traceback
+                        traceback.print_exc(file=sys.stderr)
+
+                        # 降级：提示错误，让用户重新输入
+                        output = {
+                            "hookSpecificOutput": {
+                                "hookEventName": "UserPromptSubmit",
+                                "additionalContext": u"❌ 任务恢复失败: {}\n请使用完整任务路径重试".format(str(e))
+                            },
+                            "continue": False,
+                            "stopReason": "task_resume_failed"
+                        }
+                        print(json.dumps(output, ensure_ascii=False))
+                        sys.exit(0)
+                else:
+                    # 没有匹配到任务
+                    output = {
+                        "hookSpecificOutput": {
+                            "hookEventName": "UserPromptSubmit",
+                            "additionalContext": u"""
+❌ 未找到匹配的任务
+
+时间戳 `{}` 没有匹配到任何已存在的任务。
+
+**建议**:
+1. 检查时间戳是否正确（格式：MMDD-HHMMSS，如 1116-161424）
+2. 查看 `tasks/` 目录确认任务是否存在
+3. 使用完整任务路径：`/mc tasks/<任务目录> 继续修改`
+""".format(timestamp)
+                        },
+                        "continue": False,
+                        "stopReason": "task_not_found"
+                    }
+                    print(json.dumps(output, ensure_ascii=False))
+                    sys.exit(0)
+
         # === v20.2.16: 任务恢复检测 ===
-        resume_info = detect_existing_task_dir(prompt, cwd)
+        # v3.2修复：使用提取的command_args
+        resume_info = detect_existing_task_dir(cmd_info['command_args'], cwd)
 
         if resume_info['is_resume']:
             sys.stderr.write(u"[INFO v20.2.16] 进入任务恢复模式\n")
@@ -1158,7 +1404,8 @@ def main():
                     resume_info['task_dir'],
                     resume_info['task_id'],
                     resume_info['new_user_input'],
-                    cwd
+                    cwd,
+                    session_id  # v3.1新增：传入session_id
                 )
 
                 # 输出控制JSON（官方格式 v20.2.17）
@@ -1193,8 +1440,37 @@ def main():
 
         # === 新任务创建流程 ===
 
-        # 提取任务描述
-        task_desc = prompt.replace('/mc ', '').strip().strip('"\'')
+        # v3.2修复：使用提取的command_args作为任务描述
+        task_desc = cmd_info['command_args'].strip().strip('"\'')
+
+        # v3.2新增：参数验证
+        if not task_desc:
+            # 没有任务描述，提示用户
+            sys.stderr.write(u"[ERROR v3.2] 缺少任务描述\n")
+
+            output = {
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": u"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+❌ 缺少任务描述
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**用法**: `/mc <任务描述>`
+
+**示例**:
+- `/mc 修复玩家死亡复活丢失装备的BUG`
+- `/mc 实现金币系统`
+- `/mc 1116-201326 继续修改`（恢复已有任务）
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+                },
+                "continue": False,
+                "stopReason": "missing_task_description"
+            }
+            print(json.dumps(output, ensure_ascii=False))
+            sys.exit(0)
 
         # 生成任务ID - v20.2.5: 尝试保留中文，依赖stdin编码修复
         timestamp = datetime.now().strftime('%m%d-%H%M%S')
@@ -1258,15 +1534,15 @@ def main():
                 calculate_match_score(task_desc, matched_pattern.get('keywords', []))
             ))
         else:
-            # v20.2: Intelligent routing based on task type
+            # v22.0: 任务类型路由（BUG修复使用专家审查流程）
             is_bugfix = is_bugfix_task(task_desc)
-            sys.stderr.write(u"[DEBUG v20.2] is_bugfix_task result: {}\n".format(is_bugfix))
+            sys.stderr.write(u"[DEBUG v22.0] is_bugfix_task result: {}\n".format(is_bugfix))
 
             if is_bugfix:
                 try:
                     gameplay_pack_content = format_bugfix_guide(task_desc)
-                    pack_info = u"BUG修复任务,启用智能诊断 (v20.2)"
-                    sys.stderr.write(u"[INFO] BUG修复模式激活,智能诊断系统已注入\n")
+                    pack_info = u"BUG修复任务,启用专家审查机制 (v22.0)"
+                    sys.stderr.write(u"[INFO] BUG修复模式激活,代码分析+专家审查流程已注入\n")
                 except Exception as e:
                     sys.stderr.write(u"[ERROR] BUG修复指引生成失败: {}\n".format(e))
                     import traceback
@@ -1282,8 +1558,14 @@ def main():
         # v2.0/v3.0 Final: 创建任务元数据（唯一数据源，包含完整运行时状态）
         task_type = "bug_fix" if is_bugfix_task(task_desc) else "general"
 
-        # v3.0 Final: 动态required_doc_count（玩法包2个，标准3个）
-        required_doc_count = 2 if matched_pattern else 3
+        # v3.0 Final: 动态required_doc_count（根据task_type差异化设置）
+        # 符合设计文档《Hooks状态机功能实现.md》:1440行
+        if task_type == "bug_fix":
+            required_doc_count = 0  # BUG修复: 无强制文档要求，触发专家审查
+        elif matched_pattern:
+            required_doc_count = 2  # 玩法包模式
+        else:
+            required_doc_count = 3  # 标准功能设计模式
 
         task_meta = {
             # 基础元数据
@@ -1311,7 +1593,18 @@ def main():
                     "status": "in_progress",
                     "started_at": datetime.now().isoformat(),
                     "required_doc_count": required_doc_count,
-                    "prompt": u"查阅至少{}个相关文档，制定修复/实现方案，等待用户确认后进入implementation。".format(required_doc_count)
+
+                    # v22.1新增：专家审查追踪（仅BUG修复任务）
+                    "expert_review_required": (task_type == "bug_fix"),  # BUG修复强制专家审查
+                    "expert_review_completed": False,                    # 专家审查是否完成
+                    "expert_review_count": 0,                            # 专家审查次数
+                    "expert_review_result": None,                        # 审查结果（pass/需要调整）
+
+                    "prompt": (
+                        u"直接分析代码，制定修复方案，**启动专家审查子代理**，等待用户确认后进入implementation。"
+                        if task_type == "bug_fix"
+                        else u"查阅至少{}个相关文档，制定修复/实现方案，等待用户确认后进入implementation。".format(required_doc_count)
+                    )
                 },
                 "implementation": {
                     "description": u"代码实施",
@@ -1380,22 +1673,15 @@ def main():
 
         sys.stderr.write(u"[INFO v2.0] 任务元数据已创建（单一数据源模式）\n")
 
-        # 创建 .task-active.json（使用 TaskMetaManager，v3.0 Final: 语义化命名）
+        # 创建 .task-active.json（v3.1: 使用会话绑定）
         if TaskMetaManager:
             mgr = TaskMetaManager(cwd)
-            if not mgr.set_active_task(task_id, "planning"):
-                sys.stderr.write(u"[WARN] 设置活跃任务失败\n")
+            # v3.1核心改动：绑定任务到当前会话
+            if not mgr.bind_task_to_session(task_id, session_id):
+                sys.stderr.write(u"[WARN] 绑定任务失败\n")
         else:
-            # 降级方案：直接写入文件 (v3.0 Final: 语义化命名)
-            active_flag = {
-                "task_id": task_id,
-                "task_dir": task_dir,
-                "current_step": "planning",
-                "created_at": datetime.now().isoformat()
-            }
-            active_file = os.path.join(cwd, '.claude', '.task-active.json')
-            with open(active_file, 'w', encoding='utf-8') as f:
-                json.dump(active_flag, f, indent=2, ensure_ascii=False)
+            # 降级方案：不创建绑定（TaskMetaManager不可用时）
+            sys.stderr.write(u"[ERROR] TaskMetaManager不可用，无法创建任务绑定\n")
 
         # === v20.2.7: 创建会话历史文件（方案B - 持久化会话历史）===
         conversation_file = os.path.join(task_dir, '.conversation.jsonl')

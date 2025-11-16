@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Session End Hook - 会话结束钩子 (v21.0)
+Session End Hook - 会话结束钩子 (v2.0)
 
 职责:
 1. 更新会话结束时间
 2. 不删除任何文件(task-meta.json 保留)
 
-核心变更(v21.0):
+核心变更(v2.0):
 - 删除 workflow-state.json 清理逻辑
 - 仅更新时间戳
 - 简化代码(从170行 → 55行)
@@ -15,6 +15,7 @@ Session End Hook - 会话结束钩子 (v21.0)
 
 import sys
 import os
+import json
 from datetime import datetime
 
 HOOK_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -28,14 +29,24 @@ except ImportError:
 
 
 def main():
-    """主入口"""
-    cwd = os.getcwd()
-    mgr = TaskMetaManager(cwd)
+    """主入口（v3.1: 支持会话隔离）"""
+    # 读取Hook输入
+    hook_input = json.load(sys.stdin)
+    cwd = hook_input.get('cwd', os.getcwd())
+    session_id = hook_input.get('session_id')
 
-    task_id = mgr.get_active_task_id()
-    if not task_id:
-        sys.stderr.write("[INFO v21.0] 无活跃任务,跳过会话结束处理\n")
+    if not session_id:
+        # v3.1纯粹架构：要求session_id
+        sys.stderr.write("[ERROR] SessionEnd缺少session_id，v3.1架构要求session_id\n")
         sys.exit(0)
+
+    mgr = TaskMetaManager(cwd)
+    binding = mgr.get_active_task_by_session(session_id)
+    if not binding:
+        sys.stderr.write("[INFO v2.0] 当前会话无绑定任务,跳过会话结束处理\n")
+        sys.exit(0)
+
+    task_id = binding['task_id']
 
     # 原子更新会话结束时间
     def update_func(task_meta):
@@ -45,7 +56,7 @@ def main():
     updated = mgr.atomic_update(task_id, update_func)
 
     if updated:
-        sys.stderr.write(f"[INFO v21.0] 会话已结束: {task_id}\n")
+        sys.stderr.write(f"[INFO v2.0] 会话已结束: {task_id}\n")
     else:
         sys.stderr.write(f"[ERROR] 更新任务元数据失败: {task_id}\n")
 

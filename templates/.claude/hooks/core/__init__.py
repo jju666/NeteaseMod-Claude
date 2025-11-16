@@ -1,7 +1,7 @@
 """
-Core module for Hook State Machine (v21.0)
+Core module for Hook State Machine (v2.0)
 
-核心变更(v21.0):
+核心变更(v2.0):
 - 移除 StateManager，使用 TaskMetaManager 替代
 - task-meta.json 为唯一数据源
 - 删除 workflow-state.json 相关逻辑

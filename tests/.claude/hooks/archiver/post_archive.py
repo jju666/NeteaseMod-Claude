@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Post Archive Hook - 任务归档钩子 (v21.0)
+Post Archive Hook - 任务归档钩子 (v2.0)
 
 职责:
 1. 标记任务为已归档
 2. 简化逻辑(无需创建快照,task-meta.json 已包含完整状态)
 
-核心变更(v21.0):
+核心变更(v2.0):
 - 删除快照创建逻辑(archived_snapshot)
 - 仅标记 archived 字段为 true
 - 使用 TaskMetaManager 原子更新
@@ -38,22 +38,32 @@ except ImportError:
 
 
 def main():
-    """主入口"""
+    """主入口（v3.1: 支持会话隔离）"""
     try:
         # 读取Hook输入
         hook_input = json.load(sys.stdin)
         cwd = hook_input.get('cwd', os.getcwd())
+        session_id = hook_input.get('session_id')
+
+        # v3.1: 检查session_id
+        if not session_id:
+            sys.stderr.write("[ERROR] PostArchive缺少session_id，v3.1架构要求session_id\n")
+            output = {"continue": True}
+            print(json.dumps(output, ensure_ascii=False))
+            sys.exit(0)
 
         # 初始化 TaskMetaManager
         mgr = TaskMetaManager(cwd)
 
-        # 获取活跃任务
-        task_id = mgr.get_active_task_id()
-        if not task_id:
-            sys.stderr.write("[INFO v21.0] 无活跃任务,跳过归档\n")
+        # v3.1: 根据session_id获取绑定任务
+        binding = mgr.get_active_task_by_session(session_id)
+        if not binding:
+            sys.stderr.write("[INFO v2.0] 当前会话无绑定任务,跳过归档\n")
             output = {"continue": True}
             print(json.dumps(output, ensure_ascii=False))
             sys.exit(0)
+
+        task_id = binding['task_id']
 
         # 加载任务元数据
         task_meta = mgr.load_task_meta(task_id)
@@ -65,10 +75,34 @@ def main():
 
         # 检查是否已归档
         if task_meta.get('archived', False):
-            sys.stderr.write(f"[INFO v21.0] 任务已归档,跳过: {task_id}\n")
+            sys.stderr.write(f"[INFO v2.0] 任务已归档,跳过: {task_id}\n")
             output = {"continue": True}
             print(json.dumps(output, ensure_ascii=False))
             sys.exit(0)
+
+        # ========== ✅ v3.0 Final: 检查finalization是否完成 ==========
+        steps = task_meta.get('steps', {})
+        finalization = steps.get('finalization', {})
+
+        # 只有finalization阶段完成且子代理完成才归档
+        if finalization.get('status') != 'completed':
+            sys.stderr.write(f"[INFO v3.0] Finalization阶段未完成，跳过归档: {task_id}\n")
+            sys.stderr.write(f"[DEBUG] finalization.status = {finalization.get('status', 'unknown')}\n")
+            output = {"continue": True}
+            print(json.dumps(output, ensure_ascii=False))
+            sys.exit(0)
+
+        if not finalization.get('subagent_completed', False):
+            sys.stderr.write(f"[INFO v3.0] 收尾子代理未完成，跳过归档: {task_id}\n")
+            sys.stderr.write(f"[DEBUG] finalization.subagent_completed = {finalization.get('subagent_completed', False)}\n")
+            output = {"continue": True}
+            print(json.dumps(output, ensure_ascii=False))
+            sys.exit(0)
+
+        # ========== ✅ 满足归档条件，执行归档 ==========
+        sys.stderr.write(f"[INFO v3.0] 归档条件满足，开始归档: {task_id}\n")
+        sys.stderr.write(f"  - finalization.status: completed\n")
+        sys.stderr.write(f"  - finalization.subagent_completed: true\n")
 
         # 原子更新:标记为已归档
         def mark_archived(meta):
@@ -79,15 +113,15 @@ def main():
         updated = mgr.atomic_update(task_id, mark_archived)
 
         if updated:
-            sys.stderr.write(f"[INFO v21.0] 任务已归档: {task_id}\n")
+            sys.stderr.write(f"[INFO v2.0] 任务已归档: {task_id}\n")
 
-            # 清除活跃任务标记
-            mgr.clear_active_task()
+            # v3.1: 解除会话绑定
+            mgr.unbind_task_from_session(session_id)
 
             # 构建归档成功消息
             success_message = f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ 任务归档完成 (v21.0)
+✅ 任务归档完成 (v2.0)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 **任务ID**: {task_id}
@@ -97,11 +131,11 @@ def main():
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
+            # 修复: 移除未定义的 "PostArchive" hookEventName
+            # 根据 hook用法.md，官方只定义了9个标准 Hook 事件
+            # 自定义 Hook 应使用 systemMessage 或 suppressOutput 控制输出
             output = {
-                "hookSpecificOutput": {
-                    "hookEventName": "PostArchive",
-                    "additionalContext": success_message
-                },
+                "systemMessage": success_message,
                 "continue": True
             }
             print(json.dumps(output, ensure_ascii=False))

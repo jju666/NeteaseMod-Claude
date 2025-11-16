@@ -66,7 +66,8 @@ class SemanticAnalyzer:
         elif tool_name == "Bash":
             return self._analyze_bash(current_step, tool_input, workflow_state, semantic_rules)
         elif tool_name == "Read":
-            return self._analyze_read(current_step, tool_input, workflow_state, semantic_rules)
+            # Read工具无需特殊语义验证，由path_rules处理
+            return {"allowed": True, "reason": "Read语义验证通过"}
         elif tool_name == "Task":
             return self._analyze_task(current_step, tool_input, workflow_state, semantic_rules)
 
@@ -86,18 +87,15 @@ class SemanticAnalyzer:
         """Write工具语义分析"""
         file_path = tool_input.get("file_path", "")
 
-        # （v21.0: step2_route 已废弃，相关检查已移除）
-        # step2_research 的 Write 禁止由 stage_validator Layer 4 (v22.0) 统一处理
-
-        # 2. Step4父代理禁止Write
-        if current_step == "step4_cleanup" and not is_subagent:
+        # 1. Finalization父代理禁止Write
+        if current_step == "finalization" and not is_subagent:
             return {
                 "allowed": False,
-                "reason": "step4_cleanup父代理禁止直接Write",
+                "reason": "finalization父代理禁止直接Write",
                 "suggestion": "请使用Task工具启动收尾子代理"
             }
 
-        # 3. 检查是否为元数据文件
+        # 2. 检查是否为元数据文件
         if self.path_validator.is_metadata_file(file_path):
             # 只有子代理可以写元数据
             if not is_subagent:
@@ -107,8 +105,8 @@ class SemanticAnalyzer:
                     "suggestion": "元数据由系统自动维护"
                 }
 
-        # 4. Step3阶段:检查Write代码前是否Read过
-        if current_step == "step3_execute":
+        # 3. Implementation阶段:检查Write代码前是否Read过
+        if current_step == "implementation":
             if self.path_validator.is_code_file(file_path):
                 # 检查是否先Read过该文件
                 requires_read_first = semantic_rules.get('requires_read_first', False)
@@ -135,18 +133,15 @@ class SemanticAnalyzer:
         """Edit工具语义分析"""
         file_path = tool_input.get("file_path", "")
 
-        # （v21.0: step2_route 已废弃，相关检查已移除）
-        # step2_research 的 Edit 禁止由 stage_validator Layer 4 (v22.0) 统一处理
-
-        # 2. Step4父代理禁止Edit
-        if current_step == "step4_cleanup" and not is_subagent:
+        # 1. Finalization父代理禁止Edit
+        if current_step == "finalization" and not is_subagent:
             return {
                 "allowed": False,
-                "reason": "step4_cleanup父代理禁止直接Edit",
+                "reason": "finalization父代理禁止直接Edit",
                 "suggestion": "请使用Task工具启动收尾子代理"
             }
 
-        # 3. 禁止编辑元数据文件
+        # 2. 禁止编辑元数据文件
         if self.path_validator.is_metadata_file(file_path):
             if not is_subagent:
                 return {
@@ -155,8 +150,8 @@ class SemanticAnalyzer:
                     "suggestion": "元数据由系统自动维护"
                 }
 
-        # 4. Step3阶段:检查同文件编辑次数（触发专家检测）
-        if current_step == "step3_execute":
+        # 3. Implementation阶段:检查同文件编辑次数（触发专家检测）
+        if current_step == "implementation":
             max_edits = semantic_rules.get('max_same_file_edits', 999)
             same_file_count = self._count_same_file_edits(file_path, workflow_state)
 
@@ -181,10 +176,7 @@ class SemanticAnalyzer:
         """Bash工具语义分析"""
         command = tool_input.get("command", "")
 
-        # （v21.0: step2_route 已废弃，相关检查已移除）
-        # step2_research 的 Bash 禁止由 stage_validator Layer 4 (v22.0) 统一处理
-
-        # 2. 危险命令检测
+        # 1. 危险命令检测
         dangerous_patterns = [
             (r"rm\s+-rf\s+/", "删除根目录"),
             (r"git\s+push\s+--force", "强制推送"),
@@ -203,8 +195,8 @@ class SemanticAnalyzer:
                     "suggestion": "为了安全，该命令已被阻止"
                 }
 
-        # 3. 检查命令白名单（Step3阶段）
-        if current_step == "step3_execute":
+        # 2. 检查命令白名单（Implementation阶段）
+        if current_step == "implementation":
             allowed_patterns = semantic_rules.get('allowed_commands_patterns', [])
             if allowed_patterns:
                 # 如果定义了白名单，检查是否匹配
@@ -217,23 +209,6 @@ class SemanticAnalyzer:
 
         return {"allowed": True, "reason": "Bash语义验证通过"}
 
-    # ============== Read 语义分析 ==============
-
-    def _analyze_read(
-        self,
-        current_step: str,
-        tool_input: Dict,
-        workflow_state: Dict,
-        semantic_rules: Dict
-    ) -> Dict:
-        """Read工具语义分析"""
-        file_path = tool_input.get("file_path", "")
-
-        # （v21.0: step0_context 和 step1_understand 已废弃，相关检查已移除）
-        # Read 操作的语义规则现在主要由 path_rules 和通用的 semantic_rules 控制
-
-        return {"allowed": True, "reason": "Read语义验证通过"}
-
     # ============== Task 语义分析 ==============
 
     def _analyze_task(
@@ -244,12 +219,12 @@ class SemanticAnalyzer:
         semantic_rules: Dict
     ) -> Dict:
         """Task工具语义分析"""
-        # 1. 只有Step4阶段可以使用Task启动收尾子代理
-        if current_step != "step4_cleanup":
+        # 1. 只有Finalization阶段可以使用Task启动收尾子代理
+        if current_step != "finalization":
             # 其他阶段使用Task没有特殊限制
             return {"allowed": True, "reason": "Task工具验证通过"}
 
-        # 2. Step4阶段:检查是否已经启动过子代理
+        # 2. Finalization阶段:检查是否已经启动过子代理
         max_launches = semantic_rules.get('max_launches', 999)
         task_dir = workflow_state.get('task_id', '')
         if task_dir:

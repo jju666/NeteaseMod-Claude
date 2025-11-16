@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Task Cancellation Handler - 任务取消/失败处理器 (v21.0)
+Task Cancellation Handler - 任务取消/失败处理器 (v2.0)
 
 职责:
 1. 检测任务取消/失败意图 (/mc-cancel, /mc-fail)
@@ -9,7 +9,7 @@ Task Cancellation Handler - 任务取消/失败处理器 (v21.0)
 3. 清理运行时状态文件
 4. 生成取消确认消息
 
-核心变更(v21.0):
+核心变更(v2.0):
 - 使用 TaskMetaManager 替代 StateManager
 - 使用 atomic_update() 更新任务元数据
 - 使用 clear_active_task() 清理状态
@@ -97,7 +97,7 @@ def cancel_or_fail_task(
     cwd: str
 ) -> str:
     """
-    执行任务取消或失败归档 (v21.0)
+    执行任务取消或失败归档 (v2.0)
 
     Args:
         cancel_type: "cancel" | "fail"
@@ -219,7 +219,7 @@ def cancel_or_fail_task(
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
-    # 8. 清理运行时状态（v21.0: 使用 clear_active_task）
+    # 8. 清理运行时状态（v2.0: 使用 clear_active_task）
     mgr.clear_active_task()
 
     # 9. 生成确认消息
@@ -296,7 +296,7 @@ def calculate_duration(task_meta: Dict) -> str:
 
 def handle_cancellation_from_user_prompt(user_input: str, cwd: str) -> Optional[str]:
     """
-    从UserPromptSubmit Hook调用的入口函数 (v21.0)
+    从UserPromptSubmit Hook调用的入口函数 (v2.0)
 
     Args:
         user_input: 用户输入

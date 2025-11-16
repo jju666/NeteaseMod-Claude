@@ -13,7 +13,7 @@ DEFAULT_CONFIG = {
         "max_description_length": 16  # v20.2.7: 从8提升到16字符
     },
     "workflow_steps": {
-        "step2_min_docs": 3
+        "planning_min_docs": 3  # v3.0 Final: 语义化命名
     },
     "cleanup": {
         "max_auto_update_docs": 3

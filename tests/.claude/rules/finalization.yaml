@@ -1,0 +1,179 @@
+# Finalization Stage Rules - 收尾归档阶段规则
+# Version: v3.0 Final
+# 强制子代理执行：父代理只能启动Task，子代理执行实际收尾工作
+
+display_name: "收尾归档"
+description: "文档更新、DEBUG清理、任务归档（强制子代理执行）"
+
+# 允许的工具列表（父代理）
+allowed_tools:
+  - "Task"  # 父代理只能启动子代理
+  - "Read"  # 父代理可以读取元数据
+
+# 前置条件
+preconditions:
+  - "planning_completed"  # planning阶段已完成
+  - "user_confirmed"  # 用户已确认修复完成
+
+# 路径规则（父代理）
+path_rules:
+  Task:
+    required_params:
+      subagent_type: "general-purpose"
+      description_pattern: ".*文档更新.*收尾.*"
+    description: "父代理只能通过Task工具启动收尾子代理"
+
+  Read:
+    whitelist:
+      - ".claude/.agent-doc-update.txt"
+      - ".task-meta.json"
+      - "tasks/**/*.json"
+    description: "父代理可以读取子代理任务描述和元数据"
+
+# 语义规则（父代理）
+semantic_rules:
+  Task:
+    purpose: "launch_cleanup_subagent"
+    max_launches: 1  # 只能启动一次收尾子代理
+    creates_lock: true  # 创建.cleanup-subagent.lock锁文件
+    description: "启动收尾子代理，创建锁文件"
+
+  Write:
+    forbidden_in_parent: true
+    reason: "父代理禁止直接Write，必须通过子代理"
+
+  Edit:
+    forbidden_in_parent: true
+    reason: "父代理禁止直接Edit，必须通过子代理"
+
+  Bash:
+    forbidden_in_parent: true
+    reason: "父代理禁止执行Bash命令"
+
+# 子代理规则（检测到.cleanup-subagent.lock后生效）
+subagent_rules:
+  allowed_tools:
+    - "Read"
+    - "Write"
+    - "Edit"
+    - "Grep"
+    - "Glob"
+
+  path_rules:
+    Write:
+      whitelist:
+        - ".task-meta.json"
+        - "markdown/**/*.md"
+        - "docs/**/*.md"
+        - "tasks/**/*.json"
+      description: "子代理可以更新元数据和文档"
+
+    Edit:
+      whitelist_patterns:
+        - "markdown/**/*.md"
+        - "docs/**/*.md"
+        - "behavior_packs/**/*.py"
+        - "resource_packs/**/*.json"
+        - "scripts/**/*.js"
+        - "scripts/**/*.py"
+      blacklist_patterns:
+        - "**/test_*.py"  # 不删除测试文件
+      description: "子代理可以编辑文档和清理DEBUG代码"
+
+  semantic_rules:
+    Write:
+      purpose: "update_metadata_and_docs"
+      required_updates:
+        ".task-meta.json":
+          field: "steps.finalization.status"
+          value: "completed"
+          description: "子代理必须标记finalization为completed"
+
+    Edit:
+      purpose: "cleanup_debug_code"
+      allowed_modifications:
+        - "删除print语句"
+        - "删除console.log"
+        - "删除临时DEBUG代码"
+        - "更新文档注释"
+      forbidden_modifications:
+        - "修改业务逻辑"
+        - "删除测试文件"
+
+  ai_guidance: |
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    📦 收尾子代理任务
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    **你的任务**（子代理）：
+
+    1. **清理DEBUG代码**：
+       - 删除所有print语句（Python）
+       - 删除所有console.log（JavaScript）
+       - 删除临时DEBUG代码
+       - ⚠️ 不要修改业务逻辑
+       - ⚠️ 不要删除测试文件
+
+    2. **更新文档**（如需要）：
+       - 更新README.md
+       - 更新技术文档
+       - 添加使用说明
+
+    3. **更新元数据**（必须）：
+       - 标记 finalization.status = "completed"
+       - 记录修改摘要
+       - 更新时间戳
+
+    **完成后**：
+    系统将自动归档任务到 tasks/<task_id>/ 目录。
+
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# 完成条件
+completion_condition:
+  type: "subagent_completion"
+  trigger_expr: "steps.finalization.status == 'completed'"
+  auto_advance: false
+  next_step: null  # 最后一步，无next_step
+  description: "子代理标记finalization.status=completed后，post-archive-hook自动归档任务"
+
+# AI引导提示（父代理）
+ai_guidance: |
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📦 当前阶段: 收尾归档（Finalization）
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  **父代理任务**：
+
+  你必须启动收尾子代理来完成最后的工作：
+
+  1. **启动子代理**：
+     ```
+     使用Task工具启动general-purpose子代理
+     任务描述：文档更新和代码收尾
+     ```
+
+  2. **禁止直接操作**：
+     - ❌ 禁止直接Write/Edit文件
+     - ❌ 禁止执行Bash命令
+     - ✅ 只能通过Task启动子代理
+
+  3. **等待子代理完成**：
+     - 子代理将自动执行收尾工作
+     - 完成后系统自动归档任务
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# 归档配置
+archiving:
+  enabled: true
+  archive_path: "tasks/{task_id}/"
+  archive_contents:
+    - ".task-meta.json"
+    - ".task-meta.json.backup"
+    - ".conversation.jsonl"
+    - "code_changes.log"
+  cleanup_after_archive:
+    - ".task-active.json"
+    - ".cleanup-subagent.lock"
+  description: "归档任务到tasks目录，清理临时文件"

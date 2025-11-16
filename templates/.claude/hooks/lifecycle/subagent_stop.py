@@ -397,13 +397,20 @@ def main():
         sys.stderr.write("[INFO v22.3] stop_hook_active=false, 首次触发，开始处理结果\n")
         log_to_file("决策: stop_hook_active=false, 首次触发, 开始处理")
 
-        # 2. 获取transcript路径（v3.0核心修正）
-        transcript_path = hook_input.get('transcript_path')
-        log_to_file(f"transcript_path = {repr(transcript_path)}")
+        # 2. 获取子代理transcript路径（v22.3.8关键修复）
+        # 🔥 BUG修复: 必须使用agent_transcript_path，而非transcript_path
+        # transcript_path是主会话的记录，agent_transcript_path才是子代理的记录
+        transcript_path = hook_input.get('agent_transcript_path')
+        log_to_file(f"agent_transcript_path = {repr(transcript_path)}")
+
+        # 兜底：如果agent_transcript_path不存在，尝试使用transcript_path（向后兼容）
+        if not transcript_path:
+            transcript_path = hook_input.get('transcript_path')
+            log_to_file(f"[WARN] agent_transcript_path不存在，降级使用transcript_path: {repr(transcript_path)}")
 
         if not transcript_path:
-            sys.stderr.write("[WARN] 未提供transcript_path，跳过\n")
-            log_to_file("退出: transcript_path为空或未提供")
+            sys.stderr.write("[WARN] 未提供agent_transcript_path或transcript_path，跳过\n")
+            log_to_file("退出: 两个路径都为空")
             # ✅ v22.3修复：使用官方标准格式
             print(json.dumps({}, ensure_ascii=False))
             sys.exit(0)
@@ -534,7 +541,16 @@ def main():
                         'pass' if subagent_result.get('approved', False) else '需要调整'
                     )
 
-                    log_to_file(f"atomic_update更新字段: expert_review_completed=True, expert_review_count={meta_data['steps']['planning']['expert_review_count']}, expert_review_result={meta_data['steps']['planning']['expert_review_result']}")
+                    # 🔥 v22.3.8新增：同步更新metrics和bug_fix_tracking字段
+                    if 'metrics' not in meta_data:
+                        meta_data['metrics'] = {}
+                    meta_data['metrics']['expert_review_triggered'] = True
+
+                    if 'bug_fix_tracking' not in meta_data:
+                        meta_data['bug_fix_tracking'] = {}
+                    meta_data['bug_fix_tracking']['expert_triggered'] = True
+
+                    log_to_file(f"atomic_update更新字段: expert_review_completed=True, expert_review_count={meta_data['steps']['planning']['expert_review_count']}, expert_review_result={meta_data['steps']['planning']['expert_review_result']}, metrics.expert_review_triggered=True, bug_fix_tracking.expert_triggered=True")
                     return meta_data
 
                 # 使用atomic_update确保并发安全

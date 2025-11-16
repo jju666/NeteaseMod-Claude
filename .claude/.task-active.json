@@ -1,0 +1,14 @@
+{
+  "version": "v3.1",
+  "active_tasks": {
+    "test-session-123": {
+      "task_id": "任务-1116-222503-修复玩家复活后装",
+      "task_dir": "d:\\EcWork\\基于Claude的MODSDK开发工作流\\tasks\\任务-1116-222503-修复玩家复活后装",
+      "current_step": "planning",
+      "bound_at": "2025-11-16T22:25:03.509034",
+      "session_history": [
+        "test-session-123"
+      ]
+    }
+  }
+}

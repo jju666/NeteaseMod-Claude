@@ -27,9 +27,9 @@ class ExpertTrigger:
         if workflow_state.get('expert_triggered', False):
             return False
 
-        # 2. 只在step3_execute阶段触发
+        # 2. 只在implementation阶段触发
         current_step = workflow_state.get('current_step', '')
-        if current_step != 'step3_execute':
+        if current_step != 'implementation':
             return False
 
         # 3. 根据任务类型检测循环

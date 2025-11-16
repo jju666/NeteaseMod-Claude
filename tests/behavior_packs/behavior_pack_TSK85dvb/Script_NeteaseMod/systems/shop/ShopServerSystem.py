@@ -1,4 +1,7 @@
-# -*- coding: utf-8 -*-
+# 测试PostToolUse修复-最终版
+# 测试atomic_update诊断
+# Phase
+# -*- coding: utf-8 -*- # 测试atomic_update诊断
 """
 商店服务端系统
 
@@ -888,6 +891,11 @@ class ShopServerSystem(ServerSystem):
             ]
 
             # 应用队伍锋利附魔(如果是剑类)
+            # ⚠️ 注意：这里必须在深拷贝之前修改item_dict，因为后续护甲/普通物品都需要这个附魔
+            # 但为了避免污染商品配置，应该先检查是否需要附魔，如果需要则创建新的item_dict
+            needs_sharpness = False
+            sharpness_level = 0
+
             if item_name in sword_types:
                 game_system = self._get_bedwars_game_system()
                 if game_system and hasattr(game_system, "team_module") and game_system.team_module:
@@ -897,26 +905,38 @@ class ShopServerSystem(ServerSystem):
                         if team_upgrades:
                             sharpness_level = team_upgrades.get_upgrade_level("sword")
                             if sharpness_level > 0:
-                                # 添加锋利附魔
-                                if "enchantData" not in item_dict:
-                                    item_dict["enchantData"] = []
-                                item_dict["enchantData"].append(
-                                    (serverApi.GetMinecraftEnum().EnchantType.WeaponDamage, sharpness_level)
-                                )
-                                print("[ShopServerSystem] 应用队伍锋利: player={}, team={}, level={}".format(
+                                needs_sharpness = True
+                                print("[ShopServerSystem] 队伍锋利附魔: player={}, team={}, level={}".format(
                                     player_id, player_team, sharpness_level))
+
+            # ✅ 修复：如果需要附魔，深拷贝item_dict后再添加附魔
+            if needs_sharpness:
+                import copy
+                item_dict = copy.deepcopy(item_dict)
+                if "enchantData" not in item_dict:
+                    item_dict["enchantData"] = []
+                item_dict["enchantData"].append(
+                    (serverApi.GetMinecraftEnum().EnchantType.WeaponDamage, sharpness_level)
+                )
 
             # 护甲穿戴
             if item_name in armor_map:
                 slot = armor_map[item_name]
+
+                # ✅ 修复：深拷贝item_dict，避免污染商品配置
+                # 原因：直接修改item_dict会影响商品池中的原始配置
+                # 导致第二次购买时userData已存在，可能引发异常
+                import copy
+                armor_item = copy.deepcopy(item_dict)
+
                 # 护甲需要锁定,防止玩家脱下
-                if "userData" not in item_dict:
-                    item_dict["userData"] = {}
-                item_dict["userData"]["minecraft:item_lock"] = {"__type__": 1, "__value__": True}
+                if "userData" not in armor_item:
+                    armor_item["userData"] = {}
+                armor_item["userData"]["minecraft:item_lock"] = {"__type__": 1, "__value__": True}
 
                 success = item_comp.SetEntityItem(
                     serverApi.GetMinecraftEnum().ItemPosType.ARMOR,
-                    item_dict,
+                    armor_item,
                     slot
                 )
                 if success:
@@ -928,7 +948,24 @@ class ShopServerSystem(ServerSystem):
                 return success
 
             # 普通物品发放到背包
-            success = item_comp.SpawnItemToPlayerInv(item_dict, player_id)
+            # ⚠️ CRITICAL: SpawnItemToPlayerInv不带slot参数时必须使用'itemName'字段
+            # 原因: 网易API要求，newItemName只用于带slot的调用
+            # 参考: BedWarsGameSystem.py:2219-2224, CurrencyManager.py:234-240
+            spawn_dict = {
+                'itemName': item_dict.get('newItemName'),
+                'count': item_dict.get('count', 1),
+                'auxValue': item_dict.get('newAuxValue', 0)
+            }
+
+            # 复制附魔数据(如果存在)
+            if 'enchantData' in item_dict:
+                spawn_dict['enchantData'] = item_dict['enchantData']
+
+            # 复制自定义提示(如果存在)
+            if 'customTips' in item_dict:
+                spawn_dict['customTips'] = item_dict['customTips']
+
+            success = item_comp.SpawnItemToPlayerInv(spawn_dict, player_id)
             if success:
                 print("[ShopServerSystem] 物品发放成功: player={}, item={}, count={}".format(
                     player_id, item_name, item_dict.get("count", 1)))

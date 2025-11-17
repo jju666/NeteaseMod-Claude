@@ -625,14 +625,21 @@ class BedWarsGameSystem(GamingStateSystem):
             attacker_id (str): 攻击者ID(可选)
             damage_cause (str): 伤害原因(可选)
         """
-        # 如果没有攻击者且是虚空死亡,检查攻击记录
-        if not attacker_id or attacker_id == -1:
-            if damage_cause == 'void' or damage_cause == 'fall':
-                last_attacker = self.get_last_attacker(player_id, 5.0)
-                if last_attacker:
-                    attacker_id = last_attacker
-                    self.LogInfo("虚空/坠落死亡归属: {} 被 {} 击杀(5秒内攻击记录)".format(
-                        player_id, attacker_id))
+        # 统一处理无效的attacker_id
+        # 将 None、-1、"-1" 都标准化为 None
+        if attacker_id is None or attacker_id == -1 or attacker_id == "-1":
+            attacker_id = None
+        else:
+            attacker_id = str(attacker_id)  # 转换为字符串
+
+        # 如果没有有效攻击者，尝试从攻击记录中查找
+        # 注意：不再限制 damage_cause，所有无效 attacker 都尝试查找
+        if not attacker_id:
+            last_attacker = self.get_last_attacker(player_id, 5.0)
+            if last_attacker:
+                attacker_id = last_attacker
+                self.LogInfo("从攻击记录找到击杀者: {} 被 {} 击杀(5秒内攻击记录)".format(
+                    player_id, attacker_id))
 
         self.LogInfo("玩家死亡 player_id={} attacker_id={}".format(player_id, attacker_id))
 
@@ -659,8 +666,6 @@ class BedWarsGameSystem(GamingStateSystem):
             self.scoreboard.on_player_death(player_id, attacker_id, is_final_kill)
 
         # 广播死亡消息到所有玩家
-        self.LogInfo("[DEBUG] 准备广播死亡消息: player={}, attacker={}, team={}, final_kill={}".format(
-            player_id, attacker_id, team_id, is_final_kill))
         self._broadcast_death_message(player_id, attacker_id, team_id, is_final_kill, damage_cause)
 
         # 处理玩家淘汰或复活
@@ -1373,6 +1378,15 @@ class BedWarsGameSystem(GamingStateSystem):
             self._respawn_player_fallback(player_id, team_id)
             return
 
+        # [FIX] 先设置生存模式，再传送玩家（旁观者模式下传送可能无效）
+        try:
+            # [FIX 2025-11-06] 修正API调用: CreateGameMode -> CreatePlayer
+            # 参考PracticePresetDefServer.py:308 正确API为CreatePlayer + SetPlayerGameType
+            comp = self.comp_factory.CreatePlayer(player_id)
+            comp.SetPlayerGameType(serverApi.GetMinecraftEnum().GameType.Survival)
+        except Exception as e:
+            self.LogError("设置游戏模式失败: {}".format(str(e)))
+
         # 传送玩家到出生点
         try:
             pos_comp = self.comp_factory.CreatePos(player_id)
@@ -1392,15 +1406,6 @@ class BedWarsGameSystem(GamingStateSystem):
             import traceback
             traceback.print_exc()
             return
-
-        # 设置生存模式
-        try:
-            # [FIX 2025-11-06] 修正API调用: CreateGameMode -> CreatePlayer
-            # 参考PracticePresetDefServer.py:308 正确API为CreatePlayer + SetPlayerGameType
-            comp = self.comp_factory.CreatePlayer(player_id)
-            comp.SetPlayerGameType(serverApi.GetMinecraftEnum().GameType.Survival)
-        except Exception as e:
-            self.LogError("设置游戏模式失败: {}".format(str(e)))
 
         # 取消无敌状态
         try:

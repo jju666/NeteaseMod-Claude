@@ -69,15 +69,15 @@ class BedWarsStartingState(GamingState):
         # 停止地图预览运镜
         self._stop_camera_preview()
 
-        # 清理倒计时定时器
+        # [FIX] 优化异常处理 - 避免裸except
         if self.countdown_timer_id:
             try:
                 import mod.server.extraServerApi as serverApi
                 comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
                 comp.CancelTimer(self.countdown_timer_id)
                 self.countdown_timer_id = None
-            except:
-                pass
+            except Exception as e:
+                system.LogWarn("取消倒计时定时器失败: {}".format(str(e)))
 
     def _on_tick(self):
         """
@@ -236,14 +236,30 @@ class BedWarsStartingState(GamingState):
                 # message = u"游戏将在{}秒后开始".format(self.countdown)
                 # system._broadcast_message(message, u'\xa7e')
                 self.countdown -= 1
+                # [FIX] 递归创建下一秒的一次性定时器(而非重复定时器)
+                import mod.server.extraServerApi as serverApi
+                comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
+                self.countdown_timer_id = comp.AddTimer(1.0, countdown_tick)
             else:
-                # 倒计时结束,进入running状态
-                self.parent.next_sub_state()
+                # [FIX] 倒计时结束,清空定时器ID
+                self.countdown_timer_id = None
 
-        # 创建定时器
+                # 切换到running状态
+                try:
+                    system.LogInfo("[FIX] 倒计时结束,切换到running状态")
+                    if self.parent:
+                        self.parent.next_sub_state()
+                    else:
+                        system.LogError("parent为None,无法切换状态")
+                except Exception as e:
+                    system.LogError("[FIX] 切换状态失败: {}".format(str(e)))
+                    import traceback
+                    traceback.print_exc()
+
+        # [FIX] 创建一次性定时器(而非AddRepeatedTimer)
         import mod.server.extraServerApi as serverApi
         comp = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
-        self.countdown_timer_id = comp.AddRepeatedTimer(1.0, countdown_tick)
+        self.countdown_timer_id = comp.AddTimer(1.0, countdown_tick)
 
         system.LogInfo("倒计时已开始")
 

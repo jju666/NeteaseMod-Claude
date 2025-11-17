@@ -218,6 +218,8 @@ class BedWarsRunningState(GamingState):
         """
         实体受伤事件
 
+        功能：记录玩家对玩家的攻击，用于虚空击杀归属判定
+
         Args:
             args: {'id': victim_id, 'attacker': attacker_id, 'damage': damage}
         """
@@ -234,12 +236,12 @@ class BedWarsRunningState(GamingState):
         type_comp = comp.CreateEngineType(serverApi.GetLevelId())
 
         if type_comp.IsPlayer(victim_id) and type_comp.IsPlayer(attacker_id):
-            # 记录攻击
-            import time
-            system.last_attacker_records[victim_id] = {
-                'attacker_id': attacker_id,
-                'attack_time': time.time()
-            }
+            # 使用统一的攻击记录方法
+            # 使用 'knockback' 标识击退攻击，便于日志区分
+            system.record_player_attack(victim_id, attacker_id, 'knockback')
+
+            system.LogDebug("记录击退攻击: victim={} attacker={} cause=knockback".format(
+                victim_id, attacker_id))
 
     def _on_place_block(self, args):
         """

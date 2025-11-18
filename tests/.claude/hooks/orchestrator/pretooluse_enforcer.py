@@ -24,6 +24,9 @@ from datetime import datetime
 
 # Windows UTF-8编码修复（防止中文乱码）
 if sys.platform == 'win32':
+    # 🔥 v22.3.8修复：添加stdin的UTF-8编码设置（解决Task工具JSON解析失败问题）
+    # 参考：https://code.claude.com/docs/en/hooks (Windows中文处理)
+    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
     # 强制stdout/stderr使用UTF-8编码
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
@@ -306,6 +309,122 @@ def main():
                 log_to_file("✓✓✓ 标记注入完成,Hook已退出")
                 log_to_file("=" * 80)
                 sys.exit(0)  # 放行并退出
+
+        # 🔥 v23.0新增: Finalization倒计时机制（100%启动Task子代理保障）
+        if current_step == 'finalization' and tool_name != 'Task':
+            # 检查是否在子代理上下文中
+            is_subagent = mgr.check_subagent_lock(task_id) if task_id else False
+
+            if not is_subagent:
+                # 父代理在finalization阶段，统计非Task工具调用次数
+                metrics = task_meta.get('metrics', {})
+                tools_used = metrics.get('tools_used', [])
+
+                # 统计finalization阶段的非Task工具调用
+                finalization_started_at = task_meta.get('steps', {}).get('finalization', {}).get('started_at')
+                non_task_tool_count = 0
+
+                if finalization_started_at:
+                    # 统计finalization开始后的非Task工具调用
+                    for tool_record in tools_used:
+                        tool_timestamp = tool_record.get('timestamp', '')
+                        tool_used = tool_record.get('tool', '')
+                        if tool_timestamp >= finalization_started_at and tool_used != 'Task':
+                            non_task_tool_count += 1
+
+                # 包含当前工具
+                non_task_tool_count += 1
+
+                if non_task_tool_count >= 5:
+                    # 超过5次非Task调用，强制阻止
+                    sys.stderr.write(f"[PreToolUse v23.0] Finalization倒计时触发: {non_task_tool_count}次非Task调用\n")
+
+                    deny_message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 PreToolUse Hook 强制阻止 - 必须启动收尾子代理
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**检测到的问题**:
+- 当前阶段: Finalization (收尾归档)
+- 已使用{}次非Task工具 (Read/Grep/Glob)
+- 但仍未启动收尾子代理
+
+**为什么阻止你**:
+Finalization阶段的收尾工作(文档更新、任务归档)
+**必须由子代理执行**，以确保隔离性和可追溯性。
+
+你已使用{}次分析工具，这已经足够了解任务状态。
+现在**必须立即启动Task工具**。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚡ **你必须立即执行（这是强制要求）**:
+
+Task(
+  subagent_type="general-purpose",
+  description="任务收尾归档",
+  prompt='''
+请完成以下收尾工作:
+
+1. 读取 .task-meta.json 获取完整任务历史:
+   - 分析 state_transitions (所有状态转移)
+   - 分析 steps.planning.iterations (所有Planning迭代)
+   - 分析 steps.implementation.iterations (所有Implementation迭代)
+
+2. 生成 context.md (任务上下文文档):
+   - 任务概述
+   - 执行历程(每次迭代的详情)
+   - 关键决策点
+   - 完整时间线
+
+3. 生成 solution.md (最终解决方案):
+   - 问题描述
+   - 最终方案
+   - 实施细节
+   - 测试验证
+   - 经验总结
+
+4. 更新 .task-meta.json:
+   - 设置 finalization.status = 'completed'
+   - 设置 finalization.completed_at
+   - 设置 archived = true
+   - 设置 session_ended_at
+
+5. 输出结果标记:
+<!-- SUBAGENT_RESULT {{"completed": true, "documents_generated": ["context.md", "solution.md"], "meta_updated": true}} -->
+'''
+)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ **禁止的操作**:
+- 不允许继续使用Read/Grep/Glob工具
+- 不允许直接Write/Edit文档(必须通过子代理)
+- 不允许尝试"绕过"这个要求
+
+✅ **允许的操作**:
+- Task工具（启动收尾子代理）← 唯一选择
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 **理解这个机制**:
+这确保收尾工作的质量控制和隔离执行。
+5次分析工具已经足够，现在必须执行收尾。
+
+⚠️ **这是技术强制阻止，不是建议**。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(non_task_tool_count, non_task_tool_count)
+
+                    output = {
+                        "hookSpecificOutput": {
+                            "hookEventName": "PreToolUse",
+                            "permissionDecision": "deny",
+                            "permissionDecisionReason": deny_message
+                        },
+                        "suppressOutput": False
+                    }
+
+                    print(json.dumps(output, ensure_ascii=False))
+                    sys.exit(2)  # 阻止操作
 
         # 7. 执行四层验证
         try:

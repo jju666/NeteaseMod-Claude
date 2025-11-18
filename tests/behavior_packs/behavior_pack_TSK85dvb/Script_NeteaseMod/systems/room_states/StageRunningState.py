@@ -132,10 +132,18 @@ class StageRunningState(TimedGamingState):
         # 强制结束游戏,获胜队伍为None(平局)
         system.end_game(None)
 
-        # 切换到下一个状态(broadcast_score)
+        # 【修复 2025-11-18】清除父状态的子状态引用,阻止TimedGamingState的自动切换
+        # 原理同StageWaitingCountdownState.on_timeout的修复
+        # StageRunningState的parent是root_state,清除current_sub_state防止状态被切换两次
         root_state = system.root_state
         if root_state:
+            root_state.current_sub_state = None
+            system.LogInfo("已清除root_state的子状态引用,阻止TimedGamingState自动切换")
+
+        # 切换到下一个状态(broadcast_score)
+        if root_state:
             root_state.next_sub_state()
+            system.LogInfo("已切换到broadcast_score状态")
         else:
             system.LogError("root_state不存在,无法切换状态")
 

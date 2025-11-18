@@ -26,6 +26,7 @@ from typing import Dict, Optional, Tuple
 # v3.0 Final Bug Fix: Windows UTF-8编码支持（emoji输出）
 if sys.platform == 'win32':
     import io
+    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
@@ -36,8 +37,9 @@ sys.path.insert(0, PARENT_HOOK_DIR)
 
 try:
     from core.task_meta_manager import TaskMetaManager
+    from core.expert_trigger import ExpertTrigger
 except ImportError as e:
-    sys.stderr.write(f"[ERROR] 无法导入 TaskMetaManager: {e}\n")
+    sys.stderr.write(f"[ERROR] 无法导入核心模块: {e}\n")
     # 兜底:静默退出
     print(json.dumps({
         "hookSpecificOutput": {
@@ -110,6 +112,47 @@ def update_metrics(task_meta: Dict, tool_name: str, tool_input: Dict, is_error: 
                 'timestamp': datetime.now().isoformat(),
                 'success': not is_error
             })
+
+    # 【v23.1新增】P1 BUG修复：检测Bash工具中的文件修改
+    # 基于任务-1117-234152测试发现：AI使用Bash命令（python脚本）修改文件，导致code_changes丢失
+    # 方案：检测Bash命令中的文件修改关键词，尝试识别被修改的文件
+    elif tool_name == 'Bash' and not is_error:
+        command = tool_input.get('command', '')
+        if command:
+            # 启发式检测：命令中包含文件修改关键词
+            file_mod_patterns = [
+                'python',  # Python脚本可能修改文件
+                'sed ',    # sed命令
+                'awk ',    # awk命令
+                'echo.*>>',  # 重定向追加
+                'echo.*>',   # 重定向覆盖
+                'cat.*>',    # cat重定向
+                'tee '       # tee命令
+            ]
+
+            # 检查是否包含文件修改模式
+            import re
+            has_file_mod = any(re.search(pattern, command, re.IGNORECASE) for pattern in file_mod_patterns)
+
+            if has_file_mod:
+                # 尝试提取文件路径（简单的启发式规则）
+                # 1. 提取.py文件路径
+                py_files = re.findall(r'([^\s"\']+\.py)', command)
+                # 2. 提取其他常见文件扩展名
+                other_files = re.findall(r'([^\s"\']+\.(?:js|ts|jsx|tsx|java|cpp|c|h|go|rs|rb|php))', command)
+
+                files_found = py_files + other_files
+                if files_found:
+                    for file_path in files_found:
+                        # 避免重复记录
+                        if not any(c.get('file') == file_path for c in metrics['code_changes']):
+                            metrics['code_changes'].append({
+                                'file': file_path,
+                                'tool': 'Bash',
+                                'timestamp': datetime.now().isoformat(),
+                                'success': True,
+                                'note': 'detected_from_bash_command'
+                            })
 
     # 记录文档阅读（P1增强：添加详细诊断日志 + 文件日志）
     if tool_name == 'Read':
@@ -209,30 +252,7 @@ def update_metrics(task_meta: Dict, tool_name: str, tool_input: Dict, is_error: 
         })
 
 
-def detect_loop_indicators(task_meta: Dict) -> bool:
-    """
-    检测循环指标(用于BUG修复任务)
-
-    Returns:
-        bool: 是否触发循环警告
-    """
-    bug_fix_tracking = task_meta.get('bug_fix_tracking', {})
-    if not bug_fix_tracking.get('enabled'):
-        return False
-
-    loop_indicators = bug_fix_tracking.get('loop_indicators', {})
-
-    # 检测循环阈值
-    same_file_count = loop_indicators.get('same_file_edit_count', 0)
-    failed_test_count = loop_indicators.get('failed_test_count', 0)
-    negative_feedback = loop_indicators.get('negative_feedback_count', 0)
-
-    # 触发条件:同文件修改3次 或 测试失败2次 或 负面反馈2次
-    if same_file_count >= 3 or failed_test_count >= 2 or negative_feedback >= 2:
-        return True
-
-    return False
-
+# detect_loop_indicators() 函数已废弃 - 已被 ExpertTrigger.should_trigger() 替代（第356-367行）
 
 def update_bug_fix_tracking(task_meta: Dict, tool_name: str, tool_input: Dict, is_error: bool):
     """
@@ -320,26 +340,51 @@ def main():
     if os.getenv('MODSDK_DEBUG') == '1':
         sys.stderr.write(f"[DEBUG] PostToolUse: tool={tool_name}, input_keys={list(tool_input.keys())}\n")
 
+    # 🔥 v22.3.10: Task工具诊断 - 记录完整的tool_response
+    if tool_name == 'Task':
+        sys.stderr.write("=" * 60 + "\n")
+        sys.stderr.write("[DIAGNOSTIC] Task工具执行完成\n")
+        sys.stderr.write(f"tool_input keys: {list(tool_input.keys())}\n")
+        sys.stderr.write(f"tool_response type: {type(tool_result)}\n")
+
+        # 将完整的 tool_response 记录到文件
+        try:
+            task_response_log = os.path.join(os.getcwd(), "task-tool-response-debug.log")
+            with open(task_response_log, 'a', encoding='utf-8') as f:
+                f.write("=" * 80 + "\n")
+                f.write(f"[{datetime.now().isoformat()}] Task工具执行\n")
+                f.write(f"tool_input: {json.dumps(tool_input, ensure_ascii=False, indent=2)}\n")
+                f.write(f"tool_response type: {type(tool_result)}\n")
+                f.write(f"tool_response length: {len(str(tool_result))}\n")
+                f.write(f"tool_response content:\n{json.dumps(tool_result, ensure_ascii=False, indent=2)}\n")
+                f.write("=" * 80 + "\n\n")
+            sys.stderr.write(f"[DIAGNOSTIC] tool_response已记录到: {task_response_log}\n")
+        except Exception as e:
+            sys.stderr.write(f"[ERROR] 记录task_response失败: {e}\n")
+
+        sys.stderr.write("=" * 60 + "\n")
+
     # 2. 获取工作目录
     cwd = os.getcwd()
 
     # 3. 初始化 TaskMetaManager
     mgr = TaskMetaManager(cwd)
 
-    # 4. v3.1: 根据session_id获取绑定任务（纯粹架构）
+    # 4. v3.1改动：根据session_id获取绑定任务
     session_id = event_data.get('session_id')
     if not session_id:
-        # v3.1纯粹架构：要求session_id，无降级逻辑
-        sys.stderr.write("[ERROR] PostToolUse缺少session_id，v3.1架构要求session_id\n")
-        silent_exit()
-        return
-
-    task_binding = mgr.get_active_task_by_session(session_id)
-    if not task_binding:
-        # 无绑定任务，跳过
-        silent_exit()
-        return
-    task_id = task_binding['task_id']
+        sys.stderr.write("[WARN] PostToolUse缺少session_id，降级到全局模式\n")
+        task_id = mgr.get_active_task_id()
+        if not task_id:
+            silent_exit()
+            return
+    else:
+        task_binding = mgr.get_active_task_by_session(session_id)
+        if not task_binding:
+            # 无绑定任务，跳过
+            silent_exit()
+            return
+        task_id = task_binding['task_id']
 
     # 5. 原子更新任务元数据
     def update_func(task_meta: Dict) -> Dict:
@@ -350,12 +395,19 @@ def main():
         # 更新BUG修复追踪
         update_bug_fix_tracking(task_meta, tool_name, tool_input, is_error)
 
-        # 检测循环并标记
-        if detect_loop_indicators(task_meta):
-            bug_fix_tracking = task_meta.get('bug_fix_tracking', {})
-            if not bug_fix_tracking.get('expert_triggered'):
-                bug_fix_tracking['expert_triggered'] = True
-                sys.stderr.write("[PostToolUse] 检测到循环模式,标记专家触发\n")
+        # 使用ExpertTrigger检测循环并标记（替代简化版detect_loop_indicators）
+        expert_trigger = ExpertTrigger()
+        if expert_trigger.should_trigger(task_meta):
+            if not task_meta.get('expert_triggered', False):
+                task_meta['expert_triggered'] = True
+                expert_prompt = expert_trigger.generate_prompt(task_meta)
+                sys.stderr.write("[PostToolUse] 专家审查系统已触发\n")
+                sys.stderr.write(expert_prompt)
+                # 将专家提示保存到task_meta供后续使用
+                if 'expert_review' not in task_meta:
+                    task_meta['expert_review'] = {}
+                task_meta['expert_review']['prompt'] = expert_prompt
+                task_meta['expert_review']['triggered_at'] = datetime.now().isoformat()
 
         return task_meta
 
@@ -452,14 +504,17 @@ if __name__ == "__main__":
             except ImportError as ie:
                 sys.stderr.write(f"  TaskMetaManager可用: False ({ie})\n")
 
-            # v3.1: 检查活跃任务绑定文件
+            # 检查活跃任务
             active_file = os.path.join(cwd, '.claude', '.task-active.json')
             sys.stderr.write(f"  .task-active.json存在: {os.path.exists(active_file)}\n")
-            if os.path.exists(active_file):
-                import json
-                with open(active_file, 'r', encoding='utf-8') as f:
-                    active_data = json.load(f)
-                    sys.stderr.write(f"  活跃会话数: {len(active_data.get('active_tasks', {}))}\n")
+
+            # 检查task-meta.json
+            mgr = TaskMetaManager(cwd)
+            task_id = mgr.get_active_task_id()
+            if task_id:
+                meta_path = mgr._get_meta_path(task_id)
+                sys.stderr.write(f"  task-meta.json路径: {meta_path}\n")
+                sys.stderr.write(f"  task-meta.json存在: {os.path.exists(meta_path)}\n")
         except Exception as ctx_err:
             sys.stderr.write(f"  (上下文信息收集失败: {ctx_err})\n")
 

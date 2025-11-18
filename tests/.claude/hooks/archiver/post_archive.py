@@ -38,32 +38,22 @@ except ImportError:
 
 
 def main():
-    """主入口（v3.1: 支持会话隔离）"""
+    """主入口"""
     try:
         # 读取Hook输入
         hook_input = json.load(sys.stdin)
         cwd = hook_input.get('cwd', os.getcwd())
-        session_id = hook_input.get('session_id')
-
-        # v3.1: 检查session_id
-        if not session_id:
-            sys.stderr.write("[ERROR] PostArchive缺少session_id，v3.1架构要求session_id\n")
-            output = {"continue": True}
-            print(json.dumps(output, ensure_ascii=False))
-            sys.exit(0)
 
         # 初始化 TaskMetaManager
         mgr = TaskMetaManager(cwd)
 
-        # v3.1: 根据session_id获取绑定任务
-        binding = mgr.get_active_task_by_session(session_id)
-        if not binding:
-            sys.stderr.write("[INFO v2.0] 当前会话无绑定任务,跳过归档\n")
+        # 获取活跃任务
+        task_id = mgr.get_active_task_id()
+        if not task_id:
+            sys.stderr.write("[INFO v2.0] 无活跃任务,跳过归档\n")
             output = {"continue": True}
             print(json.dumps(output, ensure_ascii=False))
             sys.exit(0)
-
-        task_id = binding['task_id']
 
         # 加载任务元数据
         task_meta = mgr.load_task_meta(task_id)
@@ -115,8 +105,8 @@ def main():
         if updated:
             sys.stderr.write(f"[INFO v2.0] 任务已归档: {task_id}\n")
 
-            # v3.1: 解除会话绑定
-            mgr.unbind_task_from_session(session_id)
+            # 清除活跃任务标记
+            mgr.clear_active_task()
 
             # 构建归档成功消息
             success_message = f"""

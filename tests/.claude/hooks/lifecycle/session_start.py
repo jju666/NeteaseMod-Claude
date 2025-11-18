@@ -247,6 +247,88 @@ def main():
             print(json.dumps(output, ensure_ascii=False))
             sys.exit(0)
 
+        # ========== v23.0新增：Finalization阶段提示（确保100%启动Task子代理） ==========
+        if current_step == 'finalization':
+            # 检查是否在子代理上下文中
+            is_subagent = mgr.check_subagent_lock(task_id) if task_id else False
+
+            if not is_subagent:
+                # 父代理在finalization阶段，但未启动子代理
+                sys.stderr.write(u"[SessionStart v23.0] 检测到Finalization阶段未启动子代理\n")
+
+                finalization_prompt = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ Finalization阶段 - 必须启动收尾子代理
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**当前状态**:
+- 任务ID: {task_id}
+- 当前阶段: Finalization (收尾归档)
+- 子代理状态: 未启动
+
+**下一步必须操作**:
+启动Task工具创建收尾子代理，负责文档更新和任务归档。
+
+⚡ **立即执行**:
+
+Task(
+  subagent_type="general-purpose",
+  description="任务收尾归档",
+  prompt='''
+请完成以下收尾工作:
+
+1. 读取 .task-meta.json 获取完整任务历史:
+   - 分析 state_transitions (所有状态转移)
+   - 分析 steps.planning.iterations (所有Planning迭代)
+   - 分析 steps.implementation.iterations (所有Implementation迭代)
+
+2. 生成 context.md (任务上下文文档):
+   - 任务概述
+   - 执行历程(每次迭代的详情)
+   - 关键决策点
+   - 完整时间线
+
+3. 生成 solution.md (最终解决方案):
+   - 问题描述
+   - 最终方案
+   - 实施细节
+   - 测试验证
+   - 经验总结
+
+4. 更新 .task-meta.json:
+   - 设置 finalization.status = 'completed'
+   - 设置 finalization.completed_at
+   - 设置 archived = true
+   - 设置 session_ended_at
+
+5. 输出结果标记:
+<!-- SUBAGENT_RESULT {{"completed": true, "documents_generated": ["context.md", "solution.md"], "meta_updated": true}} -->
+'''
+)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 **为什么需要子代理**:
+- 确保收尾工作的隔离执行和质量控制
+- 基于完整历史(state_transitions + iterations)生成归档文档
+- 避免父代理直接修改元数据导致的不一致
+
+⚠️ **重要**:
+- 你只能使用Task工具（其他工具会被PreToolUse Hook阻止）
+- 收尾子代理有完整权限访问所有必需工具
+- 5次非Task工具调用后将被强制阻止
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(task_id=task_id[:40] + ('...' if len(task_id) > 40 else ''))
+
+                output = {
+                    "hookSpecificOutput": {
+                        "hookEventName": "SessionStart",
+                        "additionalContext": finalization_prompt
+                    }
+                }
+                print(json.dumps(output, ensure_ascii=False))
+                sys.exit(0)
+
         # ========== 原有逻辑：显示状态仪表盘 ==========
 
         # 更新会话启动时间

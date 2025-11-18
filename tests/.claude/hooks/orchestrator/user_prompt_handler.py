@@ -65,6 +65,14 @@ except ImportError:
     sys.stderr.write(u"[WARN] TaskMetaManager模块缺失，任务恢复功能可能受限\n")
     TaskMetaManager = None
 
+# v24.0: 导入 LLM 反馈分析器
+try:
+    from core.feedback_analyzer import FeedbackAnalyzer, create_feedback_analyzer
+    FEEDBACK_ANALYZER_AVAILABLE = True
+except ImportError:
+    FEEDBACK_ANALYZER_AVAILABLE = False
+    sys.stderr.write(u"[INFO] FeedbackAnalyzer 不可用，将使用关键词匹配\n")
+
 def ensure_dir(path):
     """确保目录存在
 
@@ -289,8 +297,475 @@ def format_gameplay_pack(pattern):
 
     return result
 
+def has_negation_prefix(text, keyword):
+    """检查关键词前是否有否定词（v22.3修复）
+
+    Args:
+        text: 用户输入文本
+        keyword: 要检查的关键词
+
+    Returns:
+        bool: 如果关键词前有否定词返回True
+    """
+    import re
+    # 否定词列表（中英文）
+    negation_words = ['不', '没', '别', '非', '未', '无', 'no', 'not', "don't", "doesn't", "didn't"]
+
+    # 在文本中查找关键词的所有出现位置
+    pattern = re.escape(keyword)
+    for match in re.finditer(pattern, text, re.IGNORECASE):
+        keyword_start = match.start()
+        # 检查关键词前2个字符内是否有否定词
+        prefix_text = text[max(0, keyword_start-3):keyword_start]
+        for neg_word in negation_words:
+            if neg_word in prefix_text:
+                return True
+    return False
+
+def match_keyword_safely(text, keywords):
+    """安全地匹配关键词（v23.2：词边界+否定词+转折词检测）
+
+    Args:
+        text: 用户输入文本
+        keywords: 关键词列表
+
+    Returns:
+        bool: 如果匹配到关键词且无否定前缀和转折词返回True
+
+    v23.2新增：转折词检测，防止"正常了，但是有问题"被误判为成功
+    """
+    import re
+    text_lower = text.lower().strip()
+
+    # 【v23.2新增】转折词列表
+    CONJUNCTIONS = ['但是', '但', '不过', '然而', '可是', '可', '只是', '就是',
+                   'but', 'however', 'though', 'yet', 'although']
+
+    for kw in keywords:
+        # 使用词边界匹配（避免"不同意"匹配到"同意"）
+        # \b在中文环境下不可靠，改用前后字符检测
+        kw_lower = kw.lower()
+
+        # 方案1：直接检查是否包含且无否定前缀
+        if kw_lower in text_lower:
+            # 检查是否有否定前缀
+            if has_negation_prefix(text_lower, kw_lower):
+                continue
+
+            # 【v23.2新增】检查转折词：如果关键词后面有转折词，不视为明确成功
+            kw_pos = text_lower.find(kw_lower)
+            text_after = text_lower[kw_pos + len(kw_lower):]
+
+            # 如果关键词后50字符内有转折词，说明有转折，不算明确成功
+            has_conjunction = False
+            for conj in CONJUNCTIONS:
+                if conj in text_after[:50]:
+                    has_conjunction = True
+                    break
+
+            if has_conjunction:
+                continue  # 有转折，跳过这个关键词，继续检查其他关键词
+
+            return True  # 无否定前缀、无转折词，算明确匹配
+
+    return False
+
+def _snapshot_step_state(meta_data, step_name):
+    """
+    将当前步骤状态保存为历史快照 (v23.0新增)
+
+    实现完整的历史留痕机制,每次状态转移前保存当前状态快照到iterations数组,
+    确保所有信息追加而非覆盖,方便收尾子代理分析完整历史生成归档文档。
+
+    Args:
+        meta_data: 任务元数据字典
+        step_name: 步骤名称 ('planning' | 'implementation' | 'finalization')
+
+    Returns:
+        dict: 创建的快照对象,如果失败返回None
+    """
+    if 'steps' not in meta_data:
+        return None
+
+    step_data = meta_data['steps'].get(step_name)
+    if not step_data:
+        return None
+
+    # 初始化iterations数组
+    if 'iterations' not in step_data:
+        step_data['iterations'] = []
+
+    # 计算迭代ID
+    iteration_id = len(step_data['iterations']) + 1
+
+    # 创建快照(基础结构)
+    snapshot = {
+        "iteration_id": iteration_id,
+        "timestamp": datetime.now().isoformat(),
+        "status": step_data.get('status', 'unknown'),
+        "config": {},   # 配置字段(required_doc_count, expert_review_required等)
+        "process": {},  # 过程字段(docs_read_count, tools_used等)
+        "outcome": {}   # 结果字段(user_confirmed, solution_proposal等)
+    }
+
+    # 定义字段分类
+    config_fields = ['required_doc_count', 'expert_review_required', 'task_type']
+    process_fields = ['expert_review_triggered', 'expert_review_count']
+    outcome_fields = [
+        'user_confirmed', 'solution_proposal', 'expert_review_result',
+        'expert_review_completed', 'confirmed_at', 'completed_at',
+        'started_at', 'resumed_at', 'resumed_reason'
+    ]
+
+    # 提取配置字段
+    for field in config_fields:
+        if field in step_data:
+            snapshot['config'][field] = step_data[field]
+
+    # 提取过程字段
+    for field in process_fields:
+        if field in step_data:
+            snapshot['process'][field] = step_data[field]
+
+    # 提取结果字段
+    for field in outcome_fields:
+        if field in step_data:
+            snapshot['outcome'][field] = step_data[field]
+
+    # 特殊处理: implementation步骤保存完整的test_feedback_history和code_changes
+    if step_name == 'implementation':
+        if 'test_feedback_history' in step_data:
+            snapshot['test_feedback'] = step_data['test_feedback_history'][:]
+
+        # 从metrics中提取当前iteration的code_changes
+        metrics = meta_data.get('metrics', {})
+        code_changes = metrics.get('code_changes', [])
+        if code_changes:
+            snapshot['code_changes'] = code_changes[:]
+
+    # 追加到历史
+    step_data['iterations'].append(snapshot)
+    step_data['current_iteration_id'] = iteration_id
+
+    return snapshot
+
+def _log_state_transition(meta_data, from_step, to_step, trigger, details):
+    """
+    记录状态转移到全局日志 (v23.0新增)
+
+    在state_transitions数组中追加每次状态转移的详细信息,
+    包括转移触发原因、用户输入、前置条件检查结果、迭代ID等,
+    确保完整可追溯的状态机执行历史。
+
+    Args:
+        meta_data: 任务元数据字典
+        from_step: 源状态 (None表示任务初始化)
+        to_step: 目标状态
+        trigger: 触发原因 ('user_agreed' | 'explicit_success' | 'explicit_failure' | 'task_initialized' 等)
+        details: 详细信息字典 (包含user_input, code_changes_count等)
+
+    Returns:
+        dict: 创建的转移记录对象
+    """
+    if 'state_transitions' not in meta_data:
+        meta_data['state_transitions'] = []
+
+    transition_id = len(meta_data['state_transitions']) + 1
+
+    transition = {
+        "id": transition_id,
+        "from_step": from_step,
+        "to_step": to_step,
+        "timestamp": datetime.now().isoformat(),
+        "trigger": trigger,
+        "details": details
+    }
+
+    # 添加前置条件快照(如果是进入Implementation阶段)
+    if to_step == 'implementation':
+        planning = meta_data.get('steps', {}).get('planning', {})
+        transition['preconditions_met'] = {
+            "docs_read": len(meta_data.get('metrics', {}).get('docs_read', [])),
+            "required_doc_count": planning.get('required_doc_count'),
+            "expert_review_completed": planning.get('expert_review_completed'),
+            "expert_review_result": planning.get('expert_review_result')
+        }
+
+    # 添加迭代ID引用
+    if from_step:
+        from_step_data = meta_data.get('steps', {}).get(from_step, {})
+        if 'current_iteration_id' in from_step_data:
+            transition[f"{from_step}_iteration"] = from_step_data['current_iteration_id']
+
+    if to_step:
+        to_step_data = meta_data.get('steps', {}).get(to_step, {})
+        # 即将开始的新迭代ID
+        next_iteration_id = len(to_step_data.get('iterations', [])) + 1
+        transition[f"{to_step}_iteration"] = next_iteration_id
+
+    # 标记回滚
+    if from_step and to_step:
+        step_order = ['planning', 'implementation', 'finalization']
+        from_index = step_order.index(from_step) if from_step in step_order else -1
+        to_index = step_order.index(to_step) if to_step in step_order else -1
+        if to_index >= 0 and from_index > to_index:
+            transition['rollback'] = True
+
+    meta_data['state_transitions'].append(transition)
+
+    return transition
+
+def _reset_planning_step(meta_data, reason='rollback'):
+    """
+    统一的Planning步骤重置逻辑 (v23.0新增)
+
+    确保回滚到Planning时所有必需字段都被正确初始化,
+    特别是required_doc_count和expert_review_*字段,
+    从而解决字段丢失导致的"强制阅读文档"等问题。
+
+    Args:
+        meta_data: 任务元数据字典
+        reason: 重置原因 ('rollback' | 'planning_required' | 'loop_detected' | 'explicit_failure')
+
+    Returns:
+        dict: 重置后的planning步骤数据
+    """
+    task_type = meta_data.get('task_type', 'general')
+
+    if 'planning' not in meta_data.get('steps', {}):
+        meta_data.setdefault('steps', {})['planning'] = {}
+
+    planning = meta_data['steps']['planning']
+
+    # 基础状态重置
+    planning['user_confirmed'] = False
+    planning['status'] = 'in_progress'
+    planning['resumed_at'] = datetime.now().isoformat()
+
+    # 【P0 BUG修复】文档要求初始化(确保字段存在)
+    if 'required_doc_count' not in planning:
+        planning['required_doc_count'] = 0 if task_type == 'bug_fix' else 3
+
+    # 【P0 BUG修复】专家审查状态初始化(bug_fix类型必需)
+    if task_type == 'bug_fix':
+        planning['expert_review_required'] = True
+        planning['expert_review_completed'] = False
+        planning['expert_review_result'] = None
+        # 保留expert_review_count(累计值,不重置)
+        if 'expert_review_count' not in planning:
+            planning['expert_review_count'] = 0
+
+    # 拒绝计数初始化(用于循环检测,保留历史值)
+    if 'rejection_count' not in planning:
+        planning['rejection_count'] = 0
+    if 'rejection_history' not in planning:
+        planning['rejection_history'] = []
+
+    # 记录重置原因
+    planning['resumed_reason'] = reason
+
+    return planning
+
+
+# ============== v24.0: LLM 分析辅助函数 ==============
+
+def _handle_llm_analysis(meta_data, analysis, user_input):
+    """
+    根据 LLM 分析结果处理状态转移 (v24.0)
+
+    Args:
+        meta_data: 任务元数据字典
+        analysis: FeedbackAnalysis对象（LLM分析结果）
+        user_input: 用户原始输入
+
+    Returns:
+        dict: 状态转移结果
+            - occurred: bool, 是否发生状态转移
+            - message: str, 用户消息
+            - new_step: str或None, 新阶段
+            - old_step: str, 旧阶段
+            - blocked: bool, 是否阻止操作
+            - block_reason: str, 阻止原因
+    """
+    result = {
+        'occurred': False,
+        'message': '',
+        'new_step': None,
+        'old_step': meta_data.get('current_step'),
+        'blocked': False,
+        'block_reason': ''
+    }
+
+    # 记录反馈（增强版：包含 LLM 分析）
+    code_changes = meta_data.get('metrics', {}).get('code_changes', [])
+    feedback_entry = {
+        'timestamp': datetime.now().isoformat(),
+        'user_feedback': user_input,
+        'feedback_type': analysis.feedback_type,
+        'llm_analysis': {  # v24.0 新增
+            'overall_status': analysis.overall_status,
+            'success_parts': analysis.success_parts,
+            'issue_parts': analysis.issue_parts,
+            'sentiment': analysis.sentiment,
+            'confidence': analysis.confidence,
+            'next_action': analysis.next_action,
+            'reasoning': analysis.reasoning,
+            'model_used': analysis.model_used,
+            'tokens_used': analysis.tokens_used,
+            'api_latency_ms': analysis.api_latency_ms
+        },
+        'clarification_requested': (analysis.next_action == 'ask_for_clarification'),
+        'code_changes_count': len(code_changes)
+    }
+
+    # 确保数据结构存在
+    if 'steps' not in meta_data:
+        meta_data['steps'] = {}
+    if 'implementation' not in meta_data['steps']:
+        meta_data['steps']['implementation'] = {}
+    if 'test_feedback_history' not in meta_data['steps']['implementation']:
+        meta_data['steps']['implementation']['test_feedback_history'] = []
+
+    meta_data['steps']['implementation']['test_feedback_history'].append(feedback_entry)
+
+    # 根据 next_action 决策
+    if analysis.next_action == "move_to_finalization":
+        # 完全成功 → 进入 finalization
+        _snapshot_step_state(meta_data, 'implementation')
+        meta_data['current_step'] = 'finalization'
+        meta_data['steps']['implementation']['user_confirmed'] = True
+        meta_data['steps']['implementation']['confirmed_at'] = datetime.now().isoformat()
+        meta_data['steps']['implementation']['status'] = 'completed'
+        meta_data['steps']['implementation']['completed_at'] = datetime.now().isoformat()
+
+        # 启动 finalization 阶段
+        if 'finalization' not in meta_data['steps']:
+            meta_data['steps']['finalization'] = {
+                'status': 'in_progress',
+                'started_at': datetime.now().isoformat(),
+                'user_confirmed': False
+            }
+
+        result['new_step'] = 'finalization'
+        result['occurred'] = True
+        result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ LLM分析：修复成功 (置信度: {confidence:.0%})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 分析结果:
+- 成功部分: {success_parts}
+- 问题部分: {issue_parts}
+- 用户情绪: {sentiment}
+
+🔍 分析推理: {reasoning}
+
+🎯 工作流进入收尾归档阶段。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(
+            confidence=analysis.confidence,
+            success_parts=', '.join(analysis.success_parts) if analysis.success_parts else '(无具体说明)',
+            issue_parts=', '.join(analysis.issue_parts) if analysis.issue_parts else '(无)',
+            sentiment=analysis.sentiment,
+            reasoning=analysis.reasoning
+        )
+
+        # 记录状态转移
+        _log_state_transition(
+            meta_data=meta_data,
+            from_step='implementation',
+            to_step='finalization',
+            trigger='llm_analysis_complete_success',
+            details={'confidence': analysis.confidence, 'model': analysis.model_used}
+        )
+
+    elif analysis.next_action == "back_to_planning":
+        # 方案性错误 → 回到 planning
+        _snapshot_step_state(meta_data, 'implementation')
+        meta_data['current_step'] = 'planning'
+        result['new_step'] = 'planning'
+        result['occurred'] = True
+        result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ LLM分析：检测到方案性错误
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 分析结果:
+- 问题: {issue_parts}
+- 分析推理: {reasoning}
+
+🔄 工作流回到方案设计阶段，请重新分析根本原因。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(
+            issue_parts=', '.join(analysis.issue_parts) if analysis.issue_parts else '(无具体说明)',
+            reasoning=analysis.reasoning
+        )
+
+        # 重置 planning 步骤
+        _reset_planning_step(meta_data, reason='llm_detected_planning_issue')
+
+        # 重置 implementation 状态
+        meta_data['steps']['implementation']['status'] = 'pending'
+        meta_data['steps']['implementation']['user_confirmed'] = False
+
+        # 记录状态转移
+        _log_state_transition(
+            meta_data=meta_data,
+            from_step='implementation',
+            to_step='planning',
+            trigger='llm_analysis_planning_required',
+            details={'confidence': analysis.confidence, 'issues': analysis.issue_parts}
+        )
+
+    elif analysis.next_action == "continue_implementation":
+        # 部分成功或需要继续 → 保持 implementation
+        result['occurred'] = True
+        result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔄 LLM分析：{status_desc} (置信度: {confidence:.0%})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 分析结果:
+- ✅ 成功部分: {success_parts}
+- ❌ 问题部分: {issue_parts}
+- 用户情绪: {sentiment}
+
+🔍 分析推理: {reasoning}
+
+💡 请继续修复剩余问题。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(
+            status_desc="部分成功，需要继续修复" if analysis.overall_status == "partial_success" else "修复失败，需要继续尝试",
+            confidence=analysis.confidence,
+            success_parts=', '.join(analysis.success_parts) if analysis.success_parts else '(无)',
+            issue_parts=', '.join(analysis.issue_parts) if analysis.issue_parts else '(无)',
+            sentiment=analysis.sentiment,
+            reasoning=analysis.reasoning
+        )
+
+    elif analysis.next_action == "ask_for_clarification":
+        # 需要澄清 → 请求用户明确反馈
+        result['occurred'] = True
+        result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+❓ LLM分析：需要澄清 (置信度: {confidence:.0%})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 分析结果:
+- 置信度: {confidence:.0%} (较低)
+- 分析推理: {reasoning}
+
+💬 请明确回答以下问题之一：
+1. 所有问题都已解决？（请明确说"完全解决"或"全部修复"）
+2. 部分问题解决，还有其他问题？（请具体说明哪些解决了，哪些还没解决）
+3. 问题未解决？（请说明具体问题）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(
+            confidence=analysis.confidence,
+            reasoning=analysis.reasoning
+        )
+
+    return result
+
+
 def handle_state_transition(user_input, cwd, session_id=None):
-    """处理用户状态转移（v22.2: 使用atomic_update增强并发安全性）
+    """处理用户状态转移（v22.3: 修复关键词匹配bug + 增加拒绝处理）
 
     Args:
         user_input: 用户输入
@@ -324,12 +799,56 @@ def handle_state_transition(user_input, cwd, session_id=None):
     # 用户输入预处理
     user_input_lower = user_input.lower().strip()
 
-    # 定义关键词映射
+    # 定义关键词映射（v22.3：添加REJECT_KEYWORDS；v22.4：扩展REJECT_KEYWORDS）
     CONFIRM_KEYWORDS = ['同意', '可以', 'ok', '没问题', '确认', 'yes', '好的', '行']
-    FIXED_KEYWORDS = ['修复了', '完成', '好了', '可以了', '成功', 'done', 'fixed', '已完成']
-    NOT_FIXED_KEYWORDS = ['没修复', '还有问题', '没解决', '重新分析', '不行', '失败', '没用']
+    REJECT_KEYWORDS = [
+        # 原有（v22.3）
+        '不同意', '有问题', '需要调整', '不行', '不对', '不可以', '拒绝',
+        # v22.4新增：覆盖更多拒绝表达
+        '不符合', '不够', '不太', '不是', '重新', '再想', '再考虑',
+        '重新思考', '重新分析', '彻底', '完全错', '不理解',
+        '不认可', '不满意', '有疑问', '有疑虑'
+    ]
+    # v23.2修复: 调整关键词策略，移除容易误匹配的通用词
+    # 问题: v23.1添加的"正常"、"通过"等词容易在描述性文本中误匹配
+    # 解决: 只保留明确的完成表达，配合转折词检测机制
+    FIXED_KEYWORDS = [
+        # v22.6原有关键词（保留明确的完成表达）
+        '修复了', '已修复', '完成', '已完成', '好了', '可以了', '成功', '搞定', '搞定了', '解决了',
+        'done', 'fixed', 'ok了', 'fixed了',
+        # v23.1新增（保留明确表达，移除"正常"、"通过"、"可以"等通用词）
+        '没问题了', '没问题', '确定', '行', '行了', 'ok', 'okay', 'OK', 'OKAY',
+        '没事了', '没事', '没毛病',
+        '修好了', '解决', '完美', '完美了', '满意',
+        '没问题的', '可以的', '行的', '验证通过',
+        # v23.2新增：明确的完全成功表达
+        '完全修复', '全部解决', '全部修复', '没有问题了', '一切正常', '全部通过',
+        '完全正常', '彻底解决', '彻底修复', '完全好了', '全都修复了', '都修复了',
+        '全修复了', '都好了', '全好了'
+    ]
+    # v22.6修复: 扩充失败反馈关键词（添加'未修复', '还存在问题', '不行'等常见表达）
+    NOT_FIXED_KEYWORDS = [
+        '没修复', '未修复', '还有问题', '还存在问题', '没解决', '未解决', '重新分析', '失败', '没用',
+        '不行', '有bug', '还有bug'
+    ]
     CONTINUE_KEYWORDS = ['继续', '继续修改', '再改', '还有', 'continue']
-    RESTART_KEYWORDS = ['重来', '重新开始', '不对', '完全错了', 'restart']
+    RESTART_KEYWORDS = ['重来', '重新开始', '完全错了', 'restart']
+    # v22.5新增：模糊肯定表达（需要澄清）
+    AMBIGUOUS_POSITIVE = ['同意', 'ok', 'okay', '可以', '没问题', '通过', '好的', '看起来不错', '不错']
+    # v23.2新增：部分成功关键词（用于区分完全成功和部分成功）
+    PARTIAL_SUCCESS_KEYWORDS = [
+        '部分', '有些', '一部分', '某些', '有的', '个别',
+        '但是', '但', '不过', '然而', '可是', '只是', '就是',
+        'but', 'however', 'though', 'yet', 'although',
+        '还有', '还是', '仍然', '依然', '还在', '还没',
+        '新问题', '新的问题', '另一个问题', '其他问题'
+    ]
+    # v22.7新增：方案性错误关键词（明确表示需要回到Planning重新设计）
+    PLANNING_REQUIRED_KEYWORDS = [
+        '方案错了', '思路不对', '重新设计', '重新分析根因',
+        '根本原因错了', '需要换思路', '这个方法不行',
+        '完全错误', '理解错了', '分析错误'
+    ]
 
     # ========== 核心改动：使用闭包 + atomic_update ==========
 
@@ -350,7 +869,12 @@ def handle_state_transition(user_input, cwd, session_id=None):
 
         # ========== Planning → Implementation ==========
         if current_step == 'planning':
-            if any(kw in user_input_lower for kw in CONFIRM_KEYWORDS):
+            # 【v22.4新增】提前获取planning_step和expert_review状态，用于智能拒绝检测
+            planning_step = meta_data.get('steps', {}).get('planning', {})
+            expert_review_completed = planning_step.get('expert_review_completed', False)
+
+            # v22.3修复: 使用match_keyword_safely避免"不同意"误匹配到"同意"
+            if match_keyword_safely(user_input_lower, CONFIRM_KEYWORDS):
                 # 前置检查：文档数量
                 task_type = meta_data.get('task_type', 'general')
                 docs_read = meta_data.get('metrics', {}).get('docs_read', [])
@@ -387,9 +911,8 @@ def handle_state_transition(user_input, cwd, session_id=None):
                     return meta_data  # 原样返回，不修改
 
                 # 🔥 v22.1新增前置检查2：专家审查完成（仅BUG修复任务）
-                planning_step = meta_data.get('steps', {}).get('planning', {})
+                # 【v22.4优化】planning_step和expert_review_completed已在第406-407行定义
                 expert_review_required = planning_step.get('expert_review_required', False)
-                expert_review_completed = planning_step.get('expert_review_completed', False)
 
                 if expert_review_required and not expert_review_completed:
                     result['blocked'] = True
@@ -430,6 +953,16 @@ def handle_state_transition(user_input, cwd, session_id=None):
                     "已完成" if expert_review_completed else "未要求"
                 ))
 
+                # 【v23.0新增】状态转移前保存历史快照
+                _snapshot_step_state(meta_data, 'planning')
+                _log_state_transition(
+                    meta_data,
+                    from_step='planning',
+                    to_step='implementation',
+                    trigger='user_agreed',
+                    details={'user_input': user_input}
+                )
+
                 # 修改状态
                 meta_data['current_step'] = 'implementation'
                 result['new_step'] = 'implementation'
@@ -466,7 +999,285 @@ AI将开始实施代码修改。每轮修改完成后，请测试并反馈结果
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
-            elif any(kw in user_input_lower for kw in RESTART_KEYWORDS):
+            # 🔥 【v22.4新增】智能拒绝检测：专家审查完成后，非"同意"非"重来"的输入视为隐式拒绝
+            elif expert_review_completed and not match_keyword_safely(user_input_lower, RESTART_KEYWORDS):
+                # 用户既没明确同意，也没完全否定，视为对当前方案有疑虑（隐式拒绝）
+
+                # 初始化拒绝追踪字段
+                if 'rejection_count' not in planning_step:
+                    planning_step['rejection_count'] = 0
+                if 'rejection_history' not in planning_step:
+                    planning_step['rejection_history'] = []
+
+                # 记录拒绝
+                planning_step['rejection_count'] += 1
+                planning_step['rejection_history'].append({
+                    'timestamp': datetime.now().isoformat(),
+                    'user_feedback': user_input,
+                    'rejection_count': planning_step['rejection_count'],
+                    'detection_method': 'implicit'  # 标记为隐式拒绝
+                })
+
+                # 重置确认状态
+                planning_step['user_confirmed'] = False
+                planning_step['status'] = 'in_progress'
+
+                # 获取任务类型和审查状态
+                task_type = meta_data.get('task_type', 'general')
+                expert_review_required = planning_step.get('expert_review_required', False)
+                rejection_count = planning_step['rejection_count']
+
+                # ========== 三层响应机制 ==========
+
+                # 第1次拒绝：温和建议
+                if rejection_count == 1:
+                    rejection_message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 检测到用户疑虑（第1次）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**用户反馈**: {user_feedback}
+
+**系统判断**: 你没有明确输入"同意"，我理解为你对当前方案有疑虑。
+
+✅ **建议**:
+1. 根据用户反馈重新分析问题
+2. 调整方案或收集更多信息
+3. 制定新方案后再次向用户确认
+
+💡 如果方案经过调整，建议启动新一轮专家审查验证。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(user_feedback=user_input[:100])
+
+                # 第2次及以上拒绝：强制重置审查状态
+                elif rejection_count >= 2 and task_type == 'bug_fix' and expert_review_required:
+                    # 【关键】重置专家审查状态，强制重新审查
+                    planning_step['expert_review_completed'] = False
+                    planning_step['expert_review_result'] = None
+
+                    current_review_count = planning_step.get('expert_review_count', 1)
+                    next_review_count = current_review_count + 1
+
+                    rejection_message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 多次拒绝检测（第{rejection_count}次）- 强制重新审查
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**用户反馈**: {user_feedback}
+
+**系统判断**: 你已{rejection_count}次未同意方案，说明方案可能存在根本性问题。
+
+🔄 **系统已重置专家审查状态**:
+- expert_review_completed: true → false
+- expert_review_result: "{old_result}" → null
+- 审查计数: {current_count} → 即将第{next_count}次
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚡ **下一步操作（强制）**:
+
+1. 🔍 **彻底重新分析问题**
+   - 仔细阅读用户的所有反馈（{rejection_count}次）
+   - 确认是否理解了用户的真实需求
+   - 如果不确定，直接询问用户期望的修复方向
+
+2. 🔧 **制定调整后的新方案**
+   - 结合前次专家审查建议
+   - 针对用户反馈的疑虑点重点调整
+
+3. 🚀 **【必须】使用Task工具启动第{next_count}次专家审查**
+
+   Task(
+     subagent_type="general-purpose",
+     description="BUG修复方案第{next_count}次审查",
+     prompt="详细说明：\\n1. 用户{rejection_count}次反馈的核心疑虑\\n2. 上次审查指出的问题\\n3. 我针对这些问题的调整\\n4. 请验证调整是否充分"
+   )
+
+4. ✅ **等待审查结果，再次向用户确认**
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ **重要说明**:
+- 系统已重置 expert_review_completed=false
+- 用户下次输入"同意"时，会检查该状态
+- 如果仍为false，会阻止进入Implementation
+- 你**必须**先通过专家审查，才能推进流程
+
+💡 **为什么强制审查**:
+- {rejection_count}次拒绝表明方案可能偏离用户真实需求
+- 专家审查能帮助发现深层次问题
+- 避免进入无效修改循环，浪费用户时间
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(
+                        rejection_count=rejection_count,
+                        user_feedback=user_input[:100],
+                        old_result=planning_step.get('expert_review_result', '需要调整'),
+                        current_count=current_review_count,
+                        next_count=next_review_count
+                    )
+
+                # 第3次及以上拒绝（非BUG修复或无需审查）
+                else:
+                    rejection_message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔴 严重循环警告（第{rejection_count}次拒绝）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**用户反馈**: {user_feedback}
+
+**系统警告**: 已连续{rejection_count}次未同意方案，极可能存在理解偏差！
+
+⚠️ **建议操作**:
+1. 仔细阅读用户的所有反馈历史
+2. 确认是否理解了用户的真实需求
+3. **如果仍不确定，直接询问用户期望的修复方向**
+4. 完全重新制定方案
+
+💡 **重要**: 如果用户反馈模糊，请主动提问澄清！
+不要猜测用户意图，直接询问是最高效的方式。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(
+                        rejection_count=rejection_count,
+                        user_feedback=user_input[:100]
+                    )
+
+                result['occurred'] = True
+                result['message'] = rejection_message
+
+                sys.stderr.write(u"[UserPromptSubmit v22.4] Planning阶段隐式拒绝检测 (第{}次): {}\n".format(
+                    rejection_count,
+                    user_input[:50]
+                ))
+
+                # 状态保持Planning，不修改current_step
+                return meta_data
+
+            # v22.3新增: Planning阶段用户拒绝方案的处理（保留作为fallback）
+            elif match_keyword_safely(user_input_lower, REJECT_KEYWORDS):
+                # 用户拒绝当前方案，保持Planning阶段，要求重新分析
+                # 【v22.4优化】planning_step已在第406行定义
+
+                # 初始化拒绝追踪字段
+                if 'rejection_count' not in planning_step:
+                    planning_step['rejection_count'] = 0
+                if 'rejection_history' not in planning_step:
+                    planning_step['rejection_history'] = []
+
+                # 记录拒绝
+                planning_step['rejection_count'] += 1
+                planning_step['rejection_history'].append({
+                    'timestamp': datetime.now().isoformat(),
+                    'user_feedback': user_input,
+                    'rejection_count': planning_step['rejection_count']
+                })
+
+                # 重置确认状态
+                planning_step['user_confirmed'] = False
+                planning_step['status'] = 'in_progress'
+
+                # 检查是否需要触发专家审查
+                task_type = meta_data.get('task_type', 'general')
+                expert_review_required = planning_step.get('expert_review_required', False)
+                rejection_count = planning_step['rejection_count']
+
+                # 构建引导消息
+                rejection_message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 用户拒绝当前方案 (第{rejection_count}次)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**当前阶段**: Planning (方案制定)
+**状态**: 保持Planning，要求重新分析
+
+**用户反馈**: {user_feedback}
+
+""".format(
+                    rejection_count=rejection_count,
+                    user_feedback=user_input
+                )
+
+                # 如果是BUG修复任务且拒绝次数≥2，强烈建议启动专家审查
+                if task_type == 'bug_fix' and rejection_count >= 2 and expert_review_required:
+                    expert_review_completed = planning_step.get('expert_review_completed', False)
+
+                    if not expert_review_completed:
+                        rejection_message += u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 循环拒绝检测
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+你已经{rejection_count}次拒绝方案，可能存在根本性误判。
+
+**强烈建议**:
+1. 使用 Task 工具启动专家审查子代理
+2. 让专家帮助分析是否存在错误假设
+3. 根据专家建议调整分析思路
+
+**专家审查启动方式**: 参考任务初始化时的BUG修复指引
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(rejection_count=rejection_count)
+                    else:
+                        # ✅ v22.3.10修复：重置专家审查状态，强制100%启动新一轮审查
+                        planning_step['expert_review_completed'] = False
+                        planning_step['expert_review_result'] = None
+
+                        current_review_count = planning_step.get('expert_review_count', 1)
+                        next_review_count = current_review_count + 1
+
+                        rejection_message += u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔄 专家审查状态已重置
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+专家审查已完成，但用户仍不满意（拒绝{rejection_count}次）。
+系统已重置专家审查状态，强制要求重新审查。
+
+**专家审查计数**: {current_count} → 即将第{next_count}次
+
+**下一步流程** (100%强制启动):
+1. 根据用户最新反馈重新分析: "{user_feedback}"
+2. 结合前次专家审查建议，调整分析思路
+3. 向用户展示调整后的新方案
+4. 当你输入"同意"推进时，系统会自动阻止进入Implementation
+5. 你必须使用 Task 工具启动新一轮专家审查
+6. 审查完成后，再次"同意"才能进入Implementation
+
+**为什么是100%强制**:
+- 系统已重置 expert_review_completed=false
+- 用户"同意"时会触发专家审查前置检查
+- 检查失败会阻止进入Implementation阶段
+- 你唯一的选择是启动Task工具进行专家审查
+
+**专家审查启动方式**: 参考任务初始化时的BUG修复指引
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(
+                            rejection_count=rejection_count,
+                            user_feedback=user_input[:100],
+                            current_count=current_review_count,
+                            next_count=next_review_count
+                        )
+
+                rejection_message += u"""
+✅ **下一步**:
+1. 根据用户反馈重新分析问题
+2. 调整方案或收集更多信息
+3. 制定新方案后再次向用户确认
+
+💡 **提示**: 仔细理解用户的疑虑点，针对性地调整方案
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+
+                result['occurred'] = True
+                result['message'] = rejection_message
+
+                sys.stderr.write(u"[UserPromptSubmit v22.3] Planning阶段用户拒绝方案 (第{}次): {}\n".format(
+                    rejection_count,
+                    user_input[:50]
+                ))
+
+                # 状态保持Planning，不修改current_step
+                return meta_data
+
+            elif match_keyword_safely(user_input_lower, RESTART_KEYWORDS):
                 # 完全否定，回到Activation
                 meta_data['current_step'] = 'activation'
                 result['new_step'] = 'activation'
@@ -490,21 +1301,410 @@ AI将重新分析问题并制定新方案。
 
         # ========== Implementation → Finalization ==========
         elif current_step == 'implementation':
-            if any(kw in user_input_lower for kw in FIXED_KEYWORDS):
-                # 修复成功，进入收尾
-                meta_data['current_step'] = 'finalization'
-                result['new_step'] = 'finalization'
+            # 【v23.1.1修正】删除了v23.1错误的入口处快照机制
+            # v23.0的设计是对的：在每个状态转移分支前保存快照，而不是入口处
+            # 原因：快照应该在状态转移前保存，记录转移前的完整状态
 
-                if 'steps' not in meta_data:
-                    meta_data['steps'] = {}
+            # 【v24.0新增】优先使用 LLM 分析（Phase 1：并行运行+验证）
+            if FEEDBACK_ANALYZER_AVAILABLE:
+                try:
+                    # 加载配置
+                    config_path = os.path.join(HOOK_DIR, 'config', 'feedback_analyzer.json')
+                    config = {}
+                    if os.path.exists(config_path):
+                        with open(config_path, 'r', encoding='utf-8') as f:
+                            config = json.load(f)
+
+                    # 只有当配置启用时才使用 LLM
+                    if config.get('enabled', True):
+                        # 创建分析器
+                        analyzer = create_feedback_analyzer(config)
+
+                        if analyzer:
+                            # 分析用户反馈
+                            analysis = analyzer.analyze(
+                                user_feedback=user_input,
+                                current_step=current_step,
+                                task_type=meta_data.get('task_type', 'general'),
+                                task_description=meta_data.get('task_description', ''),
+                                code_changes=meta_data.get('metrics', {}).get('code_changes', []),
+                                previous_feedback=meta_data.get('steps', {}).get('implementation', {}).get('test_feedback_history', [])
+                            )
+
+                            # 使用 LLM 分析结果
+                            sys.stderr.write(u"[INFO] 使用 LLM 分析结果进行状态转移\n")
+                            return _handle_llm_analysis(meta_data, analysis, user_input)
+
+                except Exception as e:
+                    sys.stderr.write(u"[WARN] LLM 分析失败，回退到关键词匹配: {}\n".format(e))
+                    # 继续执行关键词匹配
+
+            # 【v23.2保留】关键词匹配作为降级方案
+            sys.stderr.write(u"[INFO] 使用关键词匹配进行状态转移\n")
+
+            # 【v22.7新增】双重检测：同时检测成功、失败和方案性错误关键词
+            has_success = match_keyword_safely(user_input_lower, FIXED_KEYWORDS)
+            has_failure = match_keyword_safely(user_input_lower, NOT_FIXED_KEYWORDS)
+            has_planning_required = match_keyword_safely(user_input_lower, PLANNING_REQUIRED_KEYWORDS)
+
+            # 【v22.7新增】优先级1：方案性错误 → 强制回到 Planning
+            if has_planning_required:
+                # 【v23.1.1修正】恢复v23.0的快照调用（在状态转移前保存）
+                _snapshot_step_state(meta_data, 'implementation')
+
+                # 用户明确表示方案错误，无论是否部分成功，都回到 Planning
+                meta_data['current_step'] = 'planning'
+                result['new_step'] = 'planning'
+
+                # 初始化 test_feedback_history
                 if 'implementation' not in meta_data['steps']:
                     meta_data['steps']['implementation'] = {}
+                if 'test_feedback_history' not in meta_data['steps']['implementation']:
+                    meta_data['steps']['implementation']['test_feedback_history'] = []
 
-                meta_data['steps']['implementation']['user_confirmed'] = True
-                meta_data['steps']['implementation']['confirmed_at'] = datetime.now().isoformat()
+                code_changes = meta_data.get('metrics', {}).get('code_changes', [])
+                feedback_entry = {
+                    'timestamp': datetime.now().isoformat(),
+                    'user_feedback': user_input,
+                    'feedback_type': 'planning_required',
+                    'clarification_requested': False,
+                    'code_changes_count': len(code_changes)
+                }
+                meta_data['steps']['implementation']['test_feedback_history'].append(feedback_entry)
+
+                # 【v23.0新增】使用统一重置函数
+                _reset_planning_step(meta_data, reason='planning_required')
+
+                # 重置Implementation状态
+                meta_data['steps']['implementation']['status'] = 'pending'
+                meta_data['steps']['implementation']['user_confirmed'] = False
+
+                # 【v23.0新增】记录状态转移
+                _log_state_transition(
+                    meta_data,
+                    from_step='implementation',
+                    to_step='planning',
+                    trigger='planning_required',
+                    details={
+                        'user_input': user_input,
+                        'feedback_type': 'planning_required',
+                        'code_changes_count': len(code_changes)
+                    }
+                )
 
                 result['occurred'] = True
                 result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 检测到方案性错误 → 回到 Planning
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**你的反馈**: {}
+
+**检测到**: 当前方案存在根本性问题，需要重新分析
+
+**当前阶段**: Planning (方案制定)
+**下一步**:
+1. AI将重新分析问题根本原因
+2. 制定新的修复方案
+3. 启动专家审查（如需要）
+4. 等待你确认新方案
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(user_input[:100])
+
+            # 【v22.7新增】优先级2：失败优先（部分成功或完全失败）
+            elif has_failure:
+                # 只要包含失败关键词，就不进入 Finalization
+
+                if has_success:
+                    # 【v22.7新增】部分成功：同时包含成功和失败关键词
+                    # 记录为 partial_success，继续 Implementation
+
+                    if 'implementation' not in meta_data['steps']:
+                        meta_data['steps']['implementation'] = {}
+                    if 'test_feedback_history' not in meta_data['steps']['implementation']:
+                        meta_data['steps']['implementation']['test_feedback_history'] = []
+
+                    feedback_history = meta_data['steps']['implementation']['test_feedback_history']
+                    code_changes = meta_data.get('metrics', {}).get('code_changes', [])
+
+                    feedback_entry = {
+                        'timestamp': datetime.now().isoformat(),
+                        'user_feedback': user_input,
+                        'feedback_type': 'partial_success',
+                        'clarification_requested': False,
+                        'code_changes_count': len(code_changes)
+                    }
+                    feedback_history.append(feedback_entry)
+
+                    # 【v22.7新增】检测迭代循环：同类型反馈 ≥3次 → 回到 Planning
+                    partial_count = sum(1 for f in feedback_history
+                                       if f.get('feedback_type') in ['partial_success', 'explicit_failure'])
+
+                    if partial_count >= 3:
+                        # 【v23.1.1修正】恢复v23.0的快照调用（在状态转移前保存）
+                        _snapshot_step_state(meta_data, 'implementation')
+
+                        # 反复修改仍有问题，可能是方案性错误，回到 Planning
+                        meta_data['current_step'] = 'planning'
+                        result['new_step'] = 'planning'
+
+                        # 【v23.0新增】使用统一重置函数
+                        _reset_planning_step(meta_data, reason='loop_detected')
+
+                        # 重置Implementation状态
+                        meta_data['steps']['implementation']['status'] = 'pending'
+                        meta_data['steps']['implementation']['user_confirmed'] = False
+
+                        # 【v23.0新增】记录状态转移
+                        _log_state_transition(
+                            meta_data,
+                            from_step='implementation',
+                            to_step='planning',
+                            trigger='loop_detected',
+                            details={
+                                'user_input': user_input,
+                                'feedback_type': 'partial_success',
+                                'partial_count': partial_count,
+                                'code_changes_count': len(code_changes)
+                            }
+                        )
+
+                        result['occurred'] = True
+                        result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔄 检测到反复修改 (第{}次) → 回到 Planning
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**检测到**: 问题已修改{}次，但仍然存在，可能是方案性错误
+
+**当前阶段**: Planning (方案制定)
+**下一步**:
+1. AI将重新分析问题根本原因
+2. 制定新的修复方案（可能采用完全不同的思路）
+3. 启动专家审查验证新方案
+4. 等待你确认
+
+💡 提示: 如果问题根本原因分析错误，重复修改实现细节是无效的。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(partial_count, partial_count)
+                    else:
+                        # 部分成功，保持 Implementation，AI 继续修改
+                        # 【v23.1.1新增】记录partial_success的内部迭代
+                        _log_state_transition(
+                            meta_data,
+                            from_step='implementation',
+                            to_step='implementation',
+                            trigger='partial_success',
+                            details={
+                                'user_input': user_input,
+                                'feedback_type': 'partial_success',
+                                'partial_count': partial_count,
+                                'code_changes_count': len(code_changes)
+                            }
+                        )
+
+                        result['occurred'] = True
+                        result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 检测到部分成功 (第{}轮反馈)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**你的反馈**: {}
+
+**检测到**:
+- ✅ 部分问题已修复
+- ❌ 仍有问题需要解决
+
+**当前阶段**: Implementation (实施)
+**下一步**: AI将根据你的反馈继续调整代码
+
+💡 提示:
+- 如果问题涉及方案性错误，请明确告知（如："方案错了"、"思路不对"）
+- 如果只是实现细节问题，我将继续在当前方案下修改
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(partial_count, user_input[:80])
+
+                        # 不修改状态，保持 Implementation
+                        # 注意：此处不 return，继续执行后续逻辑（但不会进入其他分支）
+
+                # 【v22.7重构】优先级2b：完全失败（原 NOT_FIXED_KEYWORDS 分支逻辑）
+                else:
+                    # 【v23.1.1修正】恢复v23.0的快照调用（在状态转移前保存）
+                    _snapshot_step_state(meta_data, 'implementation')
+
+                    # 完全失败：回到 Planning
+                    meta_data['current_step'] = 'planning'
+                    result['new_step'] = 'planning'
+
+                    if 'steps' not in meta_data['steps']:
+                        meta_data['steps'] = {}
+
+                    # 【v22.5原有】记录明确失败反馈
+                    if 'implementation' not in meta_data['steps']:
+                        meta_data['steps']['implementation'] = {}
+                    if 'test_feedback_history' not in meta_data['steps']['implementation']:
+                        meta_data['steps']['implementation']['test_feedback_history'] = []
+
+                    code_changes = meta_data.get('metrics', {}).get('code_changes', [])
+                    feedback_entry = {
+                        'timestamp': datetime.now().isoformat(),
+                        'user_feedback': user_input,
+                        'feedback_type': 'explicit_failure',
+                        'clarification_requested': False,
+                        'code_changes_count': len(code_changes)
+                    }
+                    meta_data['steps']['implementation']['test_feedback_history'].append(feedback_entry)
+
+                    # 【v23.0新增】使用统一重置函数
+                    _reset_planning_step(meta_data, reason='explicit_failure')
+
+                    # 重置Implementation状态
+                    meta_data['steps']['implementation']['status'] = 'pending'
+                    meta_data['steps']['implementation']['user_confirmed'] = False
+
+                    # 记录回滚历史
+                    if 'rollback_history' not in meta_data:
+                        meta_data['rollback_history'] = []
+
+                    rollback_entry = {
+                        'from_step': 'implementation',
+                        'to_step': 'planning',
+                        'reason': 'user_reported_fix_failed',
+                        'timestamp': datetime.now().isoformat(),
+                        'code_changes': meta_data.get('metrics', {}).get('code_changes', [])
+                    }
+                    meta_data['rollback_history'].append(rollback_entry)
+
+                    # 【v23.0新增】记录状态转移
+                    _log_state_transition(
+                        meta_data,
+                        from_step='implementation',
+                        to_step='planning',
+                        trigger='explicit_failure',
+                        details={
+                            'user_input': user_input,
+                            'feedback_type': 'explicit_failure',
+                            'code_changes_count': len(code_changes)
+                        }
+                    )
+
+                    result['occurred'] = True
+                    result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 状态回滚: Implementation → Planning
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+你反馈修复失败，工作流已回滚到方案制定阶段。
+
+**当前阶段**: Planning (方案)
+**已保留**: 所有代码修改历史已记录到 rollback_history
+**允许操作**: Read, Grep 等分析工具
+
+AI将重新分析问题并制定新的修复方案。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+
+            # 【v22.7重构】优先级3：完全成功（原 FIXED_KEYWORDS 分支）
+            elif has_success:
+                # 【v23.2新增】检测是否是部分成功（包含成功关键词 + 部分成功关键词）
+                has_partial_indicator = any(kw in user_input_lower for kw in PARTIAL_SUCCESS_KEYWORDS)
+
+                if has_partial_indicator:
+                    # 部分成功：不转移状态，记录反馈，提示AI继续修复
+                    if 'steps' not in meta_data:
+                        meta_data['steps'] = {}
+                    if 'implementation' not in meta_data['steps']:
+                        meta_data['steps']['implementation'] = {}
+                    if 'test_feedback_history' not in meta_data['steps']['implementation']:
+                        meta_data['steps']['implementation']['test_feedback_history'] = []
+
+                    code_changes = meta_data.get('metrics', {}).get('code_changes', [])
+                    feedback_entry = {
+                        'timestamp': datetime.now().isoformat(),
+                        'user_feedback': user_input,
+                        'feedback_type': 'partial_success_with_issues',  # v23.2新增分类
+                        'clarification_requested': False,
+                        'code_changes_count': len(code_changes),
+                        'detected_indicators': {
+                            'success_keywords': True,
+                            'partial_indicators': True
+                        }
+                    }
+                    meta_data['steps']['implementation']['test_feedback_history'].append(feedback_entry)
+
+                    result['occurred'] = True
+                    result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 检测到部分成功
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+你的反馈表明：
+- ✅ 部分问题已解决
+- ❌ 仍存在其他问题
+
+**当前阶段**: Implementation (继续实施)
+**下一步**:
+- 请明确指出仍存在的问题，AI将继续修复
+- 或者，如果所有问题都已解决，请明确说"完全解决"或"全部修复"
+
+AI将根据你的反馈继续工作。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+                    # 不转移状态，保持implementation
+                    # 注意：不return，继续执行后续逻辑（但不会进入其他分支）
+
+                else:
+                    # 完全成功：转移到finalization
+                    # 【v23.1.1修正】恢复v23.0的快照调用（在状态转移前保存）
+                    _snapshot_step_state(meta_data, 'implementation')
+
+                    # 修复成功，进入收尾
+                    meta_data['current_step'] = 'finalization'
+                    result['new_step'] = 'finalization'
+
+                    if 'steps' not in meta_data:
+                        meta_data['steps'] = {}
+                    if 'implementation' not in meta_data['steps']:
+                        meta_data['steps']['implementation'] = {}
+
+                    # 【v22.5新增】记录明确成功反馈
+                    if 'test_feedback_history' not in meta_data['steps']['implementation']:
+                        meta_data['steps']['implementation']['test_feedback_history'] = []
+
+                    code_changes = meta_data.get('metrics', {}).get('code_changes', [])
+                    feedback_entry = {
+                        'timestamp': datetime.now().isoformat(),
+                        'user_feedback': user_input,
+                        'feedback_type': 'explicit_success',
+                        'clarification_requested': False,
+                        'code_changes_count': len(code_changes)
+                    }
+                    meta_data['steps']['implementation']['test_feedback_history'].append(feedback_entry)
+
+                    meta_data['steps']['implementation']['user_confirmed'] = True
+                    meta_data['steps']['implementation']['confirmed_at'] = datetime.now().isoformat()
+
+                    # 【v22.7新增】完成Implementation阶段（与Planning→Implementation转移保持一致）
+                    meta_data['steps']['implementation']['status'] = 'completed'
+                    meta_data['steps']['implementation']['completed_at'] = datetime.now().isoformat()
+
+                    # 【v22.7新增】启动Finalization阶段（与Planning→Implementation转移保持一致）
+                    if 'finalization' not in meta_data['steps']:
+                        meta_data['steps']['finalization'] = {}
+                    meta_data['steps']['finalization']['status'] = 'in_progress'
+                    meta_data['steps']['finalization']['started_at'] = datetime.now().isoformat()
+
+                    # 【v23.0新增】记录状态转移
+                    _log_state_transition(
+                        meta_data,
+                        from_step='implementation',
+                        to_step='finalization',
+                        trigger='explicit_success',
+                        details={
+                            'user_input': user_input,
+                            'feedback_type': 'explicit_success',
+                            'code_changes_count': len(code_changes)
+                        }
+                    )
+
+                    result['occurred'] = True
+                    result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ 状态转移: Implementation → Finalization
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -520,59 +1720,187 @@ AI将自动完成任务归档。
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
-            elif any(kw in user_input_lower for kw in NOT_FIXED_KEYWORDS):
-                # 修复失败，回滚到Planning
-                meta_data['current_step'] = 'planning'
-                result['new_step'] = 'planning'
+            # 【v22.7重构】优先级4：智能反馈检测（v22.5原有逻辑）
+            else:
+                # 【v23.1.1新增】continuation_request分支：保存快照并记录内部迭代
+                # 用户输入不匹配任何关键词，视为持续反馈，保持在Implementation阶段
 
-                if 'steps' not in meta_data:
-                    meta_data['steps'] = {}
+                # 获取代码修改记录
+                code_changes = meta_data.get('metrics', {}).get('code_changes', [])
+                has_code_changes = len(code_changes) > 0
 
-                # 重置Planning状态
-                if 'planning' not in meta_data['steps']:
-                    meta_data['steps']['planning'] = {}
-                meta_data['steps']['planning']['user_confirmed'] = False
-                meta_data['steps']['planning']['status'] = 'in_progress'
-                meta_data['steps']['planning']['resumed_at'] = datetime.now().isoformat()
+                # 如果有代码修改，保存快照并记录内部迭代
+                if has_code_changes:
+                    _snapshot_step_state(meta_data, 'implementation')
+                    _log_state_transition(
+                        meta_data,
+                        from_step='implementation',
+                        to_step='implementation',
+                        trigger='continuation_request',
+                        details={
+                            'user_input': user_input,
+                            'feedback_type': 'continuation_request',
+                            'code_changes_count': len(code_changes)
+                        }
+                    )
 
-                # 重置Implementation状态
-                if 'implementation' not in meta_data['steps']:
-                    meta_data['steps']['implementation'] = {}
-                meta_data['steps']['implementation']['status'] = 'pending'
-                meta_data['steps']['implementation']['user_confirmed'] = False
+                # 【v22.5新增】智能反馈检测：处理所有非明确成功/失败的输入
 
-                # 记录回滚历史
-                if 'rollback_history' not in meta_data:
-                    meta_data['rollback_history'] = []
+                # 获取代码修改记录（重新获取，避免上面修改后的影响）
+                code_changes = meta_data.get('metrics', {}).get('code_changes', [])
+                has_code_changes = len(code_changes) > 0
 
-                rollback_entry = {
-                    'from_step': 'implementation',
-                    'to_step': 'planning',
-                    'reason': 'user_reported_fix_failed',
-                    'timestamp': datetime.now().isoformat(),
-                    'code_changes': meta_data.get('metrics', {}).get('code_changes', [])
-                }
-                meta_data['rollback_history'].append(rollback_entry)
+                if has_code_changes:
+                    # AI已完成代码修改，需要用户明确反馈测试结果
 
-                result['occurred'] = True
-                result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ 状态回滚: Implementation → Planning
+                    # 初始化测试反馈追踪（如果不存在）
+                    if 'implementation' not in meta_data['steps']:
+                        meta_data['steps']['implementation'] = {}
+                    if 'test_feedback_history' not in meta_data['steps']['implementation']:
+                        meta_data['steps']['implementation']['test_feedback_history'] = []
+
+                    feedback_history = meta_data['steps']['implementation']['test_feedback_history']
+
+                    # 检测模糊肯定表达
+                    if match_keyword_safely(user_input_lower, AMBIGUOUS_POSITIVE):
+                        # 记录模糊肯定反馈
+                        feedback_entry = {
+                            'timestamp': datetime.now().isoformat(),
+                            'user_feedback': user_input,
+                            'feedback_type': 'ambiguous_positive',
+                            'clarification_requested': True,
+                            'code_changes_count': len(code_changes)
+                        }
+                        feedback_history.append(feedback_entry)
+
+                        # 检测循环：用户反复模糊反馈
+                        ambiguous_count = sum(1 for f in feedback_history if f.get('feedback_type') == 'ambiguous_positive')
+
+                        if ambiguous_count >= 3:
+                            # 严厉警告：可能存在理解偏差
+                            result['occurred'] = True
+                            result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 重复检测：多次模糊反馈（第{}次）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-你反馈修复失败，工作流已回滚到方案制定阶段。
+**检测到**: 你已经{}次使用模糊表达（如"同意"、"可以"），但从未明确反馈测试结果。
 
-**当前阶段**: Planning (方案)
-**已保留**: 所有代码修改历史已记录到 rollback_history
-**允许操作**: Read, Grep 等分析工具
+**当前状态**: Implementation阶段已完成 {} 次代码修改
 
-AI将重新分析问题并制定新的修复方案。
+**系统警告**:
+- 如果你尚未测试，请先测试代码修改效果
+- 如果你已经测试但不清楚如何反馈，请阅读下方说明
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"""
+📋 **明确反馈指南**：
 
-            elif any(kw in user_input_lower for kw in CONTINUE_KEYWORDS):
-                # 继续修改，保持Implementation
-                result['occurred'] = True  # 标记为发生（需要返回消息）
-                result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ **修复成功**（BUG已解决或功能已实现）
+   请输入以下任一表达：
+   - "修复了" / "完成" / "成功"
+   - "好了" / "可以了" / "done" / "fixed"
+   → 工作流将进入 Finalization 阶段（收尾归档）
+
+❌ **修复失败**（BUG仍存在或功能不符合预期）
+   请输入以下任一表达：
+   - "没修复" / "还有问题" / "失败"
+   - "需要调整" / "没解决" / "没用"
+   → 工作流将回滚到 Planning 阶段（重新分析根因）
+
+🔄 **需要补充**（部分完成，需要继续修改）
+   请描述具体的问题或需要补充的内容：
+   - 例如："还需要添加XX功能"
+   - 例如："YY场景下还有问题"
+   → 工作流将保持在 Implementation 阶段继续修改
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ **重要说明**:
+为确保任务质量，工作流需要你明确反馈测试结果。
+如果你不确定如何测试，请告诉我，我可以提供测试建议。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(ambiguous_count, ambiguous_count, len(code_changes))
+                        else:
+                            # 首次或第二次模糊反馈：温和引导
+                            result['occurred'] = True
+                            result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 需要明确的测试反馈
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**检测到**: 你的反馈是肯定的("{}")，但不够明确。
+
+**当前状态**: Implementation阶段已完成 {} 次代码修改
+
+**下一步**: 请测试代码修改效果，并明确反馈结果
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ **如果修复成功**，请输入：
+  - "修复了" / "完成" / "成功" / "好了" / "done" / "fixed"
+  → 工作流将进入 Finalization 阶段（收尾归档）
+
+❌ **如果仍有问题**，请输入：
+  - "没修复" / "还有问题" / "失败" / "需要调整"
+  → 工作流将回滚到 Planning 阶段（重新分析）
+
+🔄 **如果需要继续修改**，请描述：
+  - 具体的问题或需要补充的功能
+  → 工作流将保持在 Implementation 阶段继续修改
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 **提示**:
+如果你尚未测试，请先测试代码修改效果，再返回反馈。
+为防止误操作，工作流需要你明确选择一个选项。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(user_input[:20], len(code_changes))
+
+                        # 不修改状态，保持 Implementation，等待明确反馈
+                        # 注意：return meta_data 直接返回，不执行后续逻辑
+
+                    else:
+                        # 用户输入既不明确完成，也不明确失败，也不是模糊肯定
+                        # 可能是继续描述问题或补充需求 → AI继续修改
+
+                        # 记录补充需求反馈
+                        feedback_entry = {
+                            'timestamp': datetime.now().isoformat(),
+                            'user_feedback': user_input,
+                            'feedback_type': 'continuation_request',
+                            'clarification_requested': False,
+                            'code_changes_count': len(code_changes)
+                        }
+                        feedback_history.append(feedback_entry)
+
+                        result['occurred'] = True
+                        result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💬 收到你的反馈
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**你的反馈**: {}
+
+**当前状态**: Implementation阶段已完成 {} 次代码修改
+
+**AI将根据你的反馈继续调整代码**。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 **提示**:
+如果你已经测试完成，请明确反馈结果：
+  - ✅ "修复了" / "完成" → 进入收尾阶段
+  - ❌ "没修复" / "还有问题" → 重新分析问题
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+""".format(user_input[:50], len(code_changes))
+
+                        # 不修改状态，保持 Implementation，AI继续工作
+                else:
+                    # 没有代码修改记录，可能是AI正在分析阶段
+                    # 保持原有的 CONTINUE_KEYWORDS 逻辑（向后兼容）
+                    if match_keyword_safely(user_input_lower, CONTINUE_KEYWORDS):
+                        result['occurred'] = True
+                        result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ▶️ 继续修改
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -584,7 +1912,7 @@ AI将重新分析问题并制定新的修复方案。
 请继续提供需要调整的具体内容。
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
-                # 注意：状态不变，不修改 meta_data
+                    # 注意：状态不变，不修改 meta_data
 
         return meta_data
 
@@ -1658,6 +2986,19 @@ def main():
                 "expert_triggered": False
             }
             sys.stderr.write(u"[INFO v2.0] BUG修复追踪已初始化（玩法包: %s）\n" % (matched_pattern['id'] if matched_pattern else "None"))
+
+        # 【v23.0新增】记录任务初始化的状态转移(null → planning)
+        _log_state_transition(
+            task_meta,
+            from_step=None,
+            to_step='planning',
+            trigger='task_initialized',
+            details={
+                'user_input': task_desc,
+                'task_type': task_type,
+                'gameplay_pack_matched': matched_pattern['id'] if matched_pattern else None
+            }
+        )
 
         # 使用 TaskMetaManager 保存任务元数据
         if TaskMetaManager:

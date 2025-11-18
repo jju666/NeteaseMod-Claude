@@ -998,12 +998,22 @@ class StageWaitingCountdownState(TimedGamingState):
         except Exception as e:
             system.LogError("清除HUD失败: {}".format(str(e)))
 
-        # 切换到下一个状态(running)
+        # 【修复 2025-11-18】清除父状态的子状态引用,阻止TimedGamingState的自动切换
+        # 问题: TimedGamingState._time_out()在执行完回调后会自动调用parent.next_sub_state()
+        # 这会导致在切换到running主状态后,waiting状态内部的子状态也被切换,产生状态混乱
+        # 解决: 清除parent.current_sub_state,使TimedGamingState._check_state_consistency_before_switch()检查失败
+        # 原理: 检查逻辑 parent.current_sub_state != self 会返回True(None != self),跳过自动切换
+        if self.parent:
+            self.parent.current_sub_state = None
+            system.LogInfo("已清除waiting状态的子状态引用,阻止TimedGamingState自动切换")
+
+        # 切换到下一个主状态(running)
         # 注意: 必须调用root_state的next_sub_state()来切换主状态
         # TimedGamingState._time_out()中的parent.next_sub_state()只会切换子状态
         root_state = system.root_state
         if root_state:
             root_state.next_sub_state()
+            system.LogInfo("已切换到running状态")
         else:
             system.LogError("root_state不存在,无法切换状态")
 

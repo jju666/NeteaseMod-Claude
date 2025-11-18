@@ -113,6 +113,47 @@ def update_metrics(task_meta: Dict, tool_name: str, tool_input: Dict, is_error: 
                 'success': not is_error
             })
 
+    # 【v23.1新增】P1 BUG修复：检测Bash工具中的文件修改
+    # 基于任务-1117-234152测试发现：AI使用Bash命令（python脚本）修改文件，导致code_changes丢失
+    # 方案：检测Bash命令中的文件修改关键词，尝试识别被修改的文件
+    elif tool_name == 'Bash' and not is_error:
+        command = tool_input.get('command', '')
+        if command:
+            # 启发式检测：命令中包含文件修改关键词
+            file_mod_patterns = [
+                'python',  # Python脚本可能修改文件
+                'sed ',    # sed命令
+                'awk ',    # awk命令
+                'echo.*>>',  # 重定向追加
+                'echo.*>',   # 重定向覆盖
+                'cat.*>',    # cat重定向
+                'tee '       # tee命令
+            ]
+
+            # 检查是否包含文件修改模式
+            import re
+            has_file_mod = any(re.search(pattern, command, re.IGNORECASE) for pattern in file_mod_patterns)
+
+            if has_file_mod:
+                # 尝试提取文件路径（简单的启发式规则）
+                # 1. 提取.py文件路径
+                py_files = re.findall(r'([^\s"\']+\.py)', command)
+                # 2. 提取其他常见文件扩展名
+                other_files = re.findall(r'([^\s"\']+\.(?:js|ts|jsx|tsx|java|cpp|c|h|go|rs|rb|php))', command)
+
+                files_found = py_files + other_files
+                if files_found:
+                    for file_path in files_found:
+                        # 避免重复记录
+                        if not any(c.get('file') == file_path for c in metrics['code_changes']):
+                            metrics['code_changes'].append({
+                                'file': file_path,
+                                'tool': 'Bash',
+                                'timestamp': datetime.now().isoformat(),
+                                'success': True,
+                                'note': 'detected_from_bash_command'
+                            })
+
     # 记录文档阅读（P1增强：添加详细诊断日志 + 文件日志）
     if tool_name == 'Read':
         file_path = tool_input.get('file_path', '')
@@ -298,6 +339,30 @@ def main():
     # 可选：调试模式下输出工具名（通过环境变量MODSDK_DEBUG=1启用）
     if os.getenv('MODSDK_DEBUG') == '1':
         sys.stderr.write(f"[DEBUG] PostToolUse: tool={tool_name}, input_keys={list(tool_input.keys())}\n")
+
+    # 🔥 v22.3.10: Task工具诊断 - 记录完整的tool_response
+    if tool_name == 'Task':
+        sys.stderr.write("=" * 60 + "\n")
+        sys.stderr.write("[DIAGNOSTIC] Task工具执行完成\n")
+        sys.stderr.write(f"tool_input keys: {list(tool_input.keys())}\n")
+        sys.stderr.write(f"tool_response type: {type(tool_result)}\n")
+
+        # 将完整的 tool_response 记录到文件
+        try:
+            task_response_log = os.path.join(os.getcwd(), "task-tool-response-debug.log")
+            with open(task_response_log, 'a', encoding='utf-8') as f:
+                f.write("=" * 80 + "\n")
+                f.write(f"[{datetime.now().isoformat()}] Task工具执行\n")
+                f.write(f"tool_input: {json.dumps(tool_input, ensure_ascii=False, indent=2)}\n")
+                f.write(f"tool_response type: {type(tool_result)}\n")
+                f.write(f"tool_response length: {len(str(tool_result))}\n")
+                f.write(f"tool_response content:\n{json.dumps(tool_result, ensure_ascii=False, indent=2)}\n")
+                f.write("=" * 80 + "\n\n")
+            sys.stderr.write(f"[DIAGNOSTIC] tool_response已记录到: {task_response_log}\n")
+        except Exception as e:
+            sys.stderr.write(f"[ERROR] 记录task_response失败: {e}\n")
+
+        sys.stderr.write("=" * 60 + "\n")
 
     # 2. 获取工作目录
     cwd = os.getcwd()

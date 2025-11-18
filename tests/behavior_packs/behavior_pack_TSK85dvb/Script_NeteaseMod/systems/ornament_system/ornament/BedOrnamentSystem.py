@@ -128,10 +128,15 @@ class BedOrnamentSystem(object):
         生成床装饰
 
         逻辑:
-        1. 从队伍中随机选择一个玩家
+        1. 从队伍中选择装备最贵床饰的玩家(基于价格优先级)
         2. 获取玩家装备的床饰配置
         3. 创建床装饰实体
         4. 设置variant、mark_variant、scale
+
+        优先级规则:
+        - 活动限定装饰(-1价格) > 碎片装饰 > 金币装饰
+        - 同价格时随机选择一个玩家
+        - 所有玩家都是默认装饰时不创建实体
 
         Args:
             team_id (str): 队伍ID (RED, BLUE, GREEN, YELLOW等)
@@ -145,7 +150,7 @@ class BedOrnamentSystem(object):
         try:
             print("[INFO] [BedOrnamentSystem] 为队伍 {} 生成床装饰".format(team_id))
 
-            # 1. 从队伍中随机选择一个玩家
+            # 1. 从队伍中基于价格优先级选择玩家
             team_module = self.game_system.team_module
             if not team_module:
                 print("[WARN] [BedOrnamentSystem] 队伍模块未初始化")
@@ -156,9 +161,40 @@ class BedOrnamentSystem(object):
                 print("[WARN] [BedOrnamentSystem] 队伍 {} 没有玩家".format(team_id))
                 return None
 
-            # 随机选择一个玩家
-            selected_player_id = random.choice(team_players)
-            print("[INFO] [BedOrnamentSystem] 选择玩家 {} 的床饰".format(selected_player_id))
+            # 基于价格优先级选择玩家
+            ornament_system = self.game_system.ornament_system
+            if not ornament_system:
+                print("[WARN] [BedOrnamentSystem] 装饰系统未初始化")
+                return None
+
+            max_price = -1
+            candidates = []  # 价格最高的玩家列表
+
+            for player_id in team_players:
+                # 获取玩家装备的床装饰ID
+                player_ornaments = ornament_system.player_ornaments.get(player_id, {})
+                ornament_id = player_ornaments.get('bed-ornament')
+
+                if not ornament_id:
+                    continue
+
+                price_value = self._get_ornament_price_value(ornament_id)
+
+                if price_value > max_price:
+                    max_price = price_value
+                    candidates = [player_id]
+                elif price_value == max_price and price_value > 0:
+                    candidates.append(player_id)
+
+            # 如果没有找到有效装饰,返回None
+            if not candidates or max_price == 0:
+                print("[INFO] [BedOrnamentSystem] 队伍 {} 所有玩家都使用默认装饰".format(team_id))
+                return None
+
+            # 从价格最高的玩家中随机选择一个
+            selected_player_id = random.choice(candidates)
+            print("[INFO] [BedOrnamentSystem] 选择玩家 {} 的床饰 (价格值: {}, 候选人数: {})".format(
+                selected_player_id, max_price, len(candidates)))
 
             # 2. 获取玩家装备的床饰配置
             ornament_config = self._get_player_bed_ornament_config(selected_player_id)
@@ -235,6 +271,47 @@ class BedOrnamentSystem(object):
             "team_color_support": False,
             "default": True
         })
+
+    def _get_ornament_price_value(self, ornament_id):
+        """
+        从配置中获取装饰的价格数值(用于优先级比较)
+
+        Args:
+            ornament_id (str): 装饰ID
+
+        Returns:
+            int: 价格数值,数值越大优先级越高
+        """
+        try:
+            from Script_NeteaseMod.config import ornament_config
+
+            bed_config = ornament_config.BED_ORNAMENT_CONFIG.get(ornament_id)
+            if not bed_config:
+                return 0
+
+            price = bed_config.get('price', 0)
+
+            # 活动限定装饰(-1)优先级最高
+            if price == -1:
+                return 999999
+
+            # 碎片价格 "ornament-fragment:X"
+            if isinstance(price, str) and price.startswith("ornament-fragment:"):
+                try:
+                    fragment_count = int(price.split(":")[1])
+                    return fragment_count * 20  # 系数20,确保碎片装饰优先级高于所有金币装饰
+                except (ValueError, IndexError):
+                    return 0
+
+            # 数值型价格
+            if isinstance(price, int):
+                return price
+
+            return 0
+
+        except Exception as e:
+            print("[ERROR] [BedOrnamentSystem] 获取价格失败: {}".format(str(e)))
+            return 0
 
     def _create_bed_entity(self, config, team_id, pos, yaw, dimension):
         """

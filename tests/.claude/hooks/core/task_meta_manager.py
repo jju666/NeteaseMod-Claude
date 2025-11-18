@@ -204,6 +204,26 @@ class TaskMetaManager:
 
         return None
 
+    # ============== 活跃任务管理 ==============
+
+    def get_active_task_id(self) -> Optional[str]:
+        """
+        获取当前活跃任务ID（v3.0兼容方法，已弃用）
+
+        注意: v3.1推荐使用 get_active_task_by_session()
+
+        Returns:
+            活跃任务ID，如果没有活跃任务则返回None
+        """
+        if not os.path.exists(self.active_flag_path):
+            return None
+
+        active_data = self._load_json(self.active_flag_path)
+        if not active_data:
+            return None
+
+        return active_data.get('task_id')
+
     # ============== v3.1: 会话绑定管理 ==============
 
     def get_active_task_by_session(self, session_id: str) -> Optional[Dict]:
@@ -415,49 +435,6 @@ class TaskMetaManager:
             sys.stderr.write(f"[TaskMetaManager] 会话继承失败: {e}\n")
             return False
 
-    def update_session_binding(self, session_id: str, updates: Dict) -> bool:
-        """
-        更新会话绑定的快照信息（可选，非真相源）
-
-        Args:
-            session_id: 会话ID
-            updates: 要更新的字段（如 {'current_step': 'implementation'}）
-
-        Returns:
-            是否更新成功
-
-        行为:
-            - 只更新.task-active.json中的快照信息
-            - 不修改task-meta.json（真相源）
-            - 如果会话没有绑定，返回False
-        """
-        if not os.path.exists(self.active_flag_path):
-            return False
-
-        active_data = self._load_json(self.active_flag_path)
-        if not active_data or 'active_tasks' not in active_data:
-            return False
-
-        # 检查会话是否有绑定
-        if session_id not in active_data['active_tasks']:
-            sys.stderr.write(f"[TaskMetaManager] 更新失败: 会话 {session_id[:8]}... 没有绑定任务\n")
-            return False
-
-        # 更新字段
-        for key, value in updates.items():
-            active_data['active_tasks'][session_id][key] = value
-
-        active_data['active_tasks'][session_id]['updated_at'] = datetime.now().isoformat()
-
-        # 保存
-        try:
-            self._save_json(self.active_flag_path, active_data)
-            sys.stderr.write(f"[TaskMetaManager] ✅ 会话绑定快照已更新: {session_id[:8]}...\n")
-            return True
-        except Exception as e:
-            sys.stderr.write(f"[TaskMetaManager] 更新绑定快照失败: {e}\n")
-            return False
-
     def fuzzy_match_task_by_timestamp(self, timestamp: str) -> Optional[str]:
         """
         根据时间戳模糊匹配任务ID（v3.1新增）
@@ -551,6 +528,46 @@ class TaskMetaManager:
             })
 
         return result
+
+    def set_active_task(self, task_id: str, current_step: Optional[str] = None) -> bool:
+        """
+        设置活跃任务
+
+        Args:
+            task_id: 任务ID
+            current_step: 当前步骤（可选）
+
+        Returns:
+            是否设置成功
+        """
+        active_data = {
+            'task_id': task_id,
+            'task_dir': os.path.join(self.tasks_dir, task_id),
+            'current_step': current_step,
+            'updated_at': datetime.now().isoformat()
+        }
+
+        try:
+            self._save_json(self.active_flag_path, active_data)
+            return True
+        except Exception as e:
+            sys.stderr.write(f"[TaskMetaManager] 设置活跃任务失败: {e}\n")
+            return False
+
+    def clear_active_task(self) -> bool:
+        """
+        清除活跃任务标记
+
+        Returns:
+            是否清除成功
+        """
+        try:
+            if os.path.exists(self.active_flag_path):
+                os.remove(self.active_flag_path)
+            return True
+        except Exception as e:
+            sys.stderr.write(f"[TaskMetaManager] 清除活跃任务失败: {e}\n")
+            return False
 
     # ============== 任务目录管理 ==============
 

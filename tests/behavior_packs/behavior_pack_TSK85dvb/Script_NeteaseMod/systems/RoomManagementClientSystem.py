@@ -210,7 +210,7 @@ class RoomManagementClientSystem(clientApi.GetClientSystemCls()):
             args: 新的UI数据参数
         """
         try:
-            from ui.MapVoteScreenNode import MapVoteScreenNode
+            from Script_NeteaseMod.systems.ui.MapVoteScreenNode import MapVoteScreenNode
             node = clientApi.GetTopUINode()
             if isinstance(node, MapVoteScreenNode):
                 node.ui_data = args
@@ -266,48 +266,48 @@ class RoomManagementClientSystem(clientApi.GetClientSystemCls()):
             # 获取客户端引擎组件工厂
             comp_factory = clientApi.GetEngineCompFactory()
 
-            # 获取ActorRender组件 (用于设置实体渲染)
-            # 参考: 老项目ECStagePart.py:159
-            level_id = clientApi.GetLevelId()
-            comp_render = comp_factory.CreateActorRender(level_id)
+            # [FIX 2025-11-17] 使用entity_id创建ActorRender组件,只操作单个实体
+            # 原错误: 使用level_id创建组件会导致批量API影响所有同类型NPC
+            # 修复: 使用entity_id创建组件,配合OneActor系列API只操作当前NPC
+            comp_render = comp_factory.CreateActorRender(entity_id)
 
             if not comp_render:
                 print("[ERROR] [RoomManagementClientSystem] 创建ActorRender组件失败")
                 return
 
-            # [核心] 100%还原老项目的皮肤复制流程
-            # 参考: 老项目ECStagePart.py:160-163
+            # [FIX 2025-11-17] 使用OneActor系列API只操作当前实体
+            # 原错误: CopyActorXxxFromPlayer批量API会影响所有同类型NPC
+            # 修复: CopyPlayerXxxToOneActor只操作当前entity_id对应的NPC
 
-            # 1. 复制玩家的几何体(模型)到NPC
-            # CopyActorGeometryFromPlayer(玩家ID, 实体类型, 源几何体名, 目标几何体名)
-            comp_render.CopyActorGeometryFromPlayer(
-                skin_player,  # 从哪个玩家复制
-                "ecbedwars:broadcast_score_npc",  # NPC实体类型
-                "default",  # 源几何体名
-                "default"   # 目标几何体名
-            )
-
-            # 2. 复制玩家的渲染材质到NPC
-            # CopyActorRenderMaterialFromPlayer(玩家ID, 实体类型, 源材质名, 目标材质名)
-            comp_render.CopyActorRenderMaterialFromPlayer(
+            # 1. 复制玩家的几何体(模型)到当前NPC
+            # CopyPlayerGeometryToOneActor(玩家ID, 源几何体名, 目标几何体名)
+            comp_render.CopyPlayerGeometryToOneActor(
                 skin_player,
-                "ecbedwars:broadcast_score_npc",
                 "default",
                 "default"
             )
 
-            # 3. 复制玩家的纹理(皮肤贴图)到NPC
-            # CopyActorTextureFromPlayer(玩家ID, 实体类型, 源纹理名, 目标纹理键)
-            comp_render.CopyActorTextureFromPlayer(
+            # 2. 复制玩家的渲染材质到当前NPC
+            # CopyPlayerRenderMaterialToOneActor(玩家ID, 源材质名, 目标材质名)
+            comp_render.CopyPlayerRenderMaterialToOneActor(
                 skin_player,
-                "ecbedwars:broadcast_score_npc",
                 "default",
-                texture_key  # 使用传入的texture_key作为目标纹理键
+                "default"
             )
 
-            # 4. 重建NPC的渲染以应用上述更改
-            # 参考: 老项目ECStagePart.py:163
-            comp_render.RebuildActorRender("ecbedwars:broadcast_score_npc")
+            # 3. 复制玩家的纹理(皮肤贴图)到当前NPC
+            # CopyPlayerTextureToOneActor(玩家ID, 源纹理名, 目标纹理键)
+            comp_render.CopyPlayerTextureToOneActor(
+                skin_player,
+                "default",
+                texture_key
+            )
+
+            # 4. 重建当前NPC的渲染以应用上述更改
+            # [FIX 2025-11-17] 使用RebuildRenderForOneActor只重建当前实体
+            # 原错误: RebuildActorRender会重建所有同类型NPC,导致后续NPC覆盖前面的皮肤
+            # 修复: RebuildRenderForOneActor只重建当前entity_id对应的NPC
+            comp_render.RebuildRenderForOneActor()
 
             print("[INFO] [RoomManagementClientSystem] NPC皮肤设置完成: entity_id={}".format(entity_id))
 

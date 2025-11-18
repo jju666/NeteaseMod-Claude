@@ -1,0 +1,24 @@
+{
+  "version": "v24.0",
+  "enabled": true,
+  "model": "claude-3-5-haiku-20241022",
+  "max_tokens": 1024,
+  "temperature": 0.0,
+  "fallback": {
+    "enabled": true,
+    "timeout_ms": 3000,
+    "use_keyword_matching": true
+  },
+  "cache": {
+    "enabled": true,
+    "max_entries": 100
+  },
+  "logging": {
+    "log_api_calls": false,
+    "log_path": "tests/.claude/logs/feedback_analyzer.log"
+  },
+  "experimental": {
+    "parallel_analysis": false,
+    "record_comparison_data": true
+  }
+}

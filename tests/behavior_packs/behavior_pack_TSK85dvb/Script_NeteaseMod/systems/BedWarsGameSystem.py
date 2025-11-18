@@ -2207,7 +2207,7 @@ class BedWarsGameSystem(GamingStateSystem):
             # ========== 2. 处理剑类武器 ==========
             # 检查是否有复活物品记录（死亡保留的剑）
             if player_id in self.respawn_contents:
-                contents = self.respawn_contents.pop(player_id)
+                contents = self.respawn_contents[player_id]  # FIX: Read only, do not delete
                 # 先恢复复活物品（包括剑、工具等）
                 comp_item.SetPlayerAllItems(contents)
 
@@ -2346,6 +2346,15 @@ class BedWarsGameSystem(GamingStateSystem):
             comp_item.SetPlayerAllItems(armor_slots)
 
             self.LogInfo("玩家{}的装备初始化完成 team={}".format(player_id, team_id))
+
+            # [FIX 2025-11-18] 清理复活物品记录（在成功完成装备初始化后）
+            # 原因：防止内存泄漏，同时确保数据在整个初始化过程中可用
+            if player_id in self.respawn_contents:
+                try:
+                    del self.respawn_contents[player_id]
+                    self.LogInfo("清理玩家{}的复活物品记录".format(player_id))
+                except KeyError:
+                    pass
             return True
 
         except Exception as e:

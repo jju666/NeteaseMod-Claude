@@ -2123,7 +2123,7 @@ class RoomManagementSystem(GamingStateSystem):
 
     def create_map_vote(self):
         """创建地图投票实例"""
-        from util.MapVoteInstance import MapVoteInstance
+        from Script_NeteaseMod.systems.util.MapVoteInstance import MapVoteInstance
         self.map_vote = MapVoteInstance(self)
         self.LogInfo("地图投票实例已创建,可用地图数: {}".format(len(self.map_vote.maps)))
 

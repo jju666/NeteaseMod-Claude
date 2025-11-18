@@ -15,7 +15,6 @@ Session End Hook - 会话结束钩子 (v2.0)
 
 import sys
 import os
-import json
 from datetime import datetime
 
 HOOK_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,24 +28,14 @@ except ImportError:
 
 
 def main():
-    """主入口（v3.1: 支持会话隔离）"""
-    # 读取Hook输入
-    hook_input = json.load(sys.stdin)
-    cwd = hook_input.get('cwd', os.getcwd())
-    session_id = hook_input.get('session_id')
-
-    if not session_id:
-        # v3.1纯粹架构：要求session_id
-        sys.stderr.write("[ERROR] SessionEnd缺少session_id，v3.1架构要求session_id\n")
-        sys.exit(0)
-
+    """主入口"""
+    cwd = os.getcwd()
     mgr = TaskMetaManager(cwd)
-    binding = mgr.get_active_task_by_session(session_id)
-    if not binding:
-        sys.stderr.write("[INFO v2.0] 当前会话无绑定任务,跳过会话结束处理\n")
-        sys.exit(0)
 
-    task_id = binding['task_id']
+    task_id = mgr.get_active_task_id()
+    if not task_id:
+        sys.stderr.write("[INFO v2.0] 无活跃任务,跳过会话结束处理\n")
+        sys.exit(0)
 
     # 原子更新会话结束时间
     def update_func(task_meta):

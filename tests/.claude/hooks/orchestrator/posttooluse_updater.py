@@ -23,10 +23,11 @@ import os
 from datetime import datetime
 from typing import Dict, Optional, Tuple
 
+# 🔥 v25.0修复: Windows编码完整容错策略
 # v3.0 Final Bug Fix: Windows UTF-8编码支持（emoji输出）
 if sys.platform == 'win32':
     import io
-    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
+    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8', errors='replace')
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 

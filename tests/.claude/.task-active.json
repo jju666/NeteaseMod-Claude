@@ -1,6 +1,14 @@
 {
-  "task_id": "任务-1118-015818-修复玩家复活装备",
-  "task_dir": "D:\\EcWork\\基于Claude的MODSDK开发工作流\\tests\\tasks\\任务-1118-015818-修复玩家复活装备",
-  "current_step": "implementation",
-  "updated_at": "2025-11-18T02:03:16.200070"
+  "version": "v3.1",
+  "active_tasks": {
+    "test-session-diagnose": {
+      "task_id": "任务-1120-020531-修复玩家死亡复活",
+      "task_dir": "e:\\EcWork\\NeteaseMod-Claude\\tests\\tasks\\任务-1120-020531-修复玩家死亡复活",
+      "current_step": "implementation",
+      "bound_at": "2025-11-20T02:46:57.445596",
+      "session_history": [
+        "test-session-diagnose"
+      ]
+    }
+  }
 }

@@ -65,6 +65,46 @@ except ImportError:
     sys.stderr.write(u"[WARN] TaskMetaManager模块缺失，任务恢复功能可能受限\n")
     TaskMetaManager = None
 
+# v24.2: 导入增强型关键词匹配器
+try:
+    from core.enhanced_matcher import (
+        analyze_user_feedback,
+        match_keyword_safely_enhanced,
+        COMPLETE_SUCCESS_KEYWORDS,
+        FAILURE_KEYWORDS,
+        PARTIAL_SUCCESS_KEYWORDS,
+        PLANNING_ERROR_KEYWORDS,
+    )
+    ENHANCED_MATCHER_AVAILABLE = True
+    sys.stderr.write(u"[INFO] 增强型关键词匹配器已加载 (v24.2)\n")
+except ImportError as e:
+    ENHANCED_MATCHER_AVAILABLE = False
+    sys.stderr.write(u"[WARN] 增强型关键词匹配器不可用，使用基础匹配: {}\n".format(e))
+
+# v25.0: 导入Claude语义分析器（LLM驱动）
+try:
+    from core.claude_semantic_analyzer import ClaudeSemanticAnalyzer, analyze_user_intent
+    CLAUDE_ANALYZER_AVAILABLE = True
+    sys.stderr.write(u"[INFO] Claude语义分析器已加载 (v25.0)\n")
+except ImportError as e:
+    CLAUDE_ANALYZER_AVAILABLE = False
+    sys.stderr.write(u"[WARN] Claude语义分析器不可用: {}\n".format(e))
+
+# v25.0: 导入状态转移验证器（确保100%不脱离状态机）
+try:
+    from core.state_transition_validator import (
+        validate_state_transition,
+        validate_transition_requirements,
+        get_allowed_transitions,
+        IllegalTransitionError,
+        MissingCriticalFieldError
+    )
+    STATE_VALIDATOR_AVAILABLE = True
+    sys.stderr.write(u"[INFO] 状态转移验证器已加载 (v25.0)\n")
+except ImportError as e:
+    STATE_VALIDATOR_AVAILABLE = False
+    sys.stderr.write(u"[WARN] 状态转移验证器不可用: {}\n".format(e))
+
 def ensure_dir(path):
     """确保目录存在
 
@@ -315,17 +355,23 @@ def has_negation_prefix(text, keyword):
     return False
 
 def match_keyword_safely(text, keywords):
-    """安全地匹配关键词（v22.3：词边界+否定词检测）
+    """安全地匹配关键词（v23.2：词边界+否定词+转折词检测）
 
     Args:
         text: 用户输入文本
         keywords: 关键词列表
 
     Returns:
-        bool: 如果匹配到关键词且无否定前缀返回True
+        bool: 如果匹配到关键词且无否定前缀和转折词返回True
+
+    v23.2新增：转折词检测，防止"正常了，但是有问题"被误判为成功
     """
     import re
     text_lower = text.lower().strip()
+
+    # 【v23.2新增】转折词列表
+    CONJUNCTIONS = ['但是', '但', '不过', '然而', '可是', '可', '只是', '就是',
+                   'but', 'however', 'though', 'yet', 'although']
 
     for kw in keywords:
         # 使用词边界匹配（避免"不同意"匹配到"同意"）
@@ -335,8 +381,24 @@ def match_keyword_safely(text, keywords):
         # 方案1：直接检查是否包含且无否定前缀
         if kw_lower in text_lower:
             # 检查是否有否定前缀
-            if not has_negation_prefix(text_lower, kw_lower):
-                return True
+            if has_negation_prefix(text_lower, kw_lower):
+                continue
+
+            # 【v23.2新增】检查转折词：如果关键词后面有转折词，不视为明确成功
+            kw_pos = text_lower.find(kw_lower)
+            text_after = text_lower[kw_pos + len(kw_lower):]
+
+            # 如果关键词后50字符内有转折词，说明有转折，不算明确成功
+            has_conjunction = False
+            for conj in CONJUNCTIONS:
+                if conj in text_after[:50]:
+                    has_conjunction = True
+                    break
+
+            if has_conjunction:
+                continue  # 有转折，跳过这个关键词，继续检查其他关键词
+
+            return True  # 无否定前缀、无转折词，算明确匹配
 
     return False
 
@@ -536,6 +598,35 @@ def _reset_planning_step(meta_data, reason='rollback'):
 
     return planning
 
+
+def _validate_task_meta_structure(meta):
+    """【v24.1新增】验证task-meta数据结构的完整性
+
+    Args:
+        meta: task-meta数据字典
+
+    Returns:
+        bool: 如果结构有效返回True，否则返回False
+    """
+    if not isinstance(meta, dict):
+        return False
+
+    # 检查必需的顶层字段
+    required_keys = ['task_id', 'task_type', 'current_step', 'steps', 'metrics']
+    for key in required_keys:
+        if key not in meta:
+            sys.stderr.write(u"[ERROR] 数据结构验证失败: 缺少必需字段 '{}'\n".format(key))
+            return False
+
+    # 检查是否是状态转移结果对象（错误的结构）
+    if 'occurred' in meta and 'new_step' in meta and 'old_step' in meta:
+        sys.stderr.write(u"[CRITICAL] 检测到状态转移结果对象被错误保存为task-meta！\n")
+        sys.stderr.write(u"[CRITICAL] 这是一个BUG，数据已损坏\n")
+        return False
+
+    return True
+
+
 def handle_state_transition(user_input, cwd, session_id=None):
     """处理用户状态转移（v22.3: 修复关键词匹配bug + 增加拒绝处理）
 
@@ -572,7 +663,9 @@ def handle_state_transition(user_input, cwd, session_id=None):
     user_input_lower = user_input.lower().strip()
 
     # 定义关键词映射（v22.3：添加REJECT_KEYWORDS；v22.4：扩展REJECT_KEYWORDS）
-    CONFIRM_KEYWORDS = ['同意', '可以', 'ok', '没问题', '确认', 'yes', '好的', '行']
+    # v24.0新增：添加"认同"、"赞同"等同义词（修复#issue-认同未被识别为同意）
+    CONFIRM_KEYWORDS = ['同意', '可以', 'ok', '没问题', '确认', 'yes', '好的', '行',
+                         '认同', '赞同', '支持', '接受', 'agree', '同意的', '认同的', '赞同的']
     REJECT_KEYWORDS = [
         # 原有（v22.3）
         '不同意', '有问题', '需要调整', '不行', '不对', '不可以', '拒绝',
@@ -581,17 +674,22 @@ def handle_state_transition(user_input, cwd, session_id=None):
         '重新思考', '重新分析', '彻底', '完全错', '不理解',
         '不认可', '不满意', '有疑问', '有疑虑'
     ]
-    # v23.1修复: 大幅扩充成功反馈关键词（添加20+个用户实际使用的表达）
-    # 基于任务-1117-234152测试发现："没问题了"、"确定"等常见表达缺失导致状态机失效
+    # v23.2修复: 调整关键词策略，移除容易误匹配的通用词
+    # 问题: v23.1添加的"正常"、"通过"等词容易在描述性文本中误匹配
+    # 解决: 只保留明确的完成表达，配合转折词检测机制
     FIXED_KEYWORDS = [
-        # v22.6原有关键词
+        # v22.6原有关键词（保留明确的完成表达）
         '修复了', '已修复', '完成', '已完成', '好了', '可以了', '成功', '搞定', '搞定了', '解决了',
         'done', 'fixed', 'ok了', 'fixed了',
-        # v23.1新增：基于真实用户输入扩充
-        '没问题了', '没问题', '确定', '可以', '行', '行了', 'ok', 'okay', 'OK', 'OKAY',
-        '通过', '正常', '正常了', '没事了', '没事', '没毛病',
-        '修好了', '解决', '完美', '完美了', '满意', '可以了', '没问题了',
-        '没问题的', '可以的', '行的', '通过了', '验证通过'
+        # v23.1新增（保留明确表达，移除"正常"、"通过"、"可以"等通用词）
+        '没问题了', '没问题', '确定', '行', '行了', 'ok', 'okay', 'OK', 'OKAY',
+        '没事了', '没事', '没毛病',
+        '修好了', '解决', '完美', '完美了', '满意',
+        '没问题的', '可以的', '行的', '验证通过',
+        # v23.2新增：明确的完全成功表达
+        '完全修复', '全部解决', '全部修复', '没有问题了', '一切正常', '全部通过',
+        '完全正常', '彻底解决', '彻底修复', '完全好了', '全都修复了', '都修复了',
+        '全修复了', '都好了', '全好了'
     ]
     # v22.6修复: 扩充失败反馈关键词（添加'未修复', '还存在问题', '不行'等常见表达）
     NOT_FIXED_KEYWORDS = [
@@ -602,6 +700,14 @@ def handle_state_transition(user_input, cwd, session_id=None):
     RESTART_KEYWORDS = ['重来', '重新开始', '完全错了', 'restart']
     # v22.5新增：模糊肯定表达（需要澄清）
     AMBIGUOUS_POSITIVE = ['同意', 'ok', 'okay', '可以', '没问题', '通过', '好的', '看起来不错', '不错']
+    # v23.2新增：部分成功关键词（用于区分完全成功和部分成功）
+    PARTIAL_SUCCESS_KEYWORDS = [
+        '部分', '有些', '一部分', '某些', '有的', '个别',
+        '但是', '但', '不过', '然而', '可是', '只是', '就是',
+        'but', 'however', 'though', 'yet', 'although',
+        '还有', '还是', '仍然', '依然', '还在', '还没',
+        '新问题', '新的问题', '另一个问题', '其他问题'
+    ]
     # v22.7新增：方案性错误关键词（明确表示需要回到Planning重新设计）
     PLANNING_REQUIRED_KEYWORDS = [
         '方案错了', '思路不对', '重新设计', '重新分析根因',
@@ -632,8 +738,141 @@ def handle_state_transition(user_input, cwd, session_id=None):
             planning_step = meta_data.get('steps', {}).get('planning', {})
             expert_review_completed = planning_step.get('expert_review_completed', False)
 
+            # 【v25.0新增】使用Claude LLM语义分析器进行Planning阶段意图识别
+            sys.stderr.write(u"[INFO v25.0] Planning阶段使用Claude LLM语义分析用户意图\n")
+
+            # 构建任务上下文
+            context = {
+                'current_step': current_step,
+                'expert_review_completed': expert_review_completed,
+                'required_doc_count': planning_step.get('required_doc_count', 0),
+                'docs_read': len(meta_data.get('metrics', {}).get('docs_read', []))
+            }
+
+            # 尝试使用Claude LLM分析
+            llm_planning_success = False
+            user_agrees = False
+            user_rejects = False
+            user_restarts = False
+
+            if CLAUDE_ANALYZER_AVAILABLE:
+                try:
+                    sys.stderr.write(u"[INFO] 调用Claude API分析Planning阶段用户意图...\n")
+
+                    # 自定义Planning阶段的Prompt
+                    planning_prompt = u"""你是一个任务状态分析专家。用户正在Planning（方案制定）阶段，请分析用户的反馈意图。
+
+**当前任务上下文**:
+- 当前阶段: {current_step}
+- 专家审查已完成: {expert_review}
+- 文档查阅: {docs_read}/{required_docs}
+
+**用户反馈**: "{user_input}"
+
+**请判断用户意图（只输出JSON，不要其他内容）**:
+
+可选意图类型:
+- agree: 用户同意当前方案，希望推进到Implementation阶段
+- reject: 用户对方案有疑虑或不满意，希望调整方案
+- restart: 用户完全否定方案，希望重新开始
+
+**分析要点**:
+1. "同意"、"可以"、"没问题"、"确认"、"好的"、"继续"、"可以继续"、"你可以继续了"、"开始吧"等表示agree
+2. "不同意"、"有问题"、"需要调整"等表示reject
+3. "重来"、"重新开始"、"完全不对"等表示restart
+4. 注意转折词：如果有"但是"等转折，通常是reject而非agree
+
+输出格式:
+{{
+  "intent": "意图类型(agree/reject/restart)",
+  "confidence": 0.0-1.0,
+  "reasoning": "一句话说明判断理由"
+}}
+""".format(
+                        current_step=current_step,
+                        expert_review="是" if expert_review_completed else "否",
+                        docs_read=context['docs_read'],
+                        required_docs=context['required_doc_count'],
+                        user_input=user_input
+                    )
+
+                    import anthropic
+                    from core.claude_semantic_analyzer import get_analyzer
+
+                    analyzer = get_analyzer()
+                    client = analyzer.client
+
+                    response = client.messages.create(
+                        model=analyzer.model,
+                        max_tokens=analyzer.max_tokens,
+                        timeout=analyzer.timeout_seconds,
+                        messages=[{"role": "user", "content": planning_prompt}]
+                    )
+
+                    response_text = response.content[0].text.strip()
+
+                    # 提取JSON
+                    json_text = analyzer._extract_json(response_text)
+                    llm_result = json.loads(json_text)
+
+                    intent = llm_result.get('intent', 'unknown')
+                    confidence = llm_result.get('confidence', 0.0)
+                    reasoning = llm_result.get('reasoning', '')
+
+                    sys.stderr.write(u"[DEBUG] Planning LLM分析结果:\n")
+                    sys.stderr.write(u"  - 意图: {}\n".format(intent))
+                    sys.stderr.write(u"  - 置信度: {:.0%}\n".format(confidence))
+                    sys.stderr.write(u"  - 理由: {}\n".format(reasoning[:100]))
+
+                    if confidence >= 0.8:
+                        llm_planning_success = True
+                        if intent == 'agree':
+                            user_agrees = True
+                        elif intent == 'reject':
+                            user_rejects = True
+                        elif intent == 'restart':
+                            user_restarts = True
+                    else:
+                        sys.stderr.write(u"[WARN] Planning LLM置信度不足: {:.0%}\n".format(confidence))
+
+                except Exception as e:
+                    sys.stderr.write(u"[ERROR] Planning LLM分析异常: {}\n".format(e))
+                    llm_planning_success = False
+
+            # 如果LLM分析失败，提示用户明确输入
+            if not llm_planning_success:
+                # 【v25.0修复】使用print()输出到stdout，让用户在transcript中看到提示
+                # 根据HOOK正确用法文档：UserPromptSubmit Hook的stdout输出会显示在transcript中
+                print(u"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                print(u"⚠️  Planning阶段语义分析不可用")
+                print(u"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+
+                if CLAUDE_ANALYZER_AVAILABLE:
+                    print(u"原因: API超时/网络错误/低置信度\n")
+                else:
+                    print(u"原因: Claude语义分析器未正确配置")
+                    print(u"请检查: ANTHROPIC_API_KEY 或 ANTHROPIC_AUTH_TOKEN 环境变量\n")
+
+                print(u"请明确您的意图，选择以下之一:\n")
+                print(u"  1. 同意当前方案，推进到Implementation阶段")
+                print(u"     → 输入: \"同意\" 或 \"确认\" 或 \"可以\" 或 \"继续\"\n")
+                print(u"  2. 对方案有疑虑，需要调整")
+                print(u"     → 输入: \"不同意\" 或 \"需要调整\" 或 \"有问题\"\n")
+                print(u"  3. 完全否定方案，重新开始")
+                print(u"     → 输入: \"重来\" 或 \"重新开始\"\n")
+                print(u"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+
+                # 【v25.0修复】LLM分析失败时，应返回meta_data保持数据完整性，而不是返回result
+                result['occurred'] = False
+                result['message'] = ''
+                return meta_data  # ✅ 修复：返回meta_data而不是result
+
+            # 【v25.0注释】以下是v24.2的传统关键词匹配逻辑（已禁用）
             # v22.3修复: 使用match_keyword_safely避免"不同意"误匹配到"同意"
-            if match_keyword_safely(user_input_lower, CONFIRM_KEYWORDS):
+            # if match_keyword_safely(user_input_lower, CONFIRM_KEYWORDS):
+
+            # 使用LLM分析结果
+            if user_agrees:
                 # 前置检查：文档数量
                 task_type = meta_data.get('task_type', 'general')
                 docs_read = meta_data.get('metrics', {}).get('docs_read', [])
@@ -758,9 +997,11 @@ AI将开始实施代码修改。每轮修改完成后，请测试并反馈结果
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
-            # 🔥 【v22.4新增】智能拒绝检测：专家审查完成后，非"同意"非"重来"的输入视为隐式拒绝
-            elif expert_review_completed and not match_keyword_safely(user_input_lower, RESTART_KEYWORDS):
-                # 用户既没明确同意，也没完全否定，视为对当前方案有疑虑（隐式拒绝）
+            # 🔥 【v25.0修改】使用LLM分析结果判断隐式拒绝
+            # 【v25.0注释】以下是v24.2的传统关键词匹配逻辑（已禁用）
+            # elif expert_review_completed and not match_keyword_safely(user_input_lower, RESTART_KEYWORDS):
+            elif user_rejects:
+                # 用户对当前方案有疑虑（LLM检测到reject意图）
 
                 # 初始化拒绝追踪字段
                 if 'rejection_count' not in planning_step:
@@ -900,8 +1141,9 @@ AI将开始实施代码修改。每轮修改完成后，请测试并反馈结果
                         user_feedback=user_input[:100]
                     )
 
-                result['occurred'] = True
-                result['message'] = rejection_message
+                # v24.0修复：使用blocked机制而非occurred，确保真正阻止Claude继续执行
+                result['blocked'] = True
+                result['block_reason'] = rejection_message
 
                 sys.stderr.write(u"[UserPromptSubmit v22.4] Planning阶段隐式拒绝检测 (第{}次): {}\n".format(
                     rejection_count,
@@ -911,132 +1153,13 @@ AI将开始实施代码修改。每轮修改完成后，请测试并反馈结果
                 # 状态保持Planning，不修改current_step
                 return meta_data
 
-            # v22.3新增: Planning阶段用户拒绝方案的处理（保留作为fallback）
-            elif match_keyword_safely(user_input_lower, REJECT_KEYWORDS):
-                # 用户拒绝当前方案，保持Planning阶段，要求重新分析
-                # 【v22.4优化】planning_step已在第406行定义
+            # 【v25.0注释】v22.3的显式拒绝检测已被LLM分析替代（上方user_rejects已处理，以下整个代码块已删除）
+            # 原v22.3逻辑：显式关键词拒绝检测及处理（1159-1277行）- 现已由LLM的user_rejects分支统一处理
 
-                # 初始化拒绝追踪字段
-                if 'rejection_count' not in planning_step:
-                    planning_step['rejection_count'] = 0
-                if 'rejection_history' not in planning_step:
-                    planning_step['rejection_history'] = []
-
-                # 记录拒绝
-                planning_step['rejection_count'] += 1
-                planning_step['rejection_history'].append({
-                    'timestamp': datetime.now().isoformat(),
-                    'user_feedback': user_input,
-                    'rejection_count': planning_step['rejection_count']
-                })
-
-                # 重置确认状态
-                planning_step['user_confirmed'] = False
-                planning_step['status'] = 'in_progress'
-
-                # 检查是否需要触发专家审查
-                task_type = meta_data.get('task_type', 'general')
-                expert_review_required = planning_step.get('expert_review_required', False)
-                rejection_count = planning_step['rejection_count']
-
-                # 构建引导消息
-                rejection_message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ 用户拒绝当前方案 (第{rejection_count}次)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-**当前阶段**: Planning (方案制定)
-**状态**: 保持Planning，要求重新分析
-
-**用户反馈**: {user_feedback}
-
-""".format(
-                    rejection_count=rejection_count,
-                    user_feedback=user_input
-                )
-
-                # 如果是BUG修复任务且拒绝次数≥2，强烈建议启动专家审查
-                if task_type == 'bug_fix' and rejection_count >= 2 and expert_review_required:
-                    expert_review_completed = planning_step.get('expert_review_completed', False)
-
-                    if not expert_review_completed:
-                        rejection_message += u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚨 循环拒绝检测
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-你已经{rejection_count}次拒绝方案，可能存在根本性误判。
-
-**强烈建议**:
-1. 使用 Task 工具启动专家审查子代理
-2. 让专家帮助分析是否存在错误假设
-3. 根据专家建议调整分析思路
-
-**专家审查启动方式**: 参考任务初始化时的BUG修复指引
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-""".format(rejection_count=rejection_count)
-                    else:
-                        # ✅ v22.3.10修复：重置专家审查状态，强制100%启动新一轮审查
-                        planning_step['expert_review_completed'] = False
-                        planning_step['expert_review_result'] = None
-
-                        current_review_count = planning_step.get('expert_review_count', 1)
-                        next_review_count = current_review_count + 1
-
-                        rejection_message += u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔄 专家审查状态已重置
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-专家审查已完成，但用户仍不满意（拒绝{rejection_count}次）。
-系统已重置专家审查状态，强制要求重新审查。
-
-**专家审查计数**: {current_count} → 即将第{next_count}次
-
-**下一步流程** (100%强制启动):
-1. 根据用户最新反馈重新分析: "{user_feedback}"
-2. 结合前次专家审查建议，调整分析思路
-3. 向用户展示调整后的新方案
-4. 当你输入"同意"推进时，系统会自动阻止进入Implementation
-5. 你必须使用 Task 工具启动新一轮专家审查
-6. 审查完成后，再次"同意"才能进入Implementation
-
-**为什么是100%强制**:
-- 系统已重置 expert_review_completed=false
-- 用户"同意"时会触发专家审查前置检查
-- 检查失败会阻止进入Implementation阶段
-- 你唯一的选择是启动Task工具进行专家审查
-
-**专家审查启动方式**: 参考任务初始化时的BUG修复指引
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-""".format(
-                            rejection_count=rejection_count,
-                            user_feedback=user_input[:100],
-                            current_count=current_review_count,
-                            next_count=next_review_count
-                        )
-
-                rejection_message += u"""
-✅ **下一步**:
-1. 根据用户反馈重新分析问题
-2. 调整方案或收集更多信息
-3. 制定新方案后再次向用户确认
-
-💡 **提示**: 仔细理解用户的疑虑点，针对性地调整方案
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"""
-
-                result['occurred'] = True
-                result['message'] = rejection_message
-
-                sys.stderr.write(u"[UserPromptSubmit v22.3] Planning阶段用户拒绝方案 (第{}次): {}\n".format(
-                    rejection_count,
-                    user_input[:50]
-                ))
-
-                # 状态保持Planning，不修改current_step
-                return meta_data
-
-            elif match_keyword_safely(user_input_lower, RESTART_KEYWORDS):
+            # 【v25.0修改】使用LLM分析结果判断重启意图
+            # 【v25.0注释】以下是v24.2的传统关键词匹配逻辑（已禁用）
+            # elif match_keyword_safely(user_input_lower, RESTART_KEYWORDS):
+            elif user_restarts:
                 # 完全否定，回到Activation
                 meta_data['current_step'] = 'activation'
                 result['new_step'] = 'activation'
@@ -1064,13 +1187,136 @@ AI将重新分析问题并制定新方案。
             # v23.0的设计是对的：在每个状态转移分支前保存快照，而不是入口处
             # 原因：快照应该在状态转移前保存，记录转移前的完整状态
 
-            # 【v22.7新增】双重检测：同时检测成功、失败和方案性错误关键词
-            has_success = match_keyword_safely(user_input_lower, FIXED_KEYWORDS)
-            has_failure = match_keyword_safely(user_input_lower, NOT_FIXED_KEYWORDS)
-            has_planning_required = match_keyword_safely(user_input_lower, PLANNING_REQUIRED_KEYWORDS)
+            # 【v25.0新增】使用Claude LLM语义分析器（优先精度）
+            sys.stderr.write(u"[INFO v25.0] 使用Claude LLM语义分析器进行状态转移\n")
+
+            # 构建任务上下文
+            context = {
+                'current_step': current_step,
+                'code_changes': len(meta_data.get('metrics', {}).get('code_changes', [])),
+                'iteration': len(meta_data.get('steps', {}).get('implementation', {}).get('iterations', []))
+            }
+
+            # 【v25.0优先】尝试使用Claude LLM分析
+            llm_analysis_success = False
+            if CLAUDE_ANALYZER_AVAILABLE:
+                try:
+                    sys.stderr.write(u"[INFO] 调用Claude API进行语义分析...\n")
+                    llm_result = analyze_user_intent(user_input, context)
+
+                    if llm_result['success'] and llm_result['confidence'] >= 0.8:
+                        # LLM分析成功，使用结果
+                        llm_analysis_success = True
+
+                        # 映射意图到标志
+                        intent = llm_result['intent']
+                        if intent == 'complete_success':
+                            has_success = True
+                            has_failure = False
+                            has_planning_required = False
+                            sys.stderr.write(u"[INFO] LLM判定: 完全成功 → 进入收尾阶段\n")
+                        elif intent == 'partial_success' or intent == 'failure' or intent == 'continuation_request':
+                            has_success = False
+                            has_failure = True
+                            has_planning_required = False
+                            sys.stderr.write(u"[INFO] LLM判定: 部分成功/失败 → 继续实施阶段\n")
+                        elif intent == 'planning_required':
+                            has_success = False
+                            has_failure = False
+                            has_planning_required = True
+                            sys.stderr.write(u"[INFO] LLM判定: 方案错误 → 回到方案制定\n")
+                        else:
+                            # 未知意图，认为分析失败
+                            llm_analysis_success = False
+                            sys.stderr.write(u"[WARN] LLM返回未知意图: {}\n".format(intent))
+
+                        # 显示详细分析结果
+                        if llm_analysis_success:
+                            sys.stderr.write(u"[DEBUG] LLM分析结果:\n")
+                            sys.stderr.write(u"  - 意图: {}\n".format(intent))
+                            sys.stderr.write(u"  - 置信度: {:.0%}\n".format(llm_result['confidence']))
+                            sys.stderr.write(u"  - 理由: {}\n".format(llm_result.get('reasoning', '')[:100]))
+                            sys.stderr.write(u"  - 延迟: {:.0f}ms\n".format(llm_result.get('latency_ms', 0)))
+                    else:
+                        # 低置信度或失败
+                        sys.stderr.write(u"[WARN] LLM分析置信度不足或失败\n")
+                        if not llm_result['success']:
+                            sys.stderr.write(u"  错误: {}\n".format(llm_result.get('error', '未知')))
+                        else:
+                            sys.stderr.write(u"  置信度: {:.0%} (< 80%)\n".format(llm_result['confidence']))
+
+                except Exception as e:
+                    sys.stderr.write(u"[ERROR] LLM分析异常: {}\n".format(e))
+                    llm_analysis_success = False
+
+            # 【v25.0】如果LLM分析失败，提示用户明确意图（v1.0：不降级到enhanced_matcher）
+            if not llm_analysis_success:
+                # 【v25.0修复】使用print()输出到stdout，让用户在transcript中看到提示
+                # 根据HOOK正确用法文档：UserPromptSubmit Hook的stdout输出会显示在transcript中
+                print(u"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                print(u"⚠️  Implementation阶段语义分析不可用")
+                print(u"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+
+                if CLAUDE_ANALYZER_AVAILABLE:
+                    print(u"原因: API超时/网络错误/低置信度\n")
+                else:
+                    print(u"原因: Claude语义分析器未正确配置")
+                    print(u"请检查: ANTHROPIC_API_KEY 或 ANTHROPIC_AUTH_TOKEN 环境变量\n")
+
+                print(u"请明确您的意图，选择以下之一:\n")
+                print(u"  1. 任务完全成功")
+                print(u"     → 输入: \"完全成功\" 或 \"都正确了\" 或 \"修复了\"\n")
+                print(u"  2. 部分成功，需继续修复")
+                print(u"     → 输入: \"部分成功\" 或 \"还有问题\" 或 \"基本正确,但...\"\n")
+                print(u"  3. 修复失败")
+                print(u"     → 输入: \"修复失败\" 或 \"没修复\"\n")
+                print(u"  4. 需要重新设计方案")
+                print(u"     → 输入: \"重新设计\" 或 \"换个思路\" 或 \"根本原因没找到\"\n")
+                print(u"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+
+                # 【v25.0修复】LLM分析失败时，应返回meta_data保持数据完整性，而不是返回result
+                # 暂时不做状态转移，等待用户明确输入
+                result['occurred'] = False
+                result['message'] = ''
+                return meta_data  # ✅ 修复：返回meta_data而不是result
+
+            # 【v25.0注释】暂时注释掉enhanced_matcher降级逻辑（v1.0：专注测试LLM流程）
+            # 【v24.2原有逻辑】使用增强型关键词匹配系统
+            # if ENHANCED_MATCHER_AVAILABLE:
+            #     try:
+            #         sys.stderr.write(u"[INFO] 使用增强型关键词匹配器 (v24.2)\n")
+            #         semantic_result = analyze_user_feedback(user_input)
+            #         ...
+            #     except Exception as e:
+            #         sys.stderr.write(u"[ERROR] 增强匹配器失败: {}\n".format(e))
+            #         ...
+            # else:
+            #     # 基础关键词匹配
+            #     has_success = match_keyword_safely(user_input_lower, FIXED_KEYWORDS)
+            #     has_failure = match_keyword_safely(user_input_lower, NOT_FIXED_KEYWORDS)
+            #     has_planning_required = match_keyword_safely(user_input_lower, PLANNING_REQUIRED_KEYWORDS)
+
+            # 【v24.3修复】添加调试日志（仅DEBUG模式）
+            if os.getenv("CLAUDE_HOOK_DEBUG") == "1":
+                sys.stderr.write(u"[DEBUG v24.3] 用户输入: {}\n".format(user_input[:100]))
+                sys.stderr.write(u"[DEBUG v24.3] 匹配标志:\n")
+                sys.stderr.write(u"  - has_success: {}\n".format(has_success))
+                sys.stderr.write(u"  - has_failure: {}\n".format(has_failure))
+                sys.stderr.write(u"  - has_planning_required: {}\n".format(has_planning_required))
 
             # 【v22.7新增】优先级1：方案性错误 → 强制回到 Planning
             if has_planning_required:
+                # 【v25.0新增】状态转移验证（确保100%不脱离状态机）
+                if STATE_VALIDATOR_AVAILABLE:
+                    try:
+                        validate_state_transition('implementation', 'planning', strict=True)
+                        sys.stderr.write(u"[INFO v25.0] 状态转移验证通过: implementation → planning\n")
+                    except IllegalTransitionError as e:
+                        sys.stderr.write(u"[CRITICAL] 非法状态转移被拦截: {}\n".format(e))
+                        result['occurred'] = False
+                        result['message'] = u"系统错误：尝试非法状态转移"
+                        return result
+
                 # 【v23.1.1修正】恢复v23.0的快照调用（在状态转移前保存）
                 _snapshot_step_state(meta_data, 'implementation')
 
@@ -1325,60 +1571,119 @@ AI将重新分析问题并制定新的修复方案。
 
             # 【v22.7重构】优先级3：完全成功（原 FIXED_KEYWORDS 分支）
             elif has_success:
-                # 【v23.1.1修正】恢复v23.0的快照调用（在状态转移前保存）
-                _snapshot_step_state(meta_data, 'implementation')
+                # 【v23.2新增】检测是否是部分成功（包含成功关键词 + 部分成功关键词）
+                has_partial_indicator = any(kw in user_input_lower for kw in PARTIAL_SUCCESS_KEYWORDS)
 
-                # 修复成功，进入收尾
-                meta_data['current_step'] = 'finalization'
-                result['new_step'] = 'finalization'
+                if has_partial_indicator:
+                    # 部分成功：不转移状态，记录反馈，提示AI继续修复
+                    if 'steps' not in meta_data:
+                        meta_data['steps'] = {}
+                    if 'implementation' not in meta_data['steps']:
+                        meta_data['steps']['implementation'] = {}
+                    if 'test_feedback_history' not in meta_data['steps']['implementation']:
+                        meta_data['steps']['implementation']['test_feedback_history'] = []
 
-                if 'steps' not in meta_data:
-                    meta_data['steps'] = {}
-                if 'implementation' not in meta_data['steps']:
-                    meta_data['steps']['implementation'] = {}
+                    code_changes = meta_data.get('metrics', {}).get('code_changes', [])
+                    feedback_entry = {
+                        'timestamp': datetime.now().isoformat(),
+                        'user_feedback': user_input,
+                        'feedback_type': 'partial_success_with_issues',  # v23.2新增分类
+                        'clarification_requested': False,
+                        'code_changes_count': len(code_changes),
+                        'detected_indicators': {
+                            'success_keywords': True,
+                            'partial_indicators': True
+                        }
+                    }
+                    meta_data['steps']['implementation']['test_feedback_history'].append(feedback_entry)
 
-                # 【v22.5新增】记录明确成功反馈
-                if 'test_feedback_history' not in meta_data['steps']['implementation']:
-                    meta_data['steps']['implementation']['test_feedback_history'] = []
+                    result['occurred'] = True
+                    result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 检测到部分成功
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-                code_changes = meta_data.get('metrics', {}).get('code_changes', [])
-                feedback_entry = {
-                    'timestamp': datetime.now().isoformat(),
-                    'user_feedback': user_input,
-                    'feedback_type': 'explicit_success',
-                    'clarification_requested': False,
-                    'code_changes_count': len(code_changes)
-                }
-                meta_data['steps']['implementation']['test_feedback_history'].append(feedback_entry)
+你的反馈表明：
+- ✅ 部分问题已解决
+- ❌ 仍存在其他问题
 
-                meta_data['steps']['implementation']['user_confirmed'] = True
-                meta_data['steps']['implementation']['confirmed_at'] = datetime.now().isoformat()
+**当前阶段**: Implementation (继续实施)
+**下一步**:
+- 请明确指出仍存在的问题，AI将继续修复
+- 或者，如果所有问题都已解决，请明确说"完全解决"或"全部修复"
 
-                # 【v22.7新增】完成Implementation阶段（与Planning→Implementation转移保持一致）
-                meta_data['steps']['implementation']['status'] = 'completed'
-                meta_data['steps']['implementation']['completed_at'] = datetime.now().isoformat()
+AI将根据你的反馈继续工作。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+                    # 不转移状态，保持implementation
+                    # 注意：不return，继续执行后续逻辑（但不会进入其他分支）
 
-                # 【v22.7新增】启动Finalization阶段（与Planning→Implementation转移保持一致）
-                if 'finalization' not in meta_data['steps']:
-                    meta_data['steps']['finalization'] = {}
-                meta_data['steps']['finalization']['status'] = 'in_progress'
-                meta_data['steps']['finalization']['started_at'] = datetime.now().isoformat()
+                else:
+                    # 完全成功：转移到finalization
+                    # 【v25.0新增】状态转移验证（确保100%不脱离状态机）
+                    if STATE_VALIDATOR_AVAILABLE:
+                        try:
+                            validate_state_transition('implementation', 'finalization', strict=True)
+                            sys.stderr.write(u"[INFO v25.0] 状态转移验证通过: implementation → finalization\n")
+                        except IllegalTransitionError as e:
+                            sys.stderr.write(u"[CRITICAL] 非法状态转移被拦截: {}\n".format(e))
+                            result['occurred'] = False
+                            result['message'] = u"系统错误：尝试非法状态转移"
+                            return meta_data  # ✅ v25.0.1修复：返回meta_data而不是result
 
-                # 【v23.0新增】记录状态转移
-                _log_state_transition(
-                    meta_data,
-                    from_step='implementation',
-                    to_step='finalization',
-                    trigger='explicit_success',
-                    details={
-                        'user_input': user_input,
+                    # 【v23.1.1修正】恢复v23.0的快照调用（在状态转移前保存）
+                    _snapshot_step_state(meta_data, 'implementation')
+
+                    # 修复成功，进入收尾
+                    meta_data['current_step'] = 'finalization'
+                    result['new_step'] = 'finalization'
+
+                    if 'steps' not in meta_data:
+                        meta_data['steps'] = {}
+                    if 'implementation' not in meta_data['steps']:
+                        meta_data['steps']['implementation'] = {}
+
+                    # 【v22.5新增】记录明确成功反馈
+                    if 'test_feedback_history' not in meta_data['steps']['implementation']:
+                        meta_data['steps']['implementation']['test_feedback_history'] = []
+
+                    code_changes = meta_data.get('metrics', {}).get('code_changes', [])
+                    feedback_entry = {
+                        'timestamp': datetime.now().isoformat(),
+                        'user_feedback': user_input,
                         'feedback_type': 'explicit_success',
+                        'clarification_requested': False,
                         'code_changes_count': len(code_changes)
                     }
-                )
+                    meta_data['steps']['implementation']['test_feedback_history'].append(feedback_entry)
 
-                result['occurred'] = True
-                result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                    meta_data['steps']['implementation']['user_confirmed'] = True
+                    meta_data['steps']['implementation']['confirmed_at'] = datetime.now().isoformat()
+
+                    # 【v22.7新增】完成Implementation阶段（与Planning→Implementation转移保持一致）
+                    meta_data['steps']['implementation']['status'] = 'completed'
+                    meta_data['steps']['implementation']['completed_at'] = datetime.now().isoformat()
+
+                    # 【v22.7新增】启动Finalization阶段（与Planning→Implementation转移保持一致）
+                    if 'finalization' not in meta_data['steps']:
+                        meta_data['steps']['finalization'] = {}
+                    meta_data['steps']['finalization']['status'] = 'in_progress'
+                    meta_data['steps']['finalization']['started_at'] = datetime.now().isoformat()
+
+                    # 【v23.0新增】记录状态转移
+                    _log_state_transition(
+                        meta_data,
+                        from_step='implementation',
+                        to_step='finalization',
+                        trigger='explicit_success',
+                        details={
+                            'user_input': user_input,
+                            'feedback_type': 'explicit_success',
+                            'code_changes_count': len(code_changes)
+                        }
+                    )
+
+                    result['occurred'] = True
+                    result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ 状态转移: Implementation → Finalization
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1435,8 +1740,10 @@ AI将自动完成任务归档。
 
                     feedback_history = meta_data['steps']['implementation']['test_feedback_history']
 
+                    # 【v25.0注释】传统关键词匹配的模糊肯定检测（已由LLM分析替代）
+                    # LLM会将"还行"/"可以"等模糊表达识别为partial_success或continue_working意图
                     # 检测模糊肯定表达
-                    if match_keyword_safely(user_input_lower, AMBIGUOUS_POSITIVE):
+                    if False:  # v25.0: 禁用关键词匹配 - match_keyword_safely(user_input_lower, AMBIGUOUS_POSITIVE)
                         # 记录模糊肯定反馈
                         feedback_entry = {
                             'timestamp': datetime.now().isoformat(),
@@ -1571,8 +1878,10 @@ AI将自动完成任务归档。
                         # 不修改状态，保持 Implementation，AI继续工作
                 else:
                     # 没有代码修改记录，可能是AI正在分析阶段
+                    # 【v25.0注释】传统关键词匹配的继续修改检测（已由LLM分析替代）
+                    # LLM会将"继续"识别为continue_working意图
                     # 保持原有的 CONTINUE_KEYWORDS 逻辑（向后兼容）
-                    if match_keyword_safely(user_input_lower, CONTINUE_KEYWORDS):
+                    if False:  # v25.0: 禁用关键词匹配 - match_keyword_safely(user_input_lower, CONTINUE_KEYWORDS)
                         result['occurred'] = True
                         result['message'] = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ▶️ 继续修改
@@ -1598,16 +1907,26 @@ AI将自动完成任务归档。
             sys.stderr.write(u"[ERROR] 状态转移原子更新失败\n")
             return None
 
+        # 【v24.1新增】验证数据结构完整性
+        if not _validate_task_meta_structure(updated_meta):
+            sys.stderr.write(u"[CRITICAL] 状态转移后数据结构损坏！\n")
+            sys.stderr.write(u"[CRITICAL] 检测到的字段: {}\n".format(', '.join(updated_meta.keys())))
+            # 尝试恢复：读取原始文件
+            sys.stderr.write(u"[CRITICAL] 尝试从备份恢复...\n")
+            return None
+
         # ========== 处理更新结果 ==========
 
         # 情况1: 被阻止（文档不足等）
+        # v24.0修复：使用"decision": "block"而非"continue": true（符合Claude Code Hooks规范）
         if result['blocked']:
             return {
+                "decision": "block",
+                "reason": "前置条件未满足",
                 "hookSpecificOutput": {
                     "hookEventName": "UserPromptSubmit",
                     "additionalContext": result['block_reason']
-                },
-                "continue": True
+                }
             }
 
         # 情况2: 发生状态转移或需要显示消息
@@ -2521,7 +2840,9 @@ def main():
                 "stopReason": "task_init_failed"
             }
             print(json.dumps(output, ensure_ascii=False))
-            sys.exit(2)  # exit 2 = 阻塞错误
+            # 🔥 v24.3修复：使用JSON响应时必须exit 0，不能用exit 2
+            # 根据《HOOK正确用法文档.md》第159行：Exit code 2会忽略JSON输出
+            sys.exit(0)  # ✅ JSON响应使用exit 0
 
         # === 玩法包匹配 (v19.0 新增) ===
         kb_path = os.path.join(cwd, '.claude', 'knowledge-base.json')

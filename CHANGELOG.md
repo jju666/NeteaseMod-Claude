@@ -4,6 +4,200 @@ NeteaseMod-Claude 版本更新记录
 
 ---
 
+## [v25.0] - 2025-11-19 - ✅ 完整实现
+
+### 🤖 Claude LLM语义分析系统 - 高精度用户意图识别
+
+**重大更新**: 引入基于Claude 3.5 Sonnet的语义分析系统，解决传统关键词匹配准确率不足的问题。
+
+**实现状态**:
+- ✅ **2025-11-19初版**: Implementation阶段LLM集成完成
+- ✅ **2025-11-20完成**: Planning阶段LLM集成完成，**全部关键词匹配已注释**
+- 🐛 **2025-11-20修复1**: 修复LLM失败时错误返回result导致task-meta.json数据损坏的严重BUG (行868+1280)
+- 🔧 **2025-11-20优化1**: Planning prompt增加"继续"、"你可以继续了"等agree意图示例 (行780)
+- 🔧 **2025-11-20优化2**: LLM失败提示从stderr改为stdout，遵循Hook输出规范，用户可在transcript中看到 (行846+1256)
+- 🚨 **2025-11-20修复2**: 修复Claude 3.5 Sonnet退役导致的404错误，迁移到Claude Sonnet 4.5 (claude-sonnet-4-5)
+  - Claude 3.5 Sonnet已于2025年10月28日退役，所有请求返回404错误
+  - 更新配置文件: `claude-3-5-sonnet-20241022` → `claude-sonnet-4-5`
+  - 验证新模型可用性: ✅ claude-sonnet-4-5 和 claude-sonnet-4-5-20250929 均可用
+  - "你可以继续了"语义识别恢复正常: intent=agree, confidence=95%
+  - 影响文件: claude_semantic_config.json (x2), claude_semantic_analyzer.py (x2)
+
+#### ✅ 核心功能
+
+**1. ClaudeSemanticAnalyzer（核心模块）**
+- ✅ **LLM驱动**: 使用Claude Sonnet 4.5进行语义分析（2025-11-20已迁移至Sonnet 4.5）
+- ✅ **准确率提升**: 96.15% (vs 传统方案85%，提升11.15%)
+- ✅ **零维护成本**: 自动理解新表达（如"都正确了"），无需手动添加关键词
+- ✅ **转折语义完美**: 100%识别"基本正确,但还有BUG"等复杂表达
+- ✅ **上下文感知**: 利用代码修改次数、当前阶段、迭代次数辅助判断
+
+**2. 状态转移验证器（安全保障）**
+- ✅ **100%不脱离状态机**: 硬编码合法状态转移表强制验证
+- ✅ **运行时拦截**: validate_state_transition()在转移前强制检查
+- ✅ **详细错误信息**: IllegalTransitionError明确说明非法转移原因
+- ✅ **原子性更新**: 转移失败自动回滚，确保数据一致性
+
+**3. UserPromptHandler集成（v25.0重构）**
+- ✅ **LLM优先策略**: Planning和Implementation阶段全面使用Claude LLM分析用户意图
+- ✅ **v1.0测试版**: 注释掉ALL传统关键词匹配（match_keyword_safely），专注验证LLM流程
+- ✅ **分阶段Prompt**: Planning阶段识别agree/reject/restart，Implementation阶段识别complete_success/partial_success等
+- ✅ **友好降级提示**: API失败时明确提示用户选择意图，而非静默降级
+- ✅ **性能监控**: 记录延迟、置信度、Tokens用量等关键指标
+
+#### 🎯 解决的问题
+
+| 问题 | v24.2方案 | v25.0方案 |
+|------|----------|----------|
+| "都正确了"无法识别 | ❌ 关键词库缺失 → 识别失败 | ✅ LLM自动理解 → 100%识别 |
+| "基本正确,但还有BUG" | ❌ 误判为complete_success | ✅ 100%识别为partial_success |
+| partial_success准确率 | 64.3% | 100% |
+| 关键词维护成本 | 高（手动添加） | 零（LLM自动） |
+| 状态机脱离风险 | 存在（无验证） | 消除（强制验证） |
+
+#### 🔧 技术实现
+
+**新增文件** (3个核心模块):
+- `templates/.claude/hooks/core/claude_semantic_analyzer.py` (17KB, ~460行)
+  - ClaudeSemanticAnalyzer类（LLM语义分析器）
+  - analyze_user_intent()快捷函数
+  - Prompt工程（基于MVP最佳实践）
+  - 超时控制（15秒）、重试机制（1次）
+
+- `templates/.claude/hooks/core/state_transition_validator.py` (13KB, ~370行)
+  - validate_state_transition()强制验证函数
+  - VALID_TRANSITIONS硬编码合法转移表
+  - IllegalTransitionError异常类
+  - 转移条件验证（required_fields检查）
+
+- `templates/.claude/hooks/config/claude_semantic_config.json` (0.7KB)
+  - model: claude-sonnet-4-5 (2025-11-20更新，原为claude-3-5-sonnet-20241022已退役)
+  - timeout_seconds: 15
+  - confidence_threshold: 0.8
+
+**修改文件**:
+- `templates/.claude/hooks/orchestrator/user_prompt_handler.py`
+  - 行84-106: 导入ClaudeSemanticAnalyzer和状态转移验证器
+  - 行735-1159: **Planning阶段重构** - 使用LLM分析替代全部关键词匹配（agree/reject/restart意图识别）
+  - 行1174-1279: **Implementation阶段重构** - 使用LLM分析替代全部关键词匹配（complete_success/partial_success等意图识别）
+  - 行1291-1300: 添加implementation→planning状态转移验证
+  - 行1604-1613: 添加implementation→finalization状态转移验证
+  - 行1741+1879: 注释掉fallback路径的关键词匹配（AMBIGUOUS_POSITIVE, CONTINUE_KEYWORDS）
+
+**同步文件**:
+- 所有修改已同步到 `tests/.claude/hooks/` 目录
+
+#### 📊 性能指标
+
+**准确率** (基于MVP测试):
+```
+总体准确率: 96.15% (vs 85%)
+- complete_success: 100% (vs 64.3%)
+- partial_success: 100% (vs 64.3%)
+- failure: 100%
+- planning_required: 100% (预估)
+```
+
+**延迟**:
+```
+P50延迟: ~3-5秒 (可接受，用户反馈频率低)
+P95延迟: ~8-12秒
+超时阈值: 15秒
+```
+
+**成本**:
+```
+预估单次调用: ~$0.001
+预估月成本: ~$0.03 (10任务×3反馈)
+预估年成本: ~$0.36 (可忽略)
+```
+
+#### ⚙️ 配置要求
+
+**环境变量** (二选一):
+```bash
+export ANTHROPIC_API_KEY="your-api-key"
+# 或
+export ANTHROPIC_AUTH_TOKEN="your-api-key"
+```
+
+**依赖安装**:
+```bash
+pip install anthropic
+```
+
+**验证配置**:
+```bash
+cd templates/.claude/hooks/core
+python claude_semantic_analyzer.py
+```
+
+#### 🔍 降级策略
+
+**v25.0 v1.0版本** (当前):
+- **策略**: 不启用降级，专注测试LLM流程
+- LLM分析失败 → 提示用户明确意图
+- **不使用** enhanced_matcher 作为fallback
+
+**v25.0 v2.0版本** (规划中):
+- **策略**: 智能混合（快速关键词 + LLM验证）
+- 高置信度(≥0.85) → 立即采纳
+- 中置信度(0.65-0.85) → 异步LLM验证
+- 低置信度(<0.65) → 同步LLM分析
+
+#### 📚 新增文档
+
+- `docs/developer/Claude语义分析器使用指南.md`
+  - 快速开始指南
+  - API密钥配置
+  - 工作原理详解
+  - 故障排查手册
+  - 性能指标参考
+  - 降级策略说明
+
+#### 🧪 测试建议
+
+```bash
+# 1. 基础语义识别测试
+/mc 测试Claude语义分析
+# AI修改代码后...
+都正确了  # 应识别为complete_success → finalization
+
+# 2. 转折语义测试
+基本正确,但还有BUG  # 应识别为partial_success → 继续implementation
+
+# 3. 方案性错误测试
+根本原因没找到  # 应识别为planning_required → 回到planning
+
+# 4. 状态转移验证测试
+# 系统会自动拦截非法转移，无需手动测试
+```
+
+#### 📖 相关文档
+
+- [Claude语义分析器使用指南](docs/developer/Claude语义分析器使用指南.md)
+- [Hook状态机功能实现](docs/developer/Hook状态机功能实现.md)
+- [语义识别MVP最终报告](semantic_recognition_mvp/FINAL_REPORT.md)
+- [HOOK正确用法文档](HOOK正确用法文档.md)
+
+#### ⚠️ 注意事项
+
+1. **API密钥安全**: 确保 `.gitignore` 包含环境变量文件
+2. **网络要求**: 需访问 `api.anthropic.com` (中国大陆可用，未被墙)
+3. **延迟预期**: 首次调用可能需要5-8秒（后续通常3-5秒）
+4. **成本监控**: 虽然成本极低，仍建议定期检查API用量
+5. **降级准备**: v2.0将根据v1.0测试结果决定是否启用降级
+
+#### 🎉 里程碑意义
+
+v25.0标志着NeteaseMod-Claude工作流系统从**传统关键词匹配**升级到**AI驱动语义理解**，实现了：
+- 🚀 **准确率质的飞跃**: 85% → 96.15%
+- 🛡️ **状态机100%安全**: 强制验证机制确保永不脱离
+- 🔧 **零维护成本**: 告别手动添加关键词的时代
+- 💰 **成本可忽略**: 年成本<$1，性价比极高
+
+---
+
 ## [v3.0.1] - 2025-11-16
 
 ### 🔒 并发安全性增强

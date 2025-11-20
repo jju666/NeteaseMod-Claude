@@ -790,6 +790,11 @@ class BedWarsGameSystem(GamingStateSystem):
                         break
 
             # ========== 3. 处理护甲 ==========
+            # ========== 3. 处理护甲（只保存裤子/靴子，slot 2和3） ==========
+            # 设计原则：
+            # - 头盔（slot 0）和胸甲（slot 1）固定为皮革，不保存
+            # - 裤子（slot 2）和靴子（slot 3）支持临时购买和永久升级，需要保存
+            # - 优先级：临时购买（respawn_contents） > 永久升级（player_armor_record） > 默认皮革
             armor_items = comp_item.GetPlayerAllItems(
                 serverApi.GetMinecraftEnum().ItemPosType.ARMOR
             )
@@ -798,11 +803,17 @@ class BedWarsGameSystem(GamingStateSystem):
                 if not armor_dict:
                     continue
 
+                # 只处理裤子（slot 2）和靴子（slot 3）
+                if slot not in [2, 3]:
+                    continue
+
                 armor_name = armor_dict.get('newItemName', '')
 
-                # 保留或掉落护甲
+                # 保留裤子/靴子到respawn_contents
                 if armor_name in self.config.get('death_keep', []):
                     contents[(serverApi.GetMinecraftEnum().ItemPosType.ARMOR, slot)] = armor_dict
+                    self.LogInfo("保存护甲: slot={} name={}".format(slot, armor_name))
+                # 检查是否需要掉落
                 elif armor_name in self.config.get('death_drop', []):
                     comp_item.SpawnItemToLevel(armor_dict, dimension_id, player_pos)
 
@@ -2204,21 +2215,29 @@ class BedWarsGameSystem(GamingStateSystem):
             for i in range(36):
                 comp_item.SetInvItemNum(i, 0)
 
-            # ========== 2. 处理剑类武器 ==========
-            # 检查是否有复活物品记录（死亡保留的剑）
+            # ========== 2. 恢复背包物品（剑、工具，不含护甲） ==========
+            # 护甲数据在respawn_contents中，但在步骤4单独处理
+            # 这里只恢复背包物品，避免与后续护甲设置逻辑冲突
             if player_id in self.respawn_contents:
                 contents = self.respawn_contents[player_id]  # FIX: Read only, do not delete
-                # 先恢复复活物品（包括剑、工具等）
-                comp_item.SetPlayerAllItems(contents)
+
+                # 只恢复背包物品，过滤掉护甲槽
+                inventory_contents = {}
+                for (pos_type, slot), item_dict in contents.items():
+                    if pos_type == serverApi.GetMinecraftEnum().ItemPosType.INVENTORY:
+                        inventory_contents[(pos_type, slot)] = item_dict
+
+                if inventory_contents:
+                    comp_item.SetPlayerAllItems(inventory_contents)
+                    self.LogInfo("恢复玩家{}的背包物品: {}个槽位".format(player_id, len(inventory_contents)))
 
                 # 检查是否包含剑
                 has_sword = False
-                for (pos_type, slot), item_dict in contents.items():
-                    if pos_type == serverApi.GetMinecraftEnum().ItemPosType.INVENTORY:
-                        item_name = item_dict.get('newItemName', '')
-                        if 'sword' in item_name:
-                            has_sword = True
-                            break
+                for item_dict in inventory_contents.values():
+                    item_name = item_dict.get('newItemName', '') or item_dict.get('itemName', '')
+                    if 'sword' in item_name:
+                        has_sword = True
+                        break
 
                 # 如果复活物品中没有剑，给予记录的剑
                 if not has_sword:
@@ -2277,16 +2296,22 @@ class BedWarsGameSystem(GamingStateSystem):
                 }, player_id)
                 self.LogInfo("玩家{}获得物品: minecraft:compass (result={})".format(player_id, result))
 
-            # ========== 4. 发放护甲 ==========
+            # ========== 4. 发放护甲（优先级：respawn_contents > armor_record > 默认皮革） ==========
             # 获取玩家护甲记录（永久购买的高级护甲）
             if player_id not in self.player_armor_record:
                 self.player_armor_record[player_id] = {}
 
             armor_record = self.player_armor_record[player_id]
 
+            # 从respawn_contents提取护甲（如果有）
+            respawn_armors = {}
+            if player_id in self.respawn_contents:
+                contents_snapshot = self.respawn_contents[player_id]
+                for (pos_type, slot), item_dict in contents_snapshot.items():
+                    if pos_type == serverApi.GetMinecraftEnum().ItemPosType.ARMOR:
+                        respawn_armors[slot] = item_dict.get('newItemName', '') or item_dict.get('itemName', '')
+
             # 护甲槽位配置
-            # 注意: 头盔和胸甲固定为皮革（用于显示队伍颜色）
-            # 裤子和靴子可以是永久购买的高级护甲
             armor_items = [
                 ("minecraft:leather_helmet", 0),       # 头盔 - 固定皮革
                 ("minecraft:leather_chestplate", 1),   # 胸甲 - 固定皮革
@@ -2300,12 +2325,26 @@ class BedWarsGameSystem(GamingStateSystem):
                 # 确定实际使用的护甲
                 item_name = default_item
 
-                if slot_index == 2 and 'leggings' in armor_record:
-                    # 裤子 - 使用永久购买的高级护甲
-                    item_name = armor_record['leggings']
-                elif slot_index == 3 and 'boots' in armor_record:
-                    # 靴子 - 使用永久购买的高级护甲
-                    item_name = armor_record['boots']
+                # 头盔和胸甲固定为皮革
+                if slot_index in [0, 1]:
+                    item_name = default_item  # 固定皮革，不检查armor_record
+                # 裤子和靴子支持升级
+                elif slot_index == 2:
+                    # 优先级：临时购买 > 永久升级 > 默认皮革
+                    if 2 in respawn_armors:
+                        item_name = respawn_armors[2]
+                        self.LogInfo("玩家{}使用临时购买的裤子: {}".format(player_id, item_name))
+                    elif 'leggings' in armor_record:
+                        item_name = armor_record['leggings']
+                        self.LogInfo("玩家{}使用永久升级的裤子: {}".format(player_id, item_name))
+                elif slot_index == 3:
+                    # 优先级：临时购买 > 永久升级 > 默认皮革
+                    if 3 in respawn_armors:
+                        item_name = respawn_armors[3]
+                        self.LogInfo("玩家{}使用临时购买的靴子: {}".format(player_id, item_name))
+                    elif 'boots' in armor_record:
+                        item_name = armor_record['boots']
+                        self.LogInfo("玩家{}使用永久升级的靴子: {}".format(player_id, item_name))
 
                 # 创建护甲物品
                 # [FIX 2025-11-06] 修复字段名: newItemName -> itemName (参考老项目ECBedWarsPart.py:1417)

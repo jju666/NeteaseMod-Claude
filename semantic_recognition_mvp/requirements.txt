@@ -1,0 +1,7 @@
+# Claude API 语义识别方案依赖
+
+# Anthropic SDK
+anthropic>=0.18.0
+
+# 可选：性能监控
+psutil>=5.9.0

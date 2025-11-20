@@ -23,6 +23,13 @@ import sys
 import json
 import os
 from datetime import datetime
+import io
+
+# 🔥 v25.0新增: Windows编码完整容错策略（修复仪表盘中文显示问题）
+if sys.platform == 'win32':
+    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8', errors='replace')
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # 导入 TaskMetaManager
 HOOK_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -232,29 +239,42 @@ def main():
 
         # ========== v3.1新增：压缩恢复逻辑 ==========
         if source == "compact":
-            sys.stderr.write(u"[INFO v3.1] SessionStart: 检测到压缩触发，恢复工作流\n")
-
-            # 生成压缩恢复提示
+            # 🔥 v27.0修复：直接输出纯文本（根据官网Claude建议）
             recovery_prompt = generate_compact_recovery_prompt(task_id, task_meta, current_step)
 
-            # 输出到上下文
-            output = {
-                "hookSpecificOutput": {
-                    "hookEventName": "SessionStart",
-                    "additionalContext": recovery_prompt
-                }
-            }
-            print(json.dumps(output, ensure_ascii=False))
+            sys.stdout.flush()
+            print(recovery_prompt, flush=True)
             sys.exit(0)
 
         # ========== v23.0新增：Finalization阶段提示（确保100%启动Task子代理） ==========
         if current_step == 'finalization':
+            # 【v24.3修复】双重校验：确保 .task-meta.json 也确认状态
+            actual_step = task_meta.get('current_step')
+            finalization_status = task_meta.get('steps', {}).get('finalization', {}).get('status')
+
+            # 状态一致性校验
+            if actual_step != 'finalization' or finalization_status not in ['in_progress', None]:
+                # 🔥 v26.1修复：移除 stderr 输出，避免干扰 JSON 解析
+                # sys.stderr.write(
+                #     u"[WARN v24.3] .task-active.json 与 .task-meta.json 状态不一致\n"
+                #     u"  - .task-active.json: current_step={}\n"
+                #     u"  - .task-meta.json: current_step={}, finalization.status={}\n"
+                #     u"  → 跳过子代理启动，等待状态同步\n".format(
+                #         current_step, actual_step, finalization_status
+                #     )
+                # )
+                # 同步状态到 .task-active.json
+                if actual_step and actual_step != current_step:
+                    active_tasks[session_id]['current_step'] = actual_step
+                    mgr.save_active_task({'active_tasks': active_tasks})
+                sys.exit(0)
+
             # 检查是否在子代理上下文中
             is_subagent = mgr.check_subagent_lock(task_id) if task_id else False
 
             if not is_subagent:
                 # 父代理在finalization阶段，但未启动子代理
-                sys.stderr.write(u"[SessionStart v23.0] 检测到Finalization阶段未启动子代理\n")
+                # 🔥 v27.0修复：直接输出纯文本（根据官网Claude建议）
 
                 finalization_prompt = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️ Finalization阶段 - 必须启动收尾子代理
@@ -320,13 +340,8 @@ Task(
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """.format(task_id=task_id[:40] + ('...' if len(task_id) > 40 else ''))
 
-                output = {
-                    "hookSpecificOutput": {
-                        "hookEventName": "SessionStart",
-                        "additionalContext": finalization_prompt
-                    }
-                }
-                print(json.dumps(output, ensure_ascii=False))
+                sys.stdout.flush()
+                print(finalization_prompt, flush=True)
                 sys.exit(0)
 
         # ========== 原有逻辑：显示状态仪表盘 ==========
@@ -335,22 +350,19 @@ Task(
         task_meta['session_started_at'] = datetime.now().isoformat()
 
         # 保存更新
-        if mgr.save_task_meta(task_id, task_meta):
-            sys.stderr.write(f"[INFO v3.1] 会话已恢复: {task_id[:30]}...\n")
-            sys.stderr.write(f"[INFO v3.1] 当前步骤: {current_step}\n")
-        else:
-            sys.stderr.write(f"[ERROR] 保存任务元数据失败: {task_id}\n")
+        # 🔥 v25.0修复：移除 stderr 日志，避免干扰 JSON 输出
+        # Claude Code 要求 Hook 输出必须以 { 开头，stderr 会导致解析失败
+        if not mgr.save_task_meta(task_id, task_meta):
+            # 保存失败时直接退出，避免后续错误
+            sys.exit(1)
 
-        # 生成并输出状态仪表盘
+        # 🔥 v27.0 关键修复：根据官网Claude建议，SessionStart Hook 应该直接输出纯文本
+        # 不要输出 JSON！纯文本会直接显示给用户
         dashboard = generate_status_dashboard(task_id, task_meta)
 
-        output = {
-            "hookSpecificOutput": {
-                "hookEventName": "SessionStart",
-                "additionalContext": dashboard
-            }
-        }
-        print(json.dumps(output, ensure_ascii=False))
+        # 直接输出纯文本仪表盘
+        sys.stdout.flush()
+        print(dashboard, flush=True)
 
         sys.exit(0)
 

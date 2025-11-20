@@ -414,17 +414,83 @@ Task(
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """.format(non_task_tool_count, non_task_tool_count)
 
-                    output = {
-                        "hookSpecificOutput": {
-                            "hookEventName": "PreToolUse",
-                            "permissionDecision": "deny",
-                            "permissionDecisionReason": deny_message
-                        },
-                        "suppressOutput": False
-                    }
+                    # 🔥 v24.3修复：PreToolUse阻止机制修复
+                    # 根据《HOOK正确用法文档.md》第78-101行和第159行：
+                    # - 方法1（推荐）: stderr + exit 2（简单阻止，不输出JSON）
+                    # - 方法2: JSON + exit 0（支持参数修改和用户确认）
+                    # ⚠️ Exit code 2会**忽略JSON输出**，两者不能混用
+                    #
+                    # 当前场景：简单阻止（无需参数修改），选择方法1
+                    sys.stderr.write(deny_message)
+                    sys.stderr.flush()
+                    sys.exit(2)  # 阻止操作（方法1：纯exit 2）
 
-                    print(json.dumps(output, ensure_ascii=False))
-                    sys.exit(2)  # 阻止操作
+        # 6.5 v24.0新增：Planning阶段user_confirmed检查（修复#issue-认同后仍修改代码）
+        # 场景：用户说"认同"但Hook误判为"疑虑"，planning.user_confirmed=false
+        # 问题：Claude忽略警告，自行判断进入Implementation阶段，尝试修改代码
+        # 解决：PreToolUse强制检查user_confirmed状态，阻止未确认的代码修改
+        if current_step == 'planning':
+            CODE_MODIFICATION_TOOLS = ['Write', 'Edit', 'NotebookEdit']
+            if tool_name in CODE_MODIFICATION_TOOLS:
+                planning_step = task_meta.get('steps', {}).get('planning', {})
+                user_confirmed = planning_step.get('user_confirmed', False)
+                expert_review_completed = planning_step.get('expert_review_completed', False)
+                expert_review_required = planning_step.get('expert_review_required', False)
+
+                if not user_confirmed:
+                    # 构建拒绝原因（根据任务类型定制消息）
+                    task_type = task_meta.get('task_type', 'general')
+                    denial_reason = """
+Planning阶段禁止直接修改代码（user_confirmed=false）
+
+❌ 检测到问题：
+你尝试在Planning阶段使用{}工具修改代码，但用户尚未明确确认方案。
+
+✅ 正确流程：
+""".format(tool_name)
+
+                    if task_type == 'bug_fix' and expert_review_required:
+                        if not expert_review_completed:
+                            denial_reason += """1. 【必须】使用Task工具启动专家审查子代理
+   - 验证你的BUG根本原因分析是否正确
+   - 确认修复方案不会引入新问题
+
+2. 等待子代理完成审查并返回结果
+
+3. 根据审查结果调整方案（如需要）
+
+4. 向用户展示最终方案，等待用户明确输入"同意"
+
+5. 用户确认后，Hook会自动更新user_confirmed=true
+
+6. 然后你才能使用Write/Edit/NotebookEdit修改代码"""
+                        else:
+                            denial_reason += """1. 向用户展示你的修复方案（包含专家审查结果）
+
+2. 等待用户明确输入"同意"/"认同"/"确认"等关键词
+
+3. 用户确认后，Hook会自动更新user_confirmed=true
+
+4. 然后你才能使用Write/Edit/NotebookEdit修改代码
+
+💡 提示：如果用户已经表示认同但未明确说"同意"，
+         请提醒用户明确输入"同意"以推进流程。"""
+                    else:
+                        denial_reason += """1. 向用户展示你的实现方案
+
+2. 等待用户明确输入"同意"/"认同"/"确认"等关键词
+
+3. 用户确认后，Hook会自动更新user_confirmed=true，并转移到Implementation阶段
+
+4. 然后你才能使用Write/Edit/NotebookEdit修改代码"""
+
+                    sys.stderr.write("[PreToolUse v24.0] Planning阶段代码修改被拒绝: user_confirmed=false\n")
+                    deny_and_exit(
+                        tool_name,
+                        current_step,
+                        denial_reason,
+                        "请先向用户确认方案，等待用户明确同意后再修改代码"
+                    )
 
         # 7. 执行四层验证
         try:

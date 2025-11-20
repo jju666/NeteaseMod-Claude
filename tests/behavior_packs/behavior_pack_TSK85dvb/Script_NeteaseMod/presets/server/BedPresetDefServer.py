@@ -1287,6 +1287,66 @@ class BedPresetDefServer(BlockPresetServerBase):
             # 默认向南
             return (x, y, z + 1)
 
+    def _get_dimension_id(self, instance):
+        """
+        获取床所在维度ID（统一的维度ID获取逻辑）
+
+        优先级：
+        1. RoomManagementSystem.current_dimension（当前对局维度）
+        2. 配置 dimension_id
+        3. 预设实例属性 self.dimension_id
+        4. 默认值 0
+
+        包含类型安全检查，确保返回整数类型
+
+        Args:
+            instance: PresetInstance对象
+
+        Returns:
+            int: 维度ID
+        """
+        try:
+            # 从RoomManagementSystem获取当前对局的维度ID
+            import mod.server.extraServerApi as serverApi
+            room_system = serverApi.GetSystem("ECBedWars", "RoomManagementSystem")
+
+            # 优先使用RoomManagementSystem的维度，否则从配置读取，最后使用预设实例的维度
+            dimension_id = None
+            if room_system and hasattr(room_system, 'current_dimension') and room_system.current_dimension is not None:
+                dimension_id = room_system.current_dimension
+                print("[INFO] [床预设] 从RoomManagementSystem获取维度: {}".format(dimension_id))
+            else:
+                # 备用方案1：从配置获取
+                dimension_id = instance.get_config("dimension_id", None)
+                if dimension_id is not None:
+                    print("[INFO] [床预设] 从配置获取维度: {}".format(dimension_id))
+                else:
+                    # 备用方案2：从预设实例属性获取
+                    if hasattr(self, 'dimension_id') and self.dimension_id is not None:
+                        dimension_id = self.dimension_id
+                        print("[INFO] [床预设] 从预设实例获取维度: {}".format(dimension_id))
+                    else:
+                        print("[ERROR] [床预设] 无法获取维度ID，使用默认维度0")
+                        dimension_id = 0
+
+            # 确保dimension_id是整数类型
+            if not isinstance(dimension_id, int):
+                print("[ERROR] [床预设] 维度ID类型错误: type={}, value={}".format(type(dimension_id), dimension_id))
+                try:
+                    dimension_id = int(dimension_id)
+                    print("[INFO] [床预设] 已转换维度ID为整数: {}".format(dimension_id))
+                except (ValueError, TypeError):
+                    print("[ERROR] [床预设] 维度ID转换失败，使用默认维度0")
+                    dimension_id = 0
+
+            return dimension_id
+
+        except Exception as e:
+            print("[ERROR] [床预设] 获取维度ID异常: {}".format(str(e)))
+            import traceback
+            traceback.print_exc()
+            return 0
+
     def _get_player_team_from_game_system(self, player_id):
         """
         从游戏系统获取玩家队伍

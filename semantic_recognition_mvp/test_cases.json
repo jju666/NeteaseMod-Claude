@@ -1,0 +1,328 @@
+{
+  "meta": {
+    "version": "1.0",
+    "total_cases": 52,
+    "intent_distribution": {
+      "complete_success": 18,
+      "partial_success": 14,
+      "failure": 12,
+      "planning_required": 8
+    },
+    "description": "真实场景的用户反馈语料，用于语义识别方案验证"
+  },
+  "test_cases": [
+    {
+      "id": 1,
+      "input": "都正确了",
+      "expected_intent": "complete_success",
+      "category": "直接肯定",
+      "note": "原始BUG触发用例"
+    },
+    {
+      "id": 2,
+      "input": "搞定了",
+      "expected_intent": "complete_success",
+      "category": "口语化肯定"
+    },
+    {
+      "id": 3,
+      "input": "测试全部通过",
+      "expected_intent": "complete_success",
+      "category": "明确验证结果"
+    },
+    {
+      "id": 4,
+      "input": "没问题了",
+      "expected_intent": "complete_success",
+      "category": "否定问题存在"
+    },
+    {
+      "id": 5,
+      "input": "一切正常",
+      "expected_intent": "complete_success",
+      "category": "状态描述"
+    },
+    {
+      "id": 6,
+      "input": "完美运行",
+      "expected_intent": "complete_success",
+      "category": "效果描述"
+    },
+    {
+      "id": 7,
+      "input": "修复完成",
+      "expected_intent": "complete_success",
+      "category": "任务完成"
+    },
+    {
+      "id": 8,
+      "input": "全修复了",
+      "expected_intent": "complete_success",
+      "category": "范围+完成"
+    },
+    {
+      "id": 9,
+      "input": "都好了",
+      "expected_intent": "complete_success",
+      "category": "口语简洁"
+    },
+    {
+      "id": 10,
+      "input": "OK了",
+      "expected_intent": "complete_success",
+      "category": "英文缩写"
+    },
+    {
+      "id": 11,
+      "input": "全对了",
+      "expected_intent": "complete_success",
+      "category": "范围+正确"
+    },
+    {
+      "id": 12,
+      "input": "完全正确",
+      "expected_intent": "complete_success",
+      "category": "程度+正确"
+    },
+    {
+      "id": 13,
+      "input": "没错了",
+      "expected_intent": "complete_success",
+      "category": "否定错误"
+    },
+    {
+      "id": 14,
+      "input": "验证通过",
+      "expected_intent": "complete_success",
+      "category": "技术术语"
+    },
+    {
+      "id": 15,
+      "input": "都修好了",
+      "expected_intent": "complete_success",
+      "category": "动作完成"
+    },
+    {
+      "id": 16,
+      "input": "可以了",
+      "expected_intent": "complete_success",
+      "category": "满足条件"
+    },
+    {
+      "id": 17,
+      "input": "正确了",
+      "expected_intent": "complete_success",
+      "category": "单纯肯定"
+    },
+    {
+      "id": 18,
+      "input": "都解决了",
+      "expected_intent": "complete_success",
+      "category": "问题解决"
+    },
+    {
+      "id": 19,
+      "input": "还有点问题",
+      "expected_intent": "partial_success",
+      "category": "部分存在问题"
+    },
+    {
+      "id": 20,
+      "input": "部分修好了",
+      "expected_intent": "partial_success",
+      "category": "明确部分"
+    },
+    {
+      "id": 21,
+      "input": "基本正确,但还有BUG",
+      "expected_intent": "partial_success",
+      "category": "转折句式"
+    },
+    {
+      "id": 22,
+      "input": "大部分通过",
+      "expected_intent": "partial_success",
+      "category": "范围限定"
+    },
+    {
+      "id": 23,
+      "input": "有几个还不行",
+      "expected_intent": "partial_success",
+      "category": "数量限定"
+    },
+    {
+      "id": 24,
+      "input": "修复了一些",
+      "expected_intent": "partial_success",
+      "category": "模糊数量"
+    },
+    {
+      "id": 25,
+      "input": "好多了,但还有小问题",
+      "expected_intent": "partial_success",
+      "category": "改善+残留"
+    },
+    {
+      "id": 26,
+      "input": "主要功能正常,次要的还有bug",
+      "expected_intent": "partial_success",
+      "category": "主次分明"
+    },
+    {
+      "id": 27,
+      "input": "进步了,继续修",
+      "expected_intent": "partial_success",
+      "category": "进展+后续"
+    },
+    {
+      "id": 28,
+      "input": "这个修好了,那个还不行",
+      "expected_intent": "partial_success",
+      "category": "对比式"
+    },
+    {
+      "id": 29,
+      "input": "有进展",
+      "expected_intent": "partial_success",
+      "category": "进度描述"
+    },
+    {
+      "id": 30,
+      "input": "部分通过测试",
+      "expected_intent": "partial_success",
+      "category": "技术表达"
+    },
+    {
+      "id": 31,
+      "input": "还有一些边界情况没处理",
+      "expected_intent": "partial_success",
+      "category": "具体缺陷"
+    },
+    {
+      "id": 32,
+      "input": "几乎全好了",
+      "expected_intent": "partial_success",
+      "category": "接近完成"
+    },
+    {
+      "id": 33,
+      "input": "完全没修复",
+      "expected_intent": "failure",
+      "category": "绝对否定"
+    },
+    {
+      "id": 34,
+      "input": "失败了",
+      "expected_intent": "failure",
+      "category": "结果否定"
+    },
+    {
+      "id": 35,
+      "input": "还是不行",
+      "expected_intent": "failure",
+      "category": "持续失败"
+    },
+    {
+      "id": 36,
+      "input": "完全不对",
+      "expected_intent": "failure",
+      "category": "结果错误"
+    },
+    {
+      "id": 37,
+      "input": "没修好",
+      "expected_intent": "failure",
+      "category": "目标未达成"
+    },
+    {
+      "id": 38,
+      "input": "测试全挂了",
+      "expected_intent": "failure",
+      "category": "验证失败"
+    },
+    {
+      "id": 39,
+      "input": "一个都没通过",
+      "expected_intent": "failure",
+      "category": "范围+失败"
+    },
+    {
+      "id": 40,
+      "input": "改坏了",
+      "expected_intent": "failure",
+      "category": "反向变化"
+    },
+    {
+      "id": 41,
+      "input": "更严重了",
+      "expected_intent": "failure",
+      "category": "恶化"
+    },
+    {
+      "id": 42,
+      "input": "运行不了",
+      "expected_intent": "failure",
+      "category": "功能失效"
+    },
+    {
+      "id": 43,
+      "input": "报错了",
+      "expected_intent": "failure",
+      "category": "错误发生"
+    },
+    {
+      "id": 44,
+      "input": "崩溃了",
+      "expected_intent": "failure",
+      "category": "严重失败"
+    },
+    {
+      "id": 45,
+      "input": "这个方案不对",
+      "expected_intent": "planning_required",
+      "category": "方案否定"
+    },
+    {
+      "id": 46,
+      "input": "需要重新设计",
+      "expected_intent": "planning_required",
+      "category": "重做请求"
+    },
+    {
+      "id": 47,
+      "input": "思路错了",
+      "expected_intent": "planning_required",
+      "category": "方向性错误"
+    },
+    {
+      "id": 48,
+      "input": "设计有问题",
+      "expected_intent": "planning_required",
+      "category": "架构缺陷"
+    },
+    {
+      "id": 49,
+      "input": "架构需要调整",
+      "expected_intent": "planning_required",
+      "category": "结构性改动"
+    },
+    {
+      "id": 50,
+      "input": "换个思路吧",
+      "expected_intent": "planning_required",
+      "category": "策略变更"
+    },
+    {
+      "id": 51,
+      "input": "根本原因没找到",
+      "expected_intent": "planning_required",
+      "category": "分析不足"
+    },
+    {
+      "id": 52,
+      "input": "这样实现不了需求",
+      "expected_intent": "planning_required",
+      "category": "需求不满足"
+    }
+  ]
+}

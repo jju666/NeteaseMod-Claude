@@ -29,7 +29,10 @@ try:
     HAS_PORTALOCKER = True
 except ImportError:
     HAS_PORTALOCKER = False
-    sys.stderr.write("[TaskMetaManager] 警告: 未安装 portalocker，文件锁功能降级\n")
+    # 🔥 v25.0修复：禁用警告输出，避免干扰 Hook 的 JSON 输出
+    # 在 Windows 上，stderr 可能混入 stdout，导致 Claude Code 无法解析 JSON
+    # sys.stderr.write("[TaskMetaManager] 警告: 未安装 portalocker，文件锁功能降级\n")
+    pass  # 静默运行
 
 
 class TaskMetaManager:

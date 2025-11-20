@@ -31,10 +31,15 @@ import time
 from datetime import datetime
 import io
 
-# 修复Windows GBK编码问题:强制使用UTF-8输出
+# 🔥 v25.0修复: Windows编码完整容错策略（参考user_prompt_handler.py/subagent_stop.py）
+# 关键改进（修复函数名乱码问题）:
+# 1. 添加 errors='replace' - 容错处理，将无法编码字符替换为'?'
+# 2. 添加 sys.stdin 处理 - 确保能正确读取JSON输入
+# 3. 处理Windows路径中的Unicode代理字符
 if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8', errors='replace')
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # 导入 TaskMetaManager
 HOOK_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -251,6 +256,71 @@ def main():
             expert_review_result = planning.get('expert_review_result')
             expert_review_count = planning.get('expert_review_count', 0)
 
+            # 🔥 [v25.1新增] 强制检查：BUG修复必须先完成专家审查
+            # 如果任务要求专家审查但尚未启动，强制阻止AI直接询问用户
+            expert_review_required = planning.get('expert_review_required', False)
+            if expert_review_required and not expert_review_completed:
+                message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 Stop Hook 强制阻止 - 专家审查未启动
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**检测到的问题**:
+- 当前阶段: Planning（方案制定）
+- 任务类型: BUG修复
+- 专家审查要求: ✅ 必须
+- 专家审查状态: ❌ 未启动（expert_review_completed=false）
+
+**为什么阻止你**:
+根据BUG修复工作流，你必须先启动专家审查子代理验证
+方案的正确性，才能询问用户确认。这是质量控制的强制要求。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚡ **你必须立即执行（这不是建议，是强制要求）**:
+
+1. 🚀 使用Task工具启动专家审查：
+
+   Task(
+     subagent_type="general-purpose",
+     description="BUG修复方案第1次审查",
+     prompt="请审查以下BUG修复方案：\\n[你的方案内容]\\n\\n重点验证：\\n1. 根因定位是否准确\\n2. 修复方案是否完整\\n3. 是否有遗漏的边界情况"
+   )
+
+2. ✅ 等待审查结果：
+   - 如果通过 → 你可以询问用户确认
+   - 如果需要调整 → 优化方案后重新审查
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+❌ **禁止的操作**:
+- 不允许直接询问用户（方案未验证）
+- 不允许跳过专家审查环节
+- 不允许使用Read/Grep拖延时间
+
+✅ **允许的操作**:
+- Task工具（启动专家审查）← 唯一合理选择
+- Read/Grep/Glob（辅助完善方案）
+- WebFetch（查询文档）
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 **理解这个机制**:
+这确保BUG修复方案经过双重验证（专家审查+用户确认），
+避免未经验证的方案直接实施导致问题扩大。
+
+⚠️ **注意**: 这是技术强制阻止。如果你尝试绕过，
+UserPromptSubmit Hook会在用户"同意"时再次阻止你。
+
+所以，现在就启动Task工具是唯一高效的选择。
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+                output = {
+                    "decision": "block",
+                    "reason": message
+                }
+                print(json.dumps(output, ensure_ascii=False))
+                sys.exit(0)  # ✅ JSON响应使用exit 0
+
             if expert_review_completed and expert_review_result == '需要调整':
                 # 【v22.4增强】更明确、更紧迫的阻止消息
                 message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -316,13 +386,15 @@ def main():
                 )
 
                 # 返回阻止决策（Stop Hook官方格式）
+                # 🔥 v24.3修复：使用JSON响应时必须exit 0，不能用exit 2
+                # 根据《HOOK正确用法文档.md》第159行：Exit code 2会忽略JSON输出
                 output = {
                     "decision": "block",
                     "reason": message
                 }
 
                 print(json.dumps(output, ensure_ascii=False))
-                sys.exit(2)  # 阻止操作
+                sys.exit(0)  # ✅ JSON响应使用exit 0
 
         if current_step == 'planning' and not planning.get('user_confirmed', False):
             # Planning阶段未确认，生成方案摘要并阻止会话
@@ -381,6 +453,8 @@ def main():
 """
 
             # Stop Hook 官方格式 - 阻止会话
+            # 🔥 v24.3修复：使用JSON响应时必须exit 0，不能用exit 2
+            # 根据《HOOK正确用法文档.md》第159行：Exit code 2会忽略JSON输出
             output = {
                 "decision": "block",
                 "reason": "Planning阶段等待用户确认方案",
@@ -389,7 +463,7 @@ def main():
             }
 
             print(json.dumps(output, ensure_ascii=False))
-            sys.exit(2)  # 阻止操作
+            sys.exit(0)  # ✅ JSON响应使用exit 0
 
         # 检查用户是否确认修复（Implementation阶段）
         user_confirmed = check_user_confirmation(task_id, cwd)
@@ -422,7 +496,7 @@ def main():
                         # 有未提交的修改，补记录到task-meta.json
                         modified_files = result.stdout.strip().split('\n')
 
-                        def补记录代码修改(meta):
+                        def supplement_code_changes(meta):  # v25.0修复：中文函数名在Windows上可能导致编码错误
                             metrics = meta.setdefault('metrics', {})
                             code_changes_list = metrics.setdefault('code_changes', [])
 
@@ -440,7 +514,7 @@ def main():
 
                             return meta
 
-                        task_meta = mgr.atomic_update(task_id, 补记录代码修改)
+                        task_meta = mgr.atomic_update(task_id, supplement_code_changes)
                         if task_meta:
                             code_changes = task_meta.get('metrics', {}).get('code_changes', [])
                             sys.stderr.write(f"[Stop Hook Fallback] 补记录完成，共 {len(code_changes)} 个文件\n")
@@ -499,6 +573,8 @@ def main():
             # Stop Hook 官方格式
             # ✅ Phase 5 Bug Fix: 移除未定义的failure_count引用
             # 根据v3.0 Final设计，用户未确认 ≠ 任务失败，不应显示failure_count
+            # 🔥 v24.3修复：使用JSON响应时必须exit 0，不能用exit 2
+            # 根据《HOOK正确用法文档.md》第159行：Exit code 2会忽略JSON输出
             output = {
                 "decision": "block",
                 "reason": "Implementation阶段等待用户反馈",
@@ -507,9 +583,7 @@ def main():
             }
 
             print(json.dumps(output, ensure_ascii=False))
-
-            # exit(2) = 阻止操作
-            sys.exit(2)
+            sys.exit(0)  # ✅ JSON响应使用exit 0
 
         else:
             # 用户已确认修复,允许归档任务

@@ -441,7 +441,7 @@ class BedWarsRunningState(GamingState):
 
         # 6. TNT自动点燃(在放置后下一tick处理)
         if block_name == 'minecraft:tnt':
-            self._auto_ignite_tnt(pos, dimension, system)
+            self._auto_ignite_tnt(pos, dimension, system, player_id)
 
     def _on_actually_hurt(self, args):
         """
@@ -1794,7 +1794,7 @@ class BedWarsRunningState(GamingState):
                hasattr(backup_handler.backup, 'is_restoring') and \
                backup_handler.backup.is_restoring
 
-    def _auto_ignite_tnt(self, pos, dimension, system):
+    def _auto_ignite_tnt(self, pos, dimension, system, player_id):
         """
         自动点燃TNT方块
 
@@ -1802,7 +1802,10 @@ class BedWarsRunningState(GamingState):
             pos (tuple): TNT位置 (x, y, z)
             dimension (int): 维度ID
             system: BedWarsGameSystem实例
+            player_id (str): 放置者ID
         """
+        import time
+
         try:
             # 延迟1tick后点燃TNT
             def ignite():
@@ -1815,19 +1818,35 @@ class BedWarsRunningState(GamingState):
                         # 移除TNT方块
                         comp_block.SetBlockNew(pos, {'name': 'minecraft:air', 'aux': 0}, 0, dimension)
 
-                        # 生成TNT实体
-                        comp_factory = serverApi.GetEngineCompFactory()
-                        comp_entity = comp_factory.CreateEngineEntity(serverApi.GetLevelId())
-
-                        entity_id = comp_entity.CreateEngineTntEntity(
-                            (pos[0] + 0.5, pos[1], pos[2] + 0.5),  # 中心位置
-                            dimension,
-                            80  # 4秒后爆炸(80 ticks)
+                        # 生成自定义TNT实体（替代CreateEngineTntEntity）
+                        comp_game = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
+                        entity_id = comp_game.SpawnEntity(
+                            'ecbedwars:tnt',  # 使用自定义实体
+                            (pos[0] + 0.5, pos[1], pos[2] + 0.5),
+                            dimension
                         )
 
                         if entity_id:
-                            system.LogInfo("[_auto_ignite_tnt] TNT已点燃 pos={} entity_id={}".format(
-                                pos, entity_id
+                            # 获取玩家队伍
+                            team = system.team_module.get_player_team(player_id) if hasattr(system, 'team_module') else None
+
+                            # 注册到PropTNTHandler的tracking系统
+                            props_system = serverApi.GetSystem(system.namespace, "PropsManagementSystem")
+                            if props_system and "tnt" in props_system.prop_handlers:
+                                tnt_handler = props_system.prop_handlers["tnt"]
+                                tnt_handler.tnt_entities[entity_id] = {
+                                    'spawn_time': time.time(),
+                                    'owner_id': player_id,
+                                    'team': team,
+                                    'pos': (pos[0] + 0.5, pos[1], pos[2] + 0.5),
+                                    'dimension': dimension
+                                }
+                                system.LogInfo("[_auto_ignite_tnt] TNT已注册到PropTNTHandler: entity_id={}".format(entity_id))
+                            else:
+                                system.LogWarn("[_auto_ignite_tnt] PropsManagementSystem或TNT处理器未找到")
+
+                            system.LogInfo("[_auto_ignite_tnt] TNT已点燃 pos={} entity_id={} owner={}".format(
+                                pos, entity_id, player_id
                             ))
                         else:
                             system.LogError("[_auto_ignite_tnt] 创建TNT实体失败 pos={}".format(pos))
@@ -1836,6 +1855,8 @@ class BedWarsRunningState(GamingState):
                     system.LogError("[_auto_ignite_tnt] 点燃TNT失败: pos={} error={}".format(
                         pos, str(e)
                     ))
+                    import traceback
+                    print(traceback.format_exc())
 
             # 延迟1tick执行
             system.add_timer(0.05, ignite)  # 0.05秒 = 1tick

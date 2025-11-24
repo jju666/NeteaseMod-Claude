@@ -224,18 +224,42 @@ def main():
         task_binding = mgr.get_active_task_by_session(session_id)
 
         if not task_binding:
-            # 无绑定任务，跳过
-            sys.stderr.write(u"[INFO v3.1] SessionStart: 当前会话无绑定任务\n")
-            sys.exit(0)
+            # 🔥 v27.1修复：时序竞争降级逻辑
+            # SessionStart可能在UserPromptSubmit绑定完成前触发
+            # 尝试使用全局活跃任务ID（向后兼容）
+            sys.stderr.write(u"[WARN v27.1] SessionStart: 当前会话无绑定任务，尝试全局任务ID\n")
 
-        task_id = task_binding['task_id']
-        current_step = task_binding['current_step']
+            global_task_id = mgr.get_active_task_id()
+            if global_task_id:
+                # 找到全局任务，尝试加载元数据
+                sys.stderr.write(u"[INFO v27.1] 找到全局任务: {}\n".format(global_task_id[:40]))
+                task_meta = mgr.load_task_meta(global_task_id)
+                if task_meta:
+                    task_id = global_task_id
+                    current_step = task_meta.get('current_step', 'planning')
+                    sys.stderr.write(u"[INFO v27.1] 使用全局任务显示仪表盘\n")
+                else:
+                    sys.stderr.write(u"[WARN v27.1] 全局任务元数据加载失败\n")
+                    sys.exit(0)
+            else:
+                # 无任何活跃任务
+                sys.stderr.write(u"[INFO v27.1] 无任何活跃任务\n")
+                sys.exit(0)
+        else:
+            task_id = task_binding['task_id']
+            sys.stderr.write(u"[INFO v3.1] 使用会话绑定任务: {}\n".format(task_id[:40]))
 
-        # 加载任务元数据
-        task_meta = mgr.load_task_meta(task_id)
-        if not task_meta:
-            sys.stderr.write(f"[ERROR] 加载任务元数据失败: {task_id}\n")
-            sys.exit(0)
+            # 加载任务元数据（从唯一数据源读取状态）
+            task_meta = mgr.load_task_meta(task_id)
+            if not task_meta:
+                sys.stderr.write(f"[ERROR] 加载任务元数据失败: {task_id}\n")
+                sys.exit(0)
+
+            # 🔥 v25.2修复：从唯一数据源（task-meta.json）读取current_step
+            # 原因：.task-active.json不再缓存current_step，遵循单一数据源原则
+            current_step = task_meta.get('current_step', 'planning')
+
+        # 注意：如果是降级逻辑（全局任务），task_meta已在上面加载
 
         # ========== v3.1新增：压缩恢复逻辑 ==========
         if source == "compact":

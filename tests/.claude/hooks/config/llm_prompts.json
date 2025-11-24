@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$comment": "LLM Prompt模板配置文件 (v25.4)",
+  "version": "v25.4",
+  "updated_at": "2025-11-22",
+  "description": "Claude LLM语义分析Prompt模板库，支持Planning和Implementation阶段用户意图识别（v25.4: 激进模式，模糊输入默认partial_success）",
+
+  "planning_stage": {
+    "description": "Planning阶段用户反馈意图分析 (v26.1: 删除restart意图，统一使用reject)",
+    "intent_types": ["agree", "reject"],
+    "prompt_template": "你是一个任务状态分析专家。用户正在Planning（方案制定）阶段，请分析用户的反馈意图。\n\n**当前任务上下文**:\n- 当前阶段: {current_step}\n- 专家审查已完成: {expert_review}\n- 文档查阅: {docs_read}/{required_docs}\n\n**用户反馈**: \"{user_input}\"\n\n**请判断用户意图（只输出JSON，不要其他内容）**:\n\n可选意图类型:\n- agree: 用户**明确同意当前方案**，希望推进到Implementation阶段\n- reject: 用户对方案有疑虑或不满意（包括部分调整和完全重来），希望重新制定方案\n\n**分析要点（v29.1优化）**:\n1. **明确同意**才是agree：\n   - \"同意\"、\"可以开始\"、\"可以实施\"、\"可以继续实施\"、\"没问题\"、\"确认\"、\"好的，开始吧\"等\n   - 必须是**对方案本身的同意**，而非对某个建议动作的赞同\n\n2. **提建议/探讨/提问**都不是agree：\n   - \"我觉得...\"、\"可以检查...\"、\"可以试试...\"、\"建议...\"、\"要不要...\" → 这些是**探讨和建议**，不是同意方案\n   - \"是不是...\"、\"会不会...\" → 这些是**提问**，不是同意\n\n3. **明确拒绝**是reject：\n   - \"不同意\"、\"有问题\"、\"需要调整\"、\"重来\"、\"重新开始\"、\"完全不对\"等\n\n4. **转折词判断**：\n   - 如果有\"但是\"等转折，通常是reject而非agree\n\n5. **v26.1架构**：reject会触发Planning→Planning循环，AI会根据用户反馈的强烈程度调整消息语气\n\n6. **v29.1关键优化**：\"可以\"一词必须结合后续动词判断：\n   - \"可以**开始/实施/继续**\" → agree（推进到下一阶段）\n   - \"可以**检查/试试/考虑**\" → **不是agree**（提建议/探讨）\n\n**用户可能使用的快捷选项（v29.2新增）**:\n- **选项A**：明确同意方案 → agree\n- **选项B**：需要调整（温和） → reject\n- **选项C**：重新开始（强烈） → reject\n\n如果用户输入纯字母\"A\"、\"B\"、\"C\"或\"选项X\"格式，直接识别为对应意图（由代码层面处理，LLM需理解其语义）。\n\n输出格式:\n{{\n  \"intent\": \"意图类型(agree/reject)\",\n  \"confidence\": 0.0-1.0,\n  \"reasoning\": \"一句话说明判断理由\"\n}}",
+    "template_variables": [
+      "current_step",
+      "expert_review",
+      "docs_read",
+      "required_docs",
+      "user_input"
+    ],
+    "examples": [
+      {
+        "user_input": "同意，可以开始实施了",
+        "expected_intent": "agree",
+        "expected_confidence": 0.95,
+        "$comment": "明确同意+可以开始 → agree"
+      },
+      {
+        "user_input": "可以继续",
+        "expected_intent": "agree",
+        "expected_confidence": 0.90,
+        "$comment": "可以+推进动词 → agree"
+      },
+      {
+        "user_input": "我觉得可以检查一下是不是购买逻辑出了问题",
+        "expected_intent": "reject",
+        "expected_confidence": 0.85,
+        "$comment": "v29.1反例：提建议（可以检查）不是同意方案 → reject或等待v29.0 else分支处理"
+      },
+      {
+        "user_input": "可以试试加个日志看看",
+        "expected_intent": "reject",
+        "expected_confidence": 0.85,
+        "$comment": "v29.1反例：可以+建议动词（试试） → reject"
+      },
+      {
+        "user_input": "不太满意，需要重新调整方案",
+        "expected_intent": "reject",
+        "expected_confidence": 0.9
+      },
+      {
+        "user_input": "完全错了，重来吧",
+        "expected_intent": "reject",
+        "expected_confidence": 0.95,
+        "$comment": "v26.1: 原restart意图，现统一为reject（消息语气会根据关键词动态调整）"
+      },
+      {
+        "user_input": "A",
+        "expected_intent": "agree",
+        "expected_confidence": 0.95,
+        "$comment": "v29.2新增：ABC选项快捷方式 - 选项A（同意方案）"
+      },
+      {
+        "user_input": "选项B，我觉得需要检查一下购买逻辑",
+        "expected_intent": "reject",
+        "expected_confidence": 0.90,
+        "$comment": "v29.2新增：选项B+调整建议（温和）"
+      },
+      {
+        "user_input": "C重来",
+        "expected_intent": "reject",
+        "expected_confidence": 0.95,
+        "$comment": "v29.2新增：选项C+强烈否定（重新开始）"
+      }
+    ]
+  },
+
+  "implementation_stage": {
+    "description": "Implementation阶段用户反馈意图分析 (v25.3: 新增ABCD选项识别)",
+    "intent_types": [
+      "complete_success",
+      "partial_success",
+      "failure",
+      "planning_required",
+      "continuation_request",
+      "observation_only",
+      "unknown"
+    ],
+    "analysis_method": "使用ClaudeSemanticAnalyzer.analyze_user_intent()进行分析",
+    "$comment": "Implementation阶段直接复用ClaudeSemanticAnalyzer.analyze_user_intent()，不需要自定义Prompt模板。v25.3新增ABCD选项识别（支持'D方案错误'等选项标签）",
+    "examples": [
+      {
+        "user_input": "D方案错误，重点是检查练习区域为什么没生效",
+        "expected_intent": "planning_required",
+        "expected_confidence": 0.95,
+        "note": "ABCD选项：D代表方案错误"
+      },
+      {
+        "user_input": "方案错误，需要重新分析根因",
+        "expected_intent": "planning_required",
+        "expected_confidence": 0.85,
+        "note": "选项D标签（无字母前缀）"
+      },
+      {
+        "user_input": "A都正确了",
+        "expected_intent": "complete_success",
+        "expected_confidence": 0.95,
+        "note": "ABCD选项：A代表修复成功"
+      },
+      {
+        "user_input": "修复成功",
+        "expected_intent": "complete_success",
+        "expected_confidence": 0.90,
+        "note": "选项A标签（无字母前缀）"
+      },
+      {
+        "user_input": "选项B，但还有羊毛删除的问题",
+        "expected_intent": "partial_success",
+        "expected_confidence": 0.90,
+        "note": "ABCD选项：B代表部分成功"
+      },
+      {
+        "user_input": "修复了，都正确了",
+        "expected_intent": "complete_success",
+        "expected_confidence": 0.95,
+        "note": "原有示例保持"
+      },
+      {
+        "user_input": "这个修复了，但还有其他问题",
+        "expected_intent": "partial_success",
+        "expected_confidence": 0.9
+      },
+      {
+        "user_input": "没修复，还是有问题",
+        "expected_intent": "failure",
+        "expected_confidence": 0.85
+      },
+      {
+        "user_input": "方案错了，需要重新分析根因",
+        "expected_intent": "planning_required",
+        "expected_confidence": 0.9
+      },
+      {
+        "user_input": "继续修改",
+        "expected_intent": "continuation_request",
+        "expected_confidence": 0.8
+      }
+    ]
+  },
+
+  "llm_config": {
+    "model": "claude-sonnet-4-5-20250929",
+    "max_tokens": 1024,
+    "timeout_seconds": 300,
+    "confidence_threshold": 0.70,
+    "$comment": "v25.2: 降低阈值至0.70，置信度<0.70时启用关键词降级策略"
+  },
+
+  "fallback_strategy": {
+    "description": "LLM分析失败时的降级策略 (v25.4: 激进模式)",
+    "on_timeout": "启用关键词降级匹配（转折词+成功词/失败词）",
+    "on_low_confidence": "置信度<0.70时自动启用关键词降级，实现100%决策覆盖",
+    "on_api_error": "启用关键词降级匹配，确保工作流不被阻塞",
+    "use_keyword_matching": true,
+    "aggressive_mode": true,
+    "$comment": "v25.4激进模式：LLM主判（置信度≥0.70）→ 关键词降级（置信度0.75）→ 强负面关键词检测 → 默认partial_success（置信度0.65，信任AI判断）。模糊输入不再要求用户明确表态，而是让AI根据描述推断并继续修改。",
+    "keyword_priority": [
+      "ABCD选项 → 对应意图 (0.90)",
+      "转折词+成功词 → partial_success (0.75)",
+      "选项标签 → 对应意图 (0.75)",
+      "纯成功词 → complete_success (0.75)",
+      "失败词 → failure (0.75)",
+      "规划词 → planning_required (0.75)",
+      "继续词 → continuation_request (0.75)",
+      "强负面词 → observation_only (0.60)",
+      "默认 → partial_success (0.65, 激进模式)"
+    ]
+  }
+}

@@ -254,41 +254,9 @@ def main():
         # 原v25.0的强制审查循环已被移除，改由PreToolUse Hook防止重复审查
 
         if current_step == 'planning' and not planning.get('user_confirmed', False):
-            # 🔥 [v25.1.1修复] Planning阶段前置条件检查
-            # 问题根因: v26.0移除专家审查强制阻止后，Stop Hook只检查user_confirmed
-            #           导致回退到Planning时，AI询问用户就被错误阻止（用户输入"D"场景）
-            # 修复方案: 增加前置条件检查，只有AI完成必要步骤后才阻止
-            #           - BUG修复任务: 必须完成专家审查(expert_review_completed=True)
-            #           - 其他任务: 必须完成文档阅读(docs_read >= required_doc_count)
-            # 收益: 解决Implementation→Planning回退后AI询问被中止的问题
-            task_type = task_meta.get('task_type', 'general')
-            expert_review_required = planning.get('expert_review_required', False)
-            expert_review_completed = planning.get('expert_review_completed', False)
-
-            # 检查Planning阶段必要前置步骤是否完成
-            if task_type == 'bug_fix':
-                # BUG修复任务: 必须完成专家审查
-                if not expert_review_completed:
-                    # 专家审查未完成，AI还在分析问题/等待审查/询问用户，放行
-                    sys.stderr.write("[Stop Hook v25.1.1] Planning前置步骤未完成(专家审查)，放行\n")
-                    sys.exit(0)
-            else:
-                # 其他任务: 必须完成文档阅读
-                docs_read = len(task_meta.get('metrics', {}).get('docs_read', []))
-                required_docs = planning.get('required_doc_count', 3)
-
-                if docs_read < required_docs:
-                    # 文档阅读未完成，AI还在阅读分析/询问用户，放行
-                    sys.stderr.write(
-                        "[Stop Hook v25.1.1] Planning前置步骤未完成(文档{}/{}),放行\n".format(
-                            docs_read, required_docs
-                        )
-                    )
-                    sys.exit(0)
-
-            # ✅ 前置步骤已完成，继续执行阻止逻辑
             # Planning阶段未确认，生成方案摘要并阻止会话
             task_desc = task_meta.get('task_description', '未知任务')
+            task_type = task_meta.get('task_type', 'general')
 
             # 🔥 v26.0修改：使用新的数据结构
             last_expert_review = planning.get('last_expert_review', {})
@@ -300,7 +268,9 @@ def main():
             # 2. Stop Hook的检查时机太晚（AI已向用户展示方案），体验差
             # 3. 简化逻辑，减少冗余检查和维护成本
 
-            # 保留Planning阶段的user_confirmed检查
+            # 保留Planning阶段的user_confirmed检查（在后续代码中，第308-378行）
+            expert_review_required = planning.get('expert_review_required', False)
+            expert_review_completed = planning.get('expert_review_completed', False)
 
             # 构建方案摘要消息
             detail_message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -343,13 +313,11 @@ def main():
                             detail_message += u"  {}. {}\n".format(idx, suggestion)
                         detail_message += u"\n"
 
-            # v30.1优化：统一ABC选项格式，与dashboard_generator保持一致
-            detail_message += u"""**下一步 - 请选择反馈方式**:
-
-📋 **反馈指南（请选择或用自然语言）**:
-  A. ✅ 同意方案 → 输入 "同意"、"可以开始"、"确认" 或直接输入 "A"
-  B. 🔄 需要调整 → 输入 "需要调整"、"有些问题"、"建议..." 或直接输入 "B"
-  C. 🔄 重新开始 → 输入 "重来"、"完全不对"、"重新规划" 或直接输入 "C"
+            # 添加确认提示
+            detail_message += u"""**下一步**:
+1. 如果同意方案，请输入"同意"或"可以"
+2. 如果需要调整，请描述调整建议
+3. 如果完全否定，请输入"重来"
 
 ❓ **请确认是否同意该方案？**
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

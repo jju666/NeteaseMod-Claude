@@ -171,9 +171,12 @@ class CameraPreviewClientSystem(ClientSystem):
             z = self.center_pos[2] + radius * math.sin(angle)
             camera_pos = (x, y, z)
 
-            # 3. 计算相机朝向（始终朝向中心点）
+            # 3. 计算相机朝向（朝向地图中心的中间高度）
+            # 修复：相机不朝向地面，而是朝向中心点上方height_offset/2的位置
+            # 这样可以获得更平缓的俯视角度，更好地展示整个地图
+            target_y = self.center_pos[1] + self.camera_height_offset / 2
             dx = self.center_pos[0] - x
-            dy = self.center_pos[1] - y
+            dy = target_y - y
             dz = self.center_pos[2] - z
 
             # 计算水平距离

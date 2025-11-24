@@ -6,7 +6,7 @@
           {
             "type": "command",
             "command": "python .claude/hooks/lifecycle/session_start.py",
-            "timeout": 300
+            "timeout": 5
           }
         ]
       }
@@ -17,8 +17,8 @@
           {
             "type": "command",
             "command": "python .claude/hooks/orchestrator/user_prompt_handler.py",
-            "timeout": 300,
-            "comment": "v25.0.1: timeout=300秒以确保LLM语义分析有足够时间完成"
+            "timeout": 5,
+            "comment": "v20.3: Task init + gameplay pack injection + sub-agent launch"
           }
         ]
       }
@@ -30,7 +30,7 @@
           {
             "type": "command",
             "command": "python .claude/hooks/orchestrator/pretooluse_enforcer.py",
-            "timeout": 300,
+            "timeout": 10,
             "comment": "v20.3: Unified PreToolUse enforcer - 4-layer validation (Stage-Tool-Path-Semantic)"
           }
         ]
@@ -43,7 +43,7 @@
           {
             "type": "command",
             "command": "python .claude/hooks/orchestrator/posttooluse_updater.py",
-            "timeout": 300,
+            "timeout": 5,
             "comment": "v20.3: Unified PostToolUse updater - State updates + Expert trigger + Step advancement"
           }
         ]
@@ -55,14 +55,26 @@
           {
             "type": "command",
             "command": "python .claude/hooks/lifecycle/stop.py",
-            "timeout": 300,
+            "timeout": 10,
             "comment": "v20.3: Session stop cleanup"
           },
           {
             "type": "command",
             "command": "python .claude/hooks/archiver/post_archive.py",
-            "timeout": 300,
+            "timeout": 5,
             "comment": "v3.0 Final: Task archiving on finalization completion"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/lifecycle/session_end.py",
+            "timeout": 5,
+            "comment": "v2.0: Update session end timestamp"
           }
         ]
       }
@@ -73,8 +85,8 @@
           {
             "type": "command",
             "command": "python .claude/hooks/lifecycle/subagent_stop.py",
-            "timeout": 300,
-            "comment": "v22.2: Sub-agent result extraction + LLM fallback"
+            "timeout": 5,
+            "comment": "v3.0: Sub-agent completion handler - Parse results, save to task-meta, display summary"
           }
         ]
       }
@@ -85,13 +97,13 @@
           {
             "type": "command",
             "command": "python .claude/hooks/lifecycle/pre_compact.py",
-            "timeout": 300,
+            "timeout": 5,
             "comment": "v3.1: Save task state before compaction"
           },
           {
             "type": "command",
             "command": "python .claude/hooks/validators/pre_compact_reminder.py",
-            "timeout": 300,
+            "timeout": 5,
             "comment": "v20.3: Pre-compact reminder"
           }
         ]

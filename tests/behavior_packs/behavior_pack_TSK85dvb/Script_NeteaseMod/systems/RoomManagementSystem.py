@@ -274,14 +274,20 @@ class RoomManagementSystem(GamingStateSystem):
         else:
             self.LogError("bedwars_game_system引用未初始化（即使延迟初始化也失败）")
 
-        # 6. 初始化地图备份管理器并开始记录方块变更
-        backup_handler = self.get_backup_handler(dimension)
-        load_range = self.get_map_backup_range(selected_map_id)
-        if load_range:
-            backup_handler.restore_and_start_record(load_range, is_record=True)
-            self.LogInfo("地图备份管理器已初始化 dimension={} range={}".format(
-                dimension, load_range
-            ))
+        # 6. 延迟3秒后初始化地图备份（等待所有预设的异步方块放置完成）
+        # 原因：床预设的_place_bed_blocks_async是异步的，需要时间完成
+        # 修复BUG：如果备份在床方块放置前执行，restore时床方块会丢失
+        # 参考：BedPresetDefServer.py:133行 on_start调用异步放置
+        def delayed_backup():
+            backup_handler = self.get_backup_handler(dimension)
+            load_range = self.get_map_backup_range(selected_map_id)
+            if load_range:
+                backup_handler.restore_and_start_record(load_range, is_record=True)
+                self.LogInfo("地图备份管理器已初始化（延迟3秒） dimension={} range={}".format(
+                    dimension, load_range
+                ))
+
+        self.add_timer(3.0, delayed_backup, False)
 
     def end_game(self, winning_team):
         """

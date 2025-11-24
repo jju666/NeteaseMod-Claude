@@ -25,7 +25,7 @@ Read ../../CLAUDE.md
 ✅ 步骤0检查点：项目上下文理解
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-项目：tests
+项目：{{PROJECT_NAME}}
 类型：{{PROJECT_TYPE}}
 已有文档目录：（列出markdown/下的主要目录）
 
@@ -115,8 +115,8 @@ node lib/adaptive-doc-discovery.js
 
 ```json
 {
-  "timestamp": "2025-11-15T...",
-  "projectRoot": "D:/EcWork/基于Claude的MODSDK开发工作流/tests",
+  "timestamp": "{{CURRENT_DATE}}T...",
+  "projectRoot": "{{PROJECT_PATH}}",
   "patterns": {
     "officialConcepts": {
       "systems": [...],
@@ -227,7 +227,7 @@ function inferDocPath(className, patterns) {
 如果自动定位失败，可以修改代码：
 
 ```javascript
-const discovery = new AdaptiveDocDiscovery('D:/EcWork/基于Claude的MODSDK开发工作流/tests');
+const discovery = new AdaptiveDocDiscovery('{{PROJECT_PATH}}');
 discovery.behaviorPackPath = '/custom/path/to/behavior_packs';
 await discovery.discoverProjectStructure();
 ```

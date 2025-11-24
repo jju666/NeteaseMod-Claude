@@ -31,7 +31,7 @@ Read ../../CLAUDE.md
 ✅ 步骤0检查点：项目上下文理解
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-项目：tests
+项目：{{PROJECT_NAME}}
 类型：{{PROJECT_TYPE}}
 性能标准：（如有项目特定性能要求，列出关键点）
 
@@ -100,8 +100,8 @@ behavior_packs/*/scripts/client/*System.py
 ```markdown
 # 性能分析报告
 
-**项目名称**：tests
-**分析时间**：2025-11-15
+**项目名称**：{{PROJECT_NAME}}
+**分析时间**：{{CURRENT_DATE}}
 **分析文件数**：[总数]
 
 ---

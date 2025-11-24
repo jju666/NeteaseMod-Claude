@@ -348,7 +348,7 @@ PRESET_CONFIG = {
             "config": {
                 "pos": [0.5, 89.1, 0.5],
                 "dimension": 467909645,
-                "radius": 10.0,
+                "radius": 6.0,
                 "angular_velocity": 0.003,
                 "height_offset": 20.0,
             },

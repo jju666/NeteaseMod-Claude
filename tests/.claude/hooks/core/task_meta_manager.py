@@ -320,10 +320,13 @@ class TaskMetaManager:
             return False
 
         # 创建绑定信息
+        # 🔥 v25.2修复：移除current_step缓存字段
+        # 原因：违反单一数据源原则（v21.0架构），task-meta.json是唯一真实来源
+        # 影响：PreToolUse现在直接从task-meta.json读取current_step，无需缓存
         binding = {
             "task_id": task_id,
             "task_dir": self.get_task_dir(task_id),
-            "current_step": task_meta.get('current_step', 'planning'),
+            # current_step 已删除：遵循单一数据源原则，从task-meta.json读取
             "bound_at": datetime.now().isoformat(),
             "session_history": [session_id]
         }

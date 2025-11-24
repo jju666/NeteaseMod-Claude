@@ -1,1 +1,0 @@
-{"timestamp": "2025-11-20T02:05:31.365335", "role": "user", "content": "/mc 修复玩家死亡复活后，装备不初始化的问题。", "event_type": "task_init"}

@@ -410,6 +410,9 @@ def main():
                 task_meta['expert_review']['prompt'] = expert_prompt
                 task_meta['expert_review']['triggered_at'] = datetime.now().isoformat()
 
+                # v1.1新增：生成循环检测仪表盘提示
+                task_meta['_show_loop_hint'] = True  # 标记需要显示提示
+
         return task_meta
 
     updated_meta = mgr.atomic_update(task_id, update_func)
@@ -473,7 +476,40 @@ def main():
             user_message = f"💾 代码修改已记录 (第{current_round}轮, 共{total_changes}次修改)"
 
     # 6. 退出（带可选提示）
-    silent_exit(user_message)
+    # v1.1新增：检查是否需要显示循环检测提示
+    if updated_meta and updated_meta.get('_show_loop_hint'):
+        try:
+            from utils.dashboard_generator import generate_loop_detection_hint
+            bug_tracking = updated_meta.get('bug_fix_tracking', {})
+            iterations = bug_tracking.get('iterations', [])
+
+            loop_hint = generate_loop_detection_hint(iterations)
+
+            # v28.0修复：完整循环检测提示显示给用户
+            output = {
+                "hookSpecificOutput": {
+                    "hookEventName": "PostToolUse"
+                },
+                "systemMessage": loop_hint,  # ✅ 完整循环检测提示（用户可见）
+                "suppressOutput": False
+            }
+            print(json.dumps(output, ensure_ascii=False))
+
+            # 清除标记（只显示一次）
+            mgr = TaskMetaManager(os.getenv('CLAUDE_PROJECT_DIR', os.getcwd()))
+            def clear_hint_flag(meta):
+                if '_show_loop_hint' in meta:
+                    del meta['_show_loop_hint']
+                return meta
+            mgr.atomic_update(updated_meta['task_id'], clear_hint_flag)
+
+            sys.exit(0)
+        except Exception as e:
+            sys.stderr.write(u"[WARN] 循环检测仪表盘生成失败: {}\n".format(e))
+            # 降级：正常退出
+            silent_exit(user_message)
+    else:
+        silent_exit(user_message)
 
 
 if __name__ == "__main__":

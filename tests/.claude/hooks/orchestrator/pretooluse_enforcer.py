@@ -143,15 +143,20 @@ def main():
                 allow_and_exit("当前会话无绑定任务,默认放行", suppress=True)
                 return
 
-            # 6. 提取任务信息
+            # 6. 提取任务ID
             task_id = task_binding['task_id']
-            current_step = task_binding['current_step']
 
-            # 7. 加载任务元数据（用于验证详细规则）
+            # 7. 从唯一数据源（task-meta.json）加载任务状态
+            # 🔥 v25.2修复：遵循单一数据源原则，current_step必须从task-meta.json读取
+            # 问题根因：之前从.task-active.json缓存读取current_step，导致状态转移后读取到过期缓存
+            # 解决方案：直接从task-meta.json（唯一真实数据源）读取current_step
             task_meta = mgr.load_task_meta(task_id)
             if not task_meta:
                 allow_and_exit("任务元数据不存在,默认放行", suppress=True)
                 return
+
+            # 8. 从唯一数据源读取当前阶段
+            current_step = task_meta.get('current_step', 'implementation')
 
         # ✅ Phase 1: 诊断日志 - 记录任务状态（仅DEBUG模式）
         if DEBUG:
@@ -173,19 +178,191 @@ def main():
             sys.stderr.write(f"  current_step={current_step}\n")
             sys.stderr.write(f"  task_type={task_meta.get('task_type')}\n")
 
+        # v27.0新增：澄清需求检测函数
+        def is_clarification_request(tool_input):
+            """
+            检测TodoWrite是否为澄清需求而非展示方案 (v27.0新增)
+
+            澄清特征:
+            1. description包含疑问词：如何、什么、哪里、为什么、是否、请问
+            2. todos列表为空或很少（<3个）
+            3. 没有明确的"实施步骤"、"修复方案"关键词
+
+            展示方案特征:
+            1. todos包含具体实施步骤（≥3个）
+            2. description包含"修复方案"、"实施步骤"、"请确认"
+
+            Args:
+                tool_input: TodoWrite工具的输入参数
+
+            Returns:
+                bool: True=澄清需求（放行），False=展示方案（阻止）
+            """
+            description = tool_input.get('description', '')
+            todos = tool_input.get('todos', [])
+
+            # 疑问词列表
+            QUESTION_WORDS = [u'如何', u'什么', u'哪里', u'为什么', u'是否', u'请问', u'能否', u'可否', u'？', u'?']
+
+            # 方案确认关键词（展示方案的强特征）
+            CONFIRMATION_WORDS = [u'请确认', u'是否同意', u'是否可以', u'确认方案', u'同意上述方案', u'是否认同']
+
+            # 检查1: 是否包含疑问词
+            has_question = any(word in description for word in QUESTION_WORDS)
+
+            # 检查2: 是否包含确认请求（展示方案的强信号）
+            has_confirmation = any(word in description for word in CONFIRMATION_WORDS)
+
+            # 检查3: todos数量（澄清需求通常todos很少或为空）
+            few_todos = len(todos) < 3
+
+            # 检查4: description是否包含"修复方案"、"实施步骤"等方案关键词
+            PLAN_KEYWORDS = [u'修复方案', u'实施步骤', u'执行计划', u'下一步操作']
+            has_plan = any(word in description for word in PLAN_KEYWORDS)
+
+            # 判断逻辑:
+            # 1. 有疑问词 且 无确认请求 且 todos很少 且 无方案关键词 → 澄清需求
+            # 2. 有确认请求 或 有方案关键词 或 todos≥3 → 展示方案
+
+            if has_confirmation or has_plan:
+                return False  # 明确是展示方案
+
+            if has_question and few_todos:
+                return True  # 可能是澄清需求
+
+            return False  # 默认不放行
+
+        # 🔥 v26.1新增：Planning阶段TodoWrite拦截（强制专家审查）
+        if tool_name == 'TodoWrite' and current_step == 'planning' and task_meta.get('task_type') == 'bug_fix':
+            planning = task_meta.get('steps', {}).get('planning', {})
+            expert_review_required = planning.get('expert_review_required', False)
+            expert_review_completed = planning.get('expert_review_completed', False)
+
+            # 如果需要专家审查但未完成，阻止TodoWrite
+            if expert_review_required and not expert_review_completed:
+                # ✅ v27.3修复：Planning阶段一律禁止TodoWrite，不允许任何例外
+                # 删除is_clarification_request检测（判断逻辑不可靠，AI可轻易绕过）
+
+                # 原因：
+                # 1. AI可能在TodoWrite中夹带方案展示（如"我制定了方案XXX。但有个问题：你期望的行为是什么？"）
+                # 2. 澄清需求应通过普通对话实现，不需要TodoWrite工具
+                # 3. TodoWrite的主要作用是展示任务列表，Planning阶段不应使用
+
+                log_to_file("v27.3 TodoWrite拦截: Planning阶段一律禁止TodoWrite（无例外）")
+
+                # 展示方案，阻止
+                warning_message = u"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ PreToolUse Hook - TodoWrite被阻止
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**检测到的问题**:
+- 当前阶段: Planning（BUG修复任务）
+- 专家审查状态: ❌ 未完成
+- 尝试操作: 使用TodoWrite
+
+**为什么阻止你**:
+BUG修复任务在Planning阶段必须先完成专家审查，
+然后才能使用TodoWrite向用户展示方案。
+
+**如果你想澄清需求**:
+- ✅ 直接在回复中提问，不需要使用TodoWrite
+- ✅ 例如："请问你期望的XXX行为是什么？"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ **正确流程**:
+
+1. 分析代码并制定修复方案
+2. **立即使用Task工具启动专家审查**:
+   Task(
+     subagent_type="general-purpose",
+     description="BUG修复方案专家审查",
+     prompt="请审查以下BUG修复方案：..."
+   )
+3. 等待审查结果并调整方案（如需要）
+4. 然后才能使用TodoWrite向用户确认
+
+⚠️ **强制要求**: 不可跳过专家审查！
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+                sys.stderr.write(warning_message)
+                log_to_file("v26.1 TodoWrite拦截: Planning阶段未完成专家审查")
+
+                # 返回JSON格式的拒绝决策
+                print(json.dumps({
+                    "hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": "deny",
+                        "permissionDecisionReason": "Planning阶段必须先完成专家审查才能使用TodoWrite"
+                    },
+                    "systemMessage": warning_message,
+                    "suppressOutput": False
+                }, ensure_ascii=False))
+                sys.exit(0)
+
         if tool_name == 'Task' and current_step == 'planning' and task_meta.get('task_type') == 'bug_fix':
+            # 🔥 v26.0新增：检查本轮是否已完成专家审查（防止重复审查）
+            planning = task_meta.get('steps', {}).get('planning', {})
+            expert_review_completed = planning.get('expert_review_completed', False)
+            planning_round = planning.get('planning_round', 1)
+
+            log_to_file(f"v26.0重复审查检查: expert_review_completed={expert_review_completed}, planning_round={planning_round}")
+
+            # ✅ 如果本轮已完成审查，阻止重复审查
+            if expert_review_completed:
+                log_to_file("❌ 本轮planning已执行过专家审查，阻止重复审查")
+
+                deny_message = f"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ PreToolUse Hook - 阻止重复专家审查
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**检测到的问题**:
+- 当前阶段: Planning（第{planning_round}轮）
+- 本轮专家审查状态: ✅ 已完成
+- 尝试操作: 再次启动专家审查
+
+**为什么阻止你**:
+v26.0单次审查模式规定，每轮Planning阶段只允许执行1次专家审查，
+以避免上下文浪费和过度修复问题。
+
+**专家审查历史**:
+- 总审查次数: {planning.get('expert_review_count', 0)}次
+- 本轮审查结果: {planning.get('expert_review_result', '未知')}
+- 最近审查时间: {planning.get('last_expert_review', {}).get('timestamp', '未知')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ **正确流程**:
+
+1. 根据专家建议调整修复方案（无需重新审查）
+2. 向用户展示调整后的方案
+3. 等待用户确认后进入Implementation阶段
+
+💡 **提示**:
+- 专家建议仅供参考，无需强制执行
+- 如认为建议不适用，可直接向用户确认方案
+- 如需再次审查，可在Implementation后返回Planning时执行
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+"""
+                sys.stderr.write(deny_message)
+                log_to_file("决策: 阻止重复审查，exit(2)")
+                sys.exit(2)  # 阻止工具调用
+
+            # 本轮未审查，继续检查是否为专家审查任务
             description = tool_input.get('description', '')
             subagent_type = tool_input.get('subagent_type', '')
             prompt = tool_input.get('prompt', '')
 
             # 🔥 v22.3.5: 详细的诊断日志
-            log_to_file(f"✓ Task条件匹配！")
+            log_to_file(f"✓ Task条件匹配！本轮未审查，继续处理")
             log_to_file(f"  description: {description[:50]}...")
             log_to_file(f"  subagent_type: {subagent_type}")
             log_to_file(f"  prompt length: {len(prompt)}")
 
             if DEBUG:
-                sys.stderr.write(f"[PreToolUse v22.3.5] Task条件匹配！\n")
+                sys.stderr.write(f"[PreToolUse v26.0] Task条件匹配！本轮未审查\n")
                 sys.stderr.write(f"  subagent_type={subagent_type}\n")
 
             # 🔥 v22.3.5: 多维度判断专家审查任务（不依赖description编码）
@@ -484,13 +661,38 @@ Planning阶段禁止直接修改代码（user_confirmed=false）
 
 4. 然后你才能使用Write/Edit/NotebookEdit修改代码"""
 
+                    # v1.1新增：使用仪表盘生成器
                     sys.stderr.write("[PreToolUse v24.0] Planning阶段代码修改被拒绝: user_confirmed=false\n")
-                    deny_and_exit(
-                        tool_name,
-                        current_step,
-                        denial_reason,
-                        "请先向用户确认方案，等待用户明确同意后再修改代码"
-                    )
+
+                    try:
+                        from utils.dashboard_generator import generate_permission_denial
+                        enhanced_denial = generate_permission_denial(
+                            tool_name=tool_name,
+                            current_step=current_step,
+                            reason=denial_reason
+                        )
+
+                        # 使用JSON响应（符合Hook规范）
+                        # v28.0修复：完整拒绝说明显示给用户
+                        response = {
+                            "hookSpecificOutput": {
+                                "hookEventName": "PreToolUse",
+                                "permissionDecision": "deny",
+                                "permissionDecisionReason": denial_reason  # 简短原因
+                            },
+                            "systemMessage": enhanced_denial  # ✅ 完整拒绝说明（用户可见）
+                        }
+                        print(json.dumps(response, ensure_ascii=False))
+                        sys.exit(0)  # JSON响应使用exit 0
+                    except Exception as e:
+                        sys.stderr.write(u"[WARN] 仪表盘生成失败: {}\n".format(e))
+                        # 降级：使用原来的deny_and_exit
+                        deny_and_exit(
+                            tool_name,
+                            current_step,
+                            denial_reason,
+                            "请先向用户确认方案，等待用户明确同意后再修改代码"
+                        )
 
         # 7. 执行四层验证
         try:

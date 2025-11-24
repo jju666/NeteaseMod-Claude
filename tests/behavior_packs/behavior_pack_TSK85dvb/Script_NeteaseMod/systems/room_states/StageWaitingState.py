@@ -310,10 +310,21 @@ class StageWaitingState(GamingState):
         [DEBUG 2025-11-07]:
         添加详细日志追踪玩家状态重置过程
 
+        [FIX 2025-11-22]:
+        排除正在练习区域内的玩家，避免清空他们的羊毛
+        - 练习区域位于大厅维度，玩家在等待状态时可进入获得羊毛
+        - 游戏结束回到等待状态时，不应清空练习区域玩家的背包
+        - 练习区域玩家离开时会由PracticePresetDefServer自动清理背包
+
         参考：StageWaitingState.py:370-403（玩家加入事件中的状态设置）
         """
         system = self.get_system()
         system.LogInfo("[DEBUG] _teleport_all_to_lobby 开始执行")
+
+        # [FIX 2025-11-22] 获取所有正在练习区域内的玩家ID列表
+        # 使用公共方法 _get_players_in_practice()
+        players_in_practice = self._get_players_in_practice()
+        system.LogInfo("[DEBUG] 共有 {} 个玩家在练习区域内，将被排除".format(len(players_in_practice)))
 
         # 获取所有在线玩家
         all_players = system.get_all_better_players()
@@ -323,21 +334,31 @@ class StageWaitingState(GamingState):
             try:
                 player_id = player.GetPlayerId()
 
-                # 1. 清空背包
-                player.clear_inventory()
+                # [FIX 2025-11-22] 跳过正在练习区域内的玩家
+                if player_id in players_in_practice:
+                    system.LogInfo("[DEBUG] 玩家 {} 在练习区域内，跳过背包清空和传送".format(player_id))
+                    # 仍然需要重置游戏模式和状态（继续执行后续步骤）
+                    # 但不清空背包和传送
+                else:
+                    # 1. 清空背包（非练习区域玩家）
+                    player.clear_inventory()
 
-                # 2. 传送回大厅
-                player.teleport(system.waiting_spawn, system.lobby_dimension)
+                    # 2. 传送回大厅（非练习区域玩家）
+                    player.teleport(system.waiting_spawn, system.lobby_dimension)
 
                 # 3. 重置游戏模式为冒险模式
                 # 注意：必须在这里重新设置，确保从游戏结束状态（旁观模式）恢复到冒险模式
                 # [FIX 2025-11-08] 删除GetPlayerGameType调用
                 # 原因: PlayerCompServer没有GetPlayerGameType方法，GetPlayerGameType是GameCompLevel的方法
                 # 参考: 探索报告02_探索_玩家传送正确实现.md，与老项目保持一致
-                comp_player = system.comp_factory.CreatePlayer(player_id)
-                MinecraftEnum = serverApi.GetMinecraftEnum()
-                comp_player.SetPlayerGameType(MinecraftEnum.GameType.Adventure)
-                system.LogInfo("[DEBUG] 玩家 {} 游戏模式已重置为 Adventure".format(player_id))
+                # [FIX 2025-11-22] 练习区域玩家保持生存模式，不重置为冒险模式
+                if player_id not in players_in_practice:
+                    comp_player = system.comp_factory.CreatePlayer(player_id)
+                    MinecraftEnum = serverApi.GetMinecraftEnum()
+                    comp_player.SetPlayerGameType(MinecraftEnum.GameType.Adventure)
+                    system.LogInfo("[DEBUG] 玩家 {} 游戏模式已重置为 Adventure".format(player_id))
+                else:
+                    system.LogInfo("[DEBUG] 玩家 {} 在练习区域内，保持生存模式".format(player_id))
 
                 # 4. 设置无敌
                 comp_hurt = system.comp_factory.CreateHurt(player_id)
@@ -405,6 +426,34 @@ class StageWaitingState(GamingState):
         except Exception as e:
             system.LogError("_update_coin_display失败: {}".format(str(e)))
 
+    def _get_players_in_practice(self):
+        """
+        获取当前所有在练习区域内的玩家ID集合
+
+        Returns:
+            set: 练习区域内的玩家ID集合
+
+        [FIX 2025-11-22] 新增公共方法，用于三处复用：
+        - _teleport_all_to_lobby()
+        - on_player_join()
+        - _give_lobby_items_to_all_players()
+        """
+        system = self.get_system()
+        players_in_practice = set()
+        try:
+            from ECPresetServerScripts import get_server_mgr
+            preset_mgr = get_server_mgr("bedwars_room")
+            if preset_mgr:
+                all_presets = preset_mgr.get_all_presets()
+                for preset_instance in all_presets:
+                    if preset_instance.preset_type == "bedwars:practice":
+                        preset_def = preset_instance.definition
+                        if hasattr(preset_def, 'in_range_players'):
+                            players_in_practice.update(preset_def.in_range_players)
+        except Exception as e:
+            system.LogError("获取练习区域玩家失败: {}".format(e))
+        return players_in_practice
+
     def _give_lobby_items_to_all_players(self):
         """
         给所有在线玩家发放大厅道具（地图投票道具+个性攻防道具）
@@ -428,16 +477,29 @@ class StageWaitingState(GamingState):
         - 问题：waiting_players在end_game()中被清空，导致无法获取玩家
         - 解决：使用serverApi.GetPlayerList()直接从引擎获取所有在线玩家
         - 原因：不依赖可能被清空的内部列表，使用引擎的权威数据源
+
+        [FIX 2025-11-22] 排除练习区域玩家：
+        - 问题：延迟发放道具时可能误清空练习区域玩家的羊毛
+        - 解决：跳过练习区域玩家的道具发放
+        - 原因：练习区域玩家已有羊毛，不需要大厅道具
         """
         system = self.get_system()
 
         try:
+            # [FIX 2025-11-22] 获取练习区域玩家列表
+            players_in_practice = self._get_players_in_practice()
+            system.LogInfo("[DEBUG] _give_lobby_items_to_all_players: 练习区域玩家数量={}".format(len(players_in_practice)))
+
             # 使用引擎接口获取所有在线玩家（不依赖waiting_players列表）
             all_player_ids = serverApi.GetPlayerList()
             system.LogInfo("[DEBUG] _give_lobby_items_to_all_players: 在线玩家数量={}".format(len(all_player_ids)))
 
             # 遍历所有在线玩家
             for player_id in all_player_ids:
+                # [FIX 2025-11-22] 跳过练习区域玩家（他们已经有羊毛，不需要大厅道具）
+                if player_id in players_in_practice:
+                    system.LogInfo("玩家 {} 在练习区域内，跳过大厅道具发放".format(player_id))
+                    continue
                 try:
                     player_obj = system.get_better_player_obj(player_id)
                     if not player_obj:
@@ -507,26 +569,35 @@ class StageWaitingState(GamingState):
                 player_id, waiting_count, system.max_players
             ))
 
-            # 3. 清空背包（确保没有残留物品）
-            player_obj.clear_inventory()
+            # 3. 清空背包并发放大厅道具（确保没有残留物品）
+            # [FIX 2025-11-22] 排除正在练习区域内的玩家，避免清空他们的羊毛
+            # 参考：_teleport_all_to_lobby() 的 v25.1 修复逻辑
+            players_in_practice = self._get_players_in_practice()
 
-            # 4. 发放大厅道具
-            # 参考：老项目 StageWaitingState.on_player_join():284-292
-            comp_item = system.comp_factory.CreateItem(player_id)
+            # 只在玩家不在练习区域时才清空背包和发放道具
+            if player_id not in players_in_practice:
+                player_obj.clear_inventory()
+                system.LogInfo("玩家 {} 背包已清空".format(player_id))
 
-            # 地图投票道具到快捷栏槽位1
-            comp_item.SpawnItemToPlayerInv({
-                "itemName": "ecbedwars:map_vote",
-                "count": 1
-            }, player_id, 1)
+                # 4. 发放大厅道具
+                # 参考：老项目 StageWaitingState.on_player_join():284-292
+                comp_item = system.comp_factory.CreateItem(player_id)
 
-            # 个性攻防道具到快捷栏槽位2
-            comp_item.SpawnItemToPlayerInv({
-                "itemName": "ecbedwars:personal_workshop",
-                "count": 1
-            }, player_id, 2)
+                # 地图投票道具到快捷栏槽位1
+                comp_item.SpawnItemToPlayerInv({
+                    "itemName": "ecbedwars:map_vote",
+                    "count": 1
+                }, player_id, 1)
 
-            system.LogInfo("已给新加入玩家 {} 发放大厅道具".format(player_id))
+                # 个性攻防道具到快捷栏槽位2
+                comp_item.SpawnItemToPlayerInv({
+                    "itemName": "ecbedwars:personal_workshop",
+                    "count": 1
+                }, player_id, 2)
+
+                system.LogInfo("已给新加入玩家 {} 发放大厅道具".format(player_id))
+            else:
+                system.LogInfo("玩家 {} 在练习区域内，跳过背包清空和大厅道具发放".format(player_id))
 
         except Exception as e:
             system.LogError("[StageWaitingState] 处理玩家加入失败: {}".format(str(e)))

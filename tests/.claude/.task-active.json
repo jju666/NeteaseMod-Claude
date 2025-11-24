@@ -1,13 +1,357 @@
 {
   "version": "v3.1",
   "active_tasks": {
-    "test-session-diagnose": {
-      "task_id": "任务-1120-020531-修复玩家死亡复活",
-      "task_dir": "e:\\EcWork\\NeteaseMod-Claude\\tests\\tasks\\任务-1120-020531-修复玩家死亡复活",
-      "current_step": "implementation",
-      "bound_at": "2025-11-20T02:46:57.445596",
+    "de48e621-eabd-4ae8-81a5-bf776587ec2f": {
+      "task_id": "任务-1120-223305-修复玩家死亡后装备全部丢失的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1120-223305-修复玩家死亡后装备全部丢失的BUG。",
+      "current_step": "planning",
+      "bound_at": "2025-11-20T22:33:05.788114",
       "session_history": [
-        "test-session-diagnose"
+        "de48e621-eabd-4ae8-81a5-bf776587ec2f"
+      ]
+    },
+    "73c44905-f10d-495a-9849-7f8ed1e826c9": {
+      "task_id": "任务-1120-225204-修复状态机阻塞的BUG",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1120-225204-修复状态机阻塞的BUG",
+      "current_step": "planning",
+      "bound_at": "2025-11-20T22:52:04.048297",
+      "session_history": [
+        "73c44905-f10d-495a-9849-7f8ed1e826c9"
+      ]
+    },
+    "b3a1c2df-4ad9-414d-8303-112ee448f6e4": {
+      "task_id": "任务-1120-230121-修复一个BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1120-230121-修复一个BUG。",
+      "current_step": "planning",
+      "bound_at": "2025-11-20T23:01:21.030568",
+      "session_history": [
+        "b3a1c2df-4ad9-414d-8303-112ee448f6e4"
+      ]
+    },
+    "d2010fac-4fa2-49bf-be45-3a7b713fc709": {
+      "task_id": "任务-1120-230723-修复玩家死亡无法复活的BUG",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1120-230723-修复玩家死亡无法复活的BUG",
+      "current_step": "planning",
+      "bound_at": "2025-11-20T23:07:23.684008",
+      "session_history": [
+        "d2010fac-4fa2-49bf-be45-3a7b713fc709"
+      ]
+    },
+    "7f8a6c25-cb64-4a27-afa6-93062cb87f7d": {
+      "task_id": "任务-1120-232405-测试仪表盘",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1120-232405-测试仪表盘",
+      "current_step": "planning",
+      "bound_at": "2025-11-20T23:24:05.299943",
+      "session_history": [
+        "7f8a6c25-cb64-4a27-afa6-93062cb87f7d"
+      ]
+    },
+    "109dc4cc-0b46-429d-9b91-f24f71be8c22": {
+      "task_id": "任务-1120-232754-测试仪表盘",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1120-232754-测试仪表盘",
+      "current_step": "planning",
+      "bound_at": "2025-11-20T23:27:54.406352",
+      "session_history": [
+        "109dc4cc-0b46-429d-9b91-f24f71be8c22"
+      ]
+    },
+    "a6b78e54-8d69-40d0-8a27-cb0f92aba4d7": {
+      "task_id": "任务-1120-233227-测试仪表盘",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1120-233227-测试仪表盘",
+      "current_step": "planning",
+      "bound_at": "2025-11-20T23:32:27.323494",
+      "session_history": [
+        "a6b78e54-8d69-40d0-8a27-cb0f92aba4d7"
+      ]
+    },
+    "bc47f83a-86a1-44e8-ada6-fd6759fb2327": {
+      "task_id": "任务-1120-233655-测试仪表盘",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1120-233655-测试仪表盘",
+      "current_step": "planning",
+      "bound_at": "2025-11-20T23:36:55.375241",
+      "session_history": [
+        "bc47f83a-86a1-44e8-ada6-fd6759fb2327"
+      ]
+    },
+    "068c6304-05b6-4731-951e-7df17e1d2ec2": {
+      "task_id": "任务-1120-234646-测试仪表盘",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1120-234646-测试仪表盘",
+      "current_step": "planning",
+      "bound_at": "2025-11-20T23:46:46.510316",
+      "session_history": [
+        "068c6304-05b6-4731-951e-7df17e1d2ec2"
+      ]
+    },
+    "8cff707d-943a-4c53-8450-951784d9dc9a": {
+      "task_id": "任务-1120-235444-测试仪表盘v27.4",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1120-235444-测试仪表盘v27.4",
+      "current_step": "planning",
+      "bound_at": "2025-11-20T23:54:44.834922",
+      "session_history": [
+        "8cff707d-943a-4c53-8450-951784d9dc9a"
+      ]
+    },
+    "0f514154-2153-4b2e-914f-0ab2d40ed0f3": {
+      "task_id": "任务-1120-235957-测试v27.6",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1120-235957-测试v27.6",
+      "current_step": "planning",
+      "bound_at": "2025-11-20T23:59:57.694031",
+      "session_history": [
+        "0f514154-2153-4b2e-914f-0ab2d40ed0f3"
+      ]
+    },
+    "7841af14-016b-49dd-8ceb-e1097f342070": {
+      "task_id": "任务-1121-000424-测试v27.7",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1121-000424-测试v27.7",
+      "current_step": "planning",
+      "bound_at": "2025-11-21T00:04:24.406027",
+      "session_history": [
+        "7841af14-016b-49dd-8ceb-e1097f342070"
+      ]
+    },
+    "1ddbfccc-9783-466b-aed9-09debde6dd73": {
+      "task_id": "任务-1121-000643-测试v27.8",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1121-000643-测试v27.8",
+      "current_step": "planning",
+      "bound_at": "2025-11-21T00:06:44.004884",
+      "session_history": [
+        "1ddbfccc-9783-466b-aed9-09debde6dd73"
+      ]
+    },
+    "ceab2bab-6070-4fed-80e8-2b22d642e687": {
+      "task_id": "任务-1121-001022-测试v27.9最终版",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1121-001022-测试v27.9最终版",
+      "current_step": "planning",
+      "bound_at": "2025-11-21T00:10:22.741830",
+      "session_history": [
+        "ceab2bab-6070-4fed-80e8-2b22d642e687"
+      ]
+    },
+    "593dfc73-4a4e-4ad0-9e9f-210c07253ef3": {
+      "task_id": "任务-1122-025342-修复玩家死亡无法复活的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-025342-修复玩家死亡无法复活的BUG。",
+      "current_step": "planning",
+      "bound_at": "2025-11-22T02:53:42.739632",
+      "session_history": [
+        "593dfc73-4a4e-4ad0-9e9f-210c07253ef3"
+      ]
+    },
+    "2f717346-c20b-4115-ae79-6b8e32778e62": {
+      "task_id": "任务-1122-031127-修复玩家死亡复活后，装备初始化失败的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-031127-修复玩家死亡复活后，装备初始化失败的BUG。",
+      "current_step": "planning",
+      "bound_at": "2025-11-22T03:11:27.041374",
+      "session_history": [
+        "2f717346-c20b-4115-ae79-6b8e32778e62"
+      ]
+    },
+    "1792976e-b45a-4f21-a3d2-e3799486e694": {
+      "task_id": "任务-1122-033117-修复玩家死亡装备丢失的BUG",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-033117-修复玩家死亡装备丢失的BUG",
+      "current_step": "planning",
+      "bound_at": "2025-11-22T03:31:17.902405",
+      "session_history": [
+        "1792976e-b45a-4f21-a3d2-e3799486e694"
+      ]
+    },
+    "31b8c426-5436-419d-8229-60c1e653e230": {
+      "task_id": "任务-1122-040505-修复运镜失效的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-040505-修复运镜失效的BUG。",
+      "current_step": "planning",
+      "bound_at": "2025-11-22T04:05:05.332707",
+      "session_history": [
+        "31b8c426-5436-419d-8229-60c1e653e230"
+      ]
+    },
+    "bb9e0333-1a53-4caa-a125-e582f0dec310": {
+      "task_id": "任务-1122-042105-修复开启组队共享的产矿机在多人同时拾取矿物时的分配不均BUG",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-042105-修复开启组队共享的产矿机在多人同时拾取矿物时的分配不均BUG",
+      "current_step": "planning",
+      "bound_at": "2025-11-22T04:21:05.037876",
+      "session_history": [
+        "bb9e0333-1a53-4caa-a125-e582f0dec310"
+      ]
+    },
+    "2bdc7cd3-bdfe-4bcf-97a8-ca2696b9945c": {
+      "task_id": "任务-1122-043540-修复练习区域不给羊毛的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-043540-修复练习区域不给羊毛的BUG。",
+      "current_step": "implementation",
+      "bound_at": "2025-11-22T04:35:40.135829",
+      "session_history": [
+        "2bdc7cd3-bdfe-4bcf-97a8-ca2696b9945c"
+      ]
+    },
+    "614c6044-04cc-4c64-844d-348878392d32": {
+      "task_id": "任务-1122-052137-修复对局内运镜中心位置错误的问题。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-052137-修复对局内运镜中心位置错误的问题。",
+      "current_step": "planning",
+      "bound_at": "2025-11-22T05:21:37.422343",
+      "session_history": [
+        "614c6044-04cc-4c64-844d-348878392d32"
+      ]
+    },
+    "380fc9f2-3bf1-4dbc-9079-c61cfae2176e": {
+      "task_id": "任务-1122-054328-修复对局内运镜中心位置错误的问题。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-054328-修复对局内运镜中心位置错误的问题。",
+      "current_step": "implementation",
+      "bound_at": "2025-11-22T05:43:28.807064",
+      "session_history": [
+        "380fc9f2-3bf1-4dbc-9079-c61cfae2176e"
+      ]
+    },
+    "4eb852d3-5004-41f6-991b-61ae8b8c883e": {
+      "task_id": "任务-1122-061412-修复练习区域玩家进入后不给羊毛的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-061412-修复练习区域玩家进入后不给羊毛的BUG。",
+      "current_step": "implementation",
+      "bound_at": "2025-11-22T06:14:12.873132",
+      "session_history": [
+        "4eb852d3-5004-41f6-991b-61ae8b8c883e"
+      ]
+    },
+    "f6da33cf-bf9e-48bb-b052-f23ece40d360": {
+      "task_id": "任务-1122-065443-修复对局重新开始后床方块不存在的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-065443-修复对局重新开始后床方块不存在的BUG。",
+      "current_step": "implementation",
+      "bound_at": "2025-11-22T06:54:43.954608",
+      "session_history": [
+        "f6da33cf-bf9e-48bb-b052-f23ece40d360"
+      ]
+    },
+    "47591cc3-cc94-45ef-be55-37746d242290": {
+      "task_id": "任务-1122-071329-修复对局开始后产矿机无法产出矿物的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-071329-修复对局开始后产矿机无法产出矿物的BUG。",
+      "current_step": "implementation",
+      "bound_at": "2025-11-22T07:13:29.660857",
+      "session_history": [
+        "47591cc3-cc94-45ef-be55-37746d242290"
+      ]
+    },
+    "ac850d9d-6f57-449b-a9ca-f99b27be2a46": {
+      "task_id": "任务-1122-074649-修复对局循环开启床不重置的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-074649-修复对局循环开启床不重置的BUG。",
+      "bound_at": "2025-11-22T07:46:49.501712",
+      "session_history": [
+        "ac850d9d-6f57-449b-a9ca-f99b27be2a46"
+      ]
+    },
+    "ed005c2d-85a2-4796-bf85-d5ce771b6d03": {
+      "task_id": "任务-1122-081159-修复对局循环开启床不重置的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-081159-修复对局循环开启床不重置的BUG。",
+      "bound_at": "2025-11-22T08:11:59.895326",
+      "session_history": [
+        "ed005c2d-85a2-4796-bf85-d5ce771b6d03"
+      ]
+    },
+    "6865fab2-5a7c-41e0-9bbc-4cf2beebe9f6": {
+      "task_id": "任务-1122-084001-修复对局循环开启床不重置的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-084001-修复对局循环开启床不重置的BUG。",
+      "bound_at": "2025-11-22T08:40:01.489445",
+      "session_history": [
+        "6865fab2-5a7c-41e0-9bbc-4cf2beebe9f6"
+      ]
+    },
+    "1786881f-e883-4351-bb39-aeaa99a947be": {
+      "task_id": "任务-1122-084821-修复对局循环开启床不重置的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-084821-修复对局循环开启床不重置的BUG。",
+      "bound_at": "2025-11-22T08:48:21.286822",
+      "session_history": [
+        "1786881f-e883-4351-bb39-aeaa99a947be"
+      ]
+    },
+    "366161e0-b906-4fe0-87b3-31c20e6b702e": {
+      "task_id": "任务-1122-093608-修复对局循环开启床不重置的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-093608-修复对局循环开启床不重置的BUG。",
+      "bound_at": "2025-11-22T09:36:08.551949",
+      "session_history": [
+        "366161e0-b906-4fe0-87b3-31c20e6b702e"
+      ]
+    },
+    "fadd7400-29b0-43ae-b0d2-ef944fa83d78": {
+      "task_id": "任务-1122-150809-修复对局循环开启床不重置的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-150809-修复对局循环开启床不重置的BUG。",
+      "bound_at": "2025-11-22T15:08:09.140289",
+      "session_history": [
+        "fadd7400-29b0-43ae-b0d2-ef944fa83d78"
+      ]
+    },
+    "4419af21-3d15-46ca-b6d3-081af82e9dac": {
+      "task_id": "任务-1122-213151-修复治愈购买后无效的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-213151-修复治愈购买后无效的BUG。",
+      "bound_at": "2025-11-22T21:31:51.191780",
+      "session_history": [
+        "4419af21-3d15-46ca-b6d3-081af82e9dac"
+      ]
+    },
+    "c9f7497c-5307-41b1-8577-1d1fdb03fd9f": {
+      "task_id": "任务-1122-214245-修复护具附魔队伍升级没办法升级4次的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1122-214245-修复护具附魔队伍升级没办法升级4次的BUG。",
+      "bound_at": "2025-11-22T21:42:45.926637",
+      "session_history": [
+        "c9f7497c-5307-41b1-8577-1d1fdb03fd9f"
+      ]
+    },
+    "a22316d1-4723-4cb4-88d8-ef27692415da": {
+      "task_id": "任务-1124-221834-修复烈焰蛋爆炸不出现粒子的BUG",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1124-221834-修复烈焰蛋爆炸不出现粒子的BUG",
+      "bound_at": "2025-11-24T22:18:34.101104",
+      "session_history": [
+        "a22316d1-4723-4cb4-88d8-ef27692415da"
+      ]
+    },
+    "38b05d5d-e1d2-4b31-b658-59a4d9b3ebba": {
+      "task_id": "任务-1124-224935-修复烈焰弹爆炸时不产生粒子的问题。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1124-224935-修复烈焰弹爆炸时不产生粒子的问题。",
+      "bound_at": "2025-11-24T22:49:35.817152",
+      "session_history": [
+        "38b05d5d-e1d2-4b31-b658-59a4d9b3ebba"
+      ]
+    },
+    "50a34cc5-6a97-4940-9b26-c5de7d1dddf8": {
+      "task_id": "任务-1124-230659-修复烈焰弹爆炸不出现粒子的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1124-230659-修复烈焰弹爆炸不出现粒子的BUG。",
+      "bound_at": "2025-11-24T23:06:59.718983",
+      "session_history": [
+        "50a34cc5-6a97-4940-9b26-c5de7d1dddf8"
+      ]
+    },
+    "41d8b360-8c5a-48c2-a764-11821c6e8933": {
+      "task_id": "任务-1124-232353-修复TNT爆炸不出现粒子的问题。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1124-232353-修复TNT爆炸不出现粒子的问题。",
+      "bound_at": "2025-11-24T23:23:53.017316",
+      "session_history": [
+        "41d8b360-8c5a-48c2-a764-11821c6e8933"
+      ]
+    },
+    "2f2998fa-5318-4596-bea6-eaabccdc7002": {
+      "task_id": "任务-1125-002659-修复tnt爆炸不出现粒子的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1125-002659-修复tnt爆炸不出现粒子的BUG。",
+      "bound_at": "2025-11-25T00:26:59.409036",
+      "session_history": [
+        "2f2998fa-5318-4596-bea6-eaabccdc7002"
+      ]
+    },
+    "ca6436f0-d32a-4a18-8b5a-28c81bcf6341": {
+      "task_id": "任务-1125-004521-修复TNT爆炸不出现粒子的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1125-004521-修复TNT爆炸不出现粒子的BUG。",
+      "bound_at": "2025-11-25T00:45:21.092320",
+      "session_history": [
+        "ca6436f0-d32a-4a18-8b5a-28c81bcf6341"
+      ]
+    },
+    "b6d296ae-4ddc-439c-8d30-07dc436a0b48": {
+      "task_id": "任务-1125-011256-修复紧凑型防御塔搭建方块时无音效的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1125-011256-修复紧凑型防御塔搭建方块时无音效的BUG。",
+      "bound_at": "2025-11-25T01:12:56.650871",
+      "session_history": [
+        "b6d296ae-4ddc-439c-8d30-07dc436a0b48"
+      ]
+    },
+    "197b7a05-5475-4647-ad54-abb2292c626d": {
+      "task_id": "任务-1125-013458-修复TNT不爆炸的BUG。",
+      "task_dir": "E:\\JJU\\NeteaseMod-Claude\\tests\\tasks\\任务-1125-013458-修复TNT不爆炸的BUG。",
+      "bound_at": "2025-11-25T01:34:58.268749",
+      "session_history": [
+        "197b7a05-5475-4647-ad54-abb2292c626d"
       ]
     }
   }

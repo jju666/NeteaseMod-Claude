@@ -2,7 +2,7 @@
   "enabled": true,
   "model": "claude-sonnet-4-5",
   "max_tokens": 300,
-  "timeout_seconds": 15,
+  "timeout_seconds": 300,
   "retry_count": 1,
   "confidence_threshold": 0.8,
   "description": "Claude语义分析器配置 (v25.0 - 更新至Sonnet 4.5)",
@@ -11,7 +11,7 @@
     "model: 使用的Claude模型（claude-sonnet-4-5自动指向最新版本）",
     "注意: Claude 3.5 Sonnet已于2025年10月退役，已迁移到Sonnet 4.5",
     "max_tokens: API响应的最大token数（200-500足够）",
-    "timeout_seconds: API调用超时时间（15秒适应真实延迟）",
+    "timeout_seconds: API调用超时时间（300秒适应真实延迟）",
     "retry_count: 失败后重试次数（1次重试平衡可靠性和速度）",
     "confidence_threshold: 置信度阈值（>=0.8采纳结果，<0.8触发降级）"
   ]

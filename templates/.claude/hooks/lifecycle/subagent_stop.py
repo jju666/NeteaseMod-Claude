@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-SubagentStop Hook - 子代理结果处理 (v3.1.2 - Unicode编码修复)
+SubagentStop Hook - 子代理结果处理 (v26.0 - 单次审查模式)
 
 职责:
 1. 从transcript_path解析子代理输出（v3.0修正）
 2. 提取JSON标记格式的结果（<!-- SUBAGENT_RESULT {...} -->）
 3. 🔥 v3.1新增：标记缺失时使用LLM解析兜底
-4. 保存到task-meta.json
+4. 保存到task-meta.json（v26.0：历史数组追加模式）
 5. 向用户展示结果摘要（v3.0新增）
 
 核心变更:
@@ -17,6 +17,7 @@ v3.0: ✅ 完整实现transcript解析 + 用户可见摘要
 v3.1: ✅ 新增LLM解析兜底（100%可靠）
 v3.1.1: 🔥 新增文件日志诊断功能
 v3.1.2: 🔥 修复Windows路径Unicode代理字符编码错误
+v26.0: 🔥 单次审查模式 - 每轮planning只执行1次审查，保留完整历史
 
 退出码:
 - 0: 成功
@@ -421,27 +422,48 @@ transcript: {transcript_path}
             if task_type == 'bug_fix':
                 log_to_file("进入专家审查结果保存分支 (planning + bug_fix)")
 
-                # v22.1: BUG修复专家审查结果 - 使用atomic_update更新状态
+                # v26.0: BUG修复专家审查结果 - 数组追加模式，保留完整历史
                 def update_expert_review(meta_data):
                     if 'steps' not in meta_data:
                         meta_data['steps'] = {}
                     if 'planning' not in meta_data['steps']:
                         meta_data['steps']['planning'] = {}
 
-                    # 保存审查结果
-                    meta_data['steps']['planning']['expert_review'] = subagent_result
-                    meta_data['steps']['planning']['plan_adjusted'] = False
+                    planning = meta_data['steps']['planning']
 
-                    # 🔥 v22.1新增：更新专家审查状态字段
-                    meta_data['steps']['planning']['expert_review_completed'] = True
-                    meta_data['steps']['planning']['expert_review_count'] = (
-                        meta_data['steps']['planning'].get('expert_review_count', 0) + 1
-                    )
-                    meta_data['steps']['planning']['expert_review_result'] = (
-                        'pass' if subagent_result.get('approved', False) else '需要调整'
-                    )
+                    # ✅ v26.0新增：初始化planning_round和expert_reviews数组
+                    if 'planning_round' not in planning:
+                        planning['planning_round'] = 1
+                    if 'expert_reviews' not in planning:
+                        planning['expert_reviews'] = []
 
-                    # 🔥 v22.3.8新增：同步更新metrics和bug_fix_tracking字段
+                    current_round = planning['planning_round']
+
+                    # ✅ v26.0：构建本次审查记录对象
+                    review_record = {
+                        "round": current_round,
+                        "timestamp": datetime.now().isoformat(),
+                        "approved": subagent_result.get('approved', False),
+                        "issues": subagent_result.get('issues', []),
+                        "suggestions": subagent_result.get('suggestions', []),
+                        "score": subagent_result.get('score', 0),
+                        "triggered_by": "auto"
+                    }
+
+                    # ✅ v26.0：追加到历史数组（不覆盖）
+                    planning['expert_reviews'].append(review_record)
+
+                    # ✅ v26.0：更新最近一次审查结果（便捷引用）
+                    planning['last_expert_review'] = review_record
+
+                    # ✅ v26.0：标记本轮已完成审查
+                    planning['expert_review_completed'] = True
+
+                    # ✅ v26.0：累计总审查次数
+                    planning['expert_review_count'] = planning.get('expert_review_count', 0) + 1
+                    planning['expert_review_result'] = 'pass' if review_record['approved'] else '需要调整'
+
+                    # 同步更新metrics和bug_fix_tracking（保留v22.3.8逻辑）
                     if 'metrics' not in meta_data:
                         meta_data['metrics'] = {}
                     meta_data['metrics']['expert_review_triggered'] = True
@@ -450,7 +472,7 @@ transcript: {transcript_path}
                         meta_data['bug_fix_tracking'] = {}
                     meta_data['bug_fix_tracking']['expert_triggered'] = True
 
-                    log_to_file(f"atomic_update更新字段: expert_review_completed=True, expert_review_count={meta_data['steps']['planning']['expert_review_count']}, expert_review_result={meta_data['steps']['planning']['expert_review_result']}, metrics.expert_review_triggered=True, bug_fix_tracking.expert_triggered=True")
+                    log_to_file(f"v26.0审查记录已追加: round={current_round}, approved={review_record['approved']}, expert_reviews总数={len(planning['expert_reviews'])}, expert_review_count={planning['expert_review_count']}")
                     return meta_data
 
                 # 使用atomic_update确保并发安全
@@ -465,14 +487,17 @@ transcript: {transcript_path}
                     task_meta = updated_meta  # 更新本地引用
                     log_to_file("成功: 专家审查状态已保存到task-meta.json")
 
-                # 生成用户消息（v22.1增强）
-                review_count = task_meta.get('steps', {}).get('planning', {}).get('expert_review_count', 1)
+                # v26.0：生成用户消息，显示planning轮次信息
+                planning = task_meta.get('steps', {}).get('planning', {})
+                review_count = planning.get('expert_review_count', 1)
+                planning_round = planning.get('planning_round', 1)
+
                 if subagent_result.get('approved', False):
                     user_message = f"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ 专家审查已完成（第{review_count}次）
+✅ 专家审查已完成（Planning第{planning_round}轮，总第{review_count}次）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-专家审查子代理已返回审查结果（通过）。
+专家审查子代理已返回审查结果（✅ 通过）。
 
 **下一步**:
 1. 查看专家审查结果（上方子代理输出）
@@ -480,15 +505,18 @@ transcript: {transcript_path}
 3. 向用户确认最终方案（输入"同意"）
 4. Hook会自动推进到Implementation阶段
 
-💡 提示: 专家审查状态已保存到task-meta.json
+💡 v26.0提示:
+- 本轮Planning已完成审查，不允许重复审查（避免上下文浪费）
+- 如需再次审查，可在Implementation后返回Planning时执行
+- 完整审查历史已保存到expert_reviews数组
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
                 else:
                     user_message = f"""━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ 专家审查发现问题（第{review_count}次）
+⚠️ 专家审查发现问题（Planning第{planning_round}轮，总第{review_count}次）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-专家审查结果: 需要调整
+专家审查结果: ⚠️ 需要调整
 
 **问题**:
 {subagent_result.get('issues', ['未提供具体问题'])}
@@ -497,13 +525,17 @@ transcript: {transcript_path}
 {subagent_result.get('suggestions', ['请参考上方子代理输出'])}
 
 **下一步**:
-1. 根据专家建议调整修复方案
-2. 重新启动专家审查（或直接向用户确认）
+1. 根据专家建议调整修复方案（无需重新审查）
+2. 向用户展示调整后的方案
+3. 等待用户确认后进入Implementation阶段
 
-💡 提示: 如果你认为专家建议不适用，可以直接输入"同意"推进
+💡 v26.0提示:
+- 专家建议仅供参考，无需强制执行
+- 如认为建议不适用，可直接向用户确认方案
+- 本轮Planning已完成审查，不允许重复审查
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
-                sys.stderr.write(f"[INFO v22.1] 专家审查结果已保存，状态已更新\n")
+                sys.stderr.write(f"[INFO v26.0] 专家审查结果已保存（planning_round={planning_round}, approved={subagent_result.get('approved')}）\n")
 
             elif task_type == 'feature_design':
                 # 功能设计：保存文档查询结果
@@ -534,26 +566,31 @@ transcript: {transcript_path}
         # 符合官方 SubagentStop Hook 规范（hook用法.md 第659-668行）
         # SubagentStop 应使用 decision/reason 字段，而非 hookSpecificOutput
 
-        # 对于专家审查，根据结果决定是否阻止子代理停止
-        if current_step == 'planning' and task_type == 'bug_fix':
-            expert_review = subagent_result
-            if not expert_review.get('approved', False):
-                # 审查未通过，阻止子代理停止，要求调整方案
-                output = {
-                    "decision": "block",
-                    "reason": "专家审查发现问题，需要调整方案后重新审查",
-                    "systemMessage": user_message
-                }
-            else:
-                # 审查通过，允许停止，显示消息
-                output = {
-                    "systemMessage": user_message
-                }
-        else:
-            # 其他情况，正常停止，显示消息
-            output = {
-                "systemMessage": user_message
-            }
+        # 🔥 v26.0修改：移除decision="block"逻辑
+        # 原逻辑：审查未通过时阻止子代理停止，强制调整方案
+        # 新逻辑：无论审查结果如何，都允许正常停止，由父代理和用户决策
+        # 理由：
+        # 1. 避免上下文浪费（强制循环消耗大量token）
+        # 2. 专家建议是"参考"而非"强制执行"
+        # 3. 每轮planning只执行1次审查，防止过度修复
+
+        # v28.0增强：追加任务仪表盘（让用户了解审查完成后的下一步）
+        final_message = user_message
+        try:
+            # 重新加载task_meta（确保获取最新状态）
+            updated_task_meta = mgr.load_task_meta(task_id)
+            if updated_task_meta:
+                from utils.dashboard_generator import generate_context_dashboard
+                dashboard = generate_context_dashboard(updated_task_meta)
+                final_message = dashboard + u"\n\n" + user_message
+                log_to_file(f"[v28.0] 已追加任务仪表盘")
+        except Exception as e:
+            sys.stderr.write(f"[WARN v28.0] 仪表盘生成失败: {e}\n")
+            log_to_file(f"[WARN v28.0] 仪表盘生成失败: {e}")
+
+        output = {
+            "systemMessage": final_message
+        }
 
         log_to_file(f"最终输出: {json.dumps(output, ensure_ascii=True)}")
         print(json.dumps(output, ensure_ascii=False))

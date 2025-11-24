@@ -1,0 +1,26 @@
+{
+  "version": "20.2.7",
+  "task_naming": {
+    "max_description_length": 16,
+    "description": "任务描述的最大字符数，用于生成任务目录名（中文约16字符）",
+    "examples": {
+      "16": "修复玩家死亡时背包物品未掉落的BUG → 任务-1114-023644-修复玩家死亡时背包物品未掉",
+      "10": "修复玩家死亡时背包物品未掉落的BUG → 任务-1114-023644-修复玩家死亡时背",
+      "8": "修复玩家死亡时背包物品未掉落的BUG → 任务-1114-023644-修复玩家死亡"
+    }
+  },
+  "workflow_steps": {
+    "step2_min_docs": 3,
+    "description": "步骤2最少阅读文档数量"
+  },
+  "cleanup": {
+    "max_auto_update_docs": 3,
+    "description": "收尾阶段自动更新的最大文档数量"
+  },
+  "archive": {
+    "enabled": true,
+    "auto_move_to_archived": true,
+    "auto_sync_docs": true,
+    "description": "任务归档配置"
+  }
+}

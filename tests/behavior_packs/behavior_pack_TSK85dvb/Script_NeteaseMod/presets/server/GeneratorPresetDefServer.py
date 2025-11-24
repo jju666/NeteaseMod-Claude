@@ -829,25 +829,29 @@ class GeneratorPresetDefServer(PresetDefinitionServer):
             if not hasattr(game_system, 'root_state') or not game_system.root_state:
                 return False
 
-            # 检查当前状态是否是运行状态
-            # 注意: RootGamingState没有get_current_state()方法,应该访问current_sub_state属性
+            # ⚠️ 关键修复：优先检查current_sub_state
             current_state = game_system.root_state.current_sub_state
-            if not current_state:
-                return False
 
-            # 获取状态名称
-            state_name = current_state.__class__.__name__
-
-            # 只在BedWarsRunningState状态下产矿
-            # 也可以检查其他状态,根据具体需求调整
-            if state_name == "BedWarsRunningState":
-                return True
+            if current_state:
+                # 正常情况：子状态已设置，检查是否为BedWarsRunningState
+                state_name = current_state.__class__.__name__
+                if state_name == "BedWarsRunningState":
+                    return True
+            else:
+                # ⚠️ 边界情况：current_sub_state尚未设置（_on_enter执行期间）
+                # 检查root_state是否已经在gaming状态
+                root_state = game_system.root_state
+                if hasattr(root_state, '__class__'):
+                    root_state_name = root_state.__class__.__name__
+                    # 如果root_state是RootGamingState，说明游戏已进入running阶段
+                    if 'Gaming' in root_state_name or 'Running' in root_state_name:
+                        return True
 
             # 其他状态暂停产矿
             return False
 
         except Exception as e:
-            # 出错时默认允许产矿(保险起见)
+            # 出错时默认允许产矿(保守策略)
             print("[WARN] [产矿机] 检查游戏状态失败,默认允许产矿: {}".format(str(e)))
             return True
 

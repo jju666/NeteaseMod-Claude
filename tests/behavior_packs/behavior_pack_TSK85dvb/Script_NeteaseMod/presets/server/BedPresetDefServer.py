@@ -304,9 +304,11 @@ class BedPresetDefServer(BlockPresetServerBase):
 
         功能:
             1. 重置床状态（bed_destroyed = False）
-            2. 清空浮动文字发送记录，允许新一轮游戏重新发送
-            3. 创建床装饰物（调用 OrnamentSystem）
-            4. 向已在线的同队玩家发送浮空文字消息
+            2. 重新查询床方块位置（维度备份还原后）
+            3. 重新染色床方块（确保队伍颜色正确）
+            4. 创建床装饰物（调用 OrnamentSystem）
+            5. 清空浮动文字发送记录，允许新一轮游戏重新发送
+            6. 向已在线的同队玩家发送浮空文字消息
 
         Args:
             event_name (str): 事件名称，固定为 "BedWarsRunning"
@@ -322,8 +324,71 @@ class BedPresetDefServer(BlockPresetServerBase):
             症状：创建26个重复的浮动文字面板在同一位置
             根因：GamingStateSystem.broadcast_preset_event() 遍历预设发布事件
             修复：改为直接向 EventBus 发布1次，此方法现在只被调用1次
+
+        对局循环修复 (2025-11-22 v2):
+            问题：对局循环模式下，床被破坏后第二局不会重置
+            根因分析：
+                1. RoomManagementSystem.end_game()调用_destroy_all_presets()销毁预设实例
+                2. RoomManagementSystem.end_game()调用backup_handler.restore()异步还原维度
+                3. 下一局start_game()创建全新预设，on_start()异步放置床方块
+                4. 原有逻辑在此方法中再次异步放置床方块（第347-369行）
+                5. 多次异步放置导致回调混乱，且与维度还原存在竞态条件
+            修复方案：
+                移除冗余的床方块放置逻辑，依赖维度备份还原机制
+                只重新查询床方块位置、染色、创建装饰物
+                避免异步回调混乱和竞态条件
         """
         print("[INFO] [床预设] 游戏开始事件: team={}".format(self.team))
+
+        try:
+            # [FIX 2025-11-22 v3] 对局循环模式修复
+            # 根因：维度还原机制只会清空方块为空气（DimensionBackup.set_block:214行）
+            #       不会恢复床方块到初始状态，v2的假设错误
+            # 修复：游戏开始时验证床方块存在，不存在则重新异步放置
+            if self.instance:
+                print("[INFO] [床预设] 游戏开始，验证床方块状态（对局循环修复v3）")
+
+                # 1. 重新查询床方块位置
+                self.bed_blocks = self._get_bed_blocks(self.instance)
+                print("[INFO] [床预设] 查询到床方块数量: {}".format(len(self.bed_blocks)))
+
+                # 2. 验证床方块是否真实存在（而不只是坐标记录）
+                has_real_bed = False
+                try:
+                    import mod.server.extraServerApi as serverApi
+                    levelId = serverApi.GetLevelId()
+                    block_comp = serverApi.GetEngineCompFactory().CreateBlockInfo(levelId)
+                    dimension_id = self._get_dimension_id(self.instance)
+
+                    # 只检查第一个位置即可（性能优化）
+                    if self.bed_blocks:
+                        block_dict = block_comp.GetBlockNew(self.bed_blocks[0], dimension_id)
+                        has_real_bed = block_dict and block_dict.get('name') == 'minecraft:bed'
+                        print("[INFO] [床预设] 床方块存在性验证: {}".format(has_real_bed))
+                except Exception as e:
+                    print("[ERROR] [床预设] 验证床方块失败: {}".format(str(e)))
+
+                # 3. 如果床方块不存在，重新异步放置
+                if not has_real_bed:
+                    print("[WARN] [床预设] 床方块不存在（可能被维度还原清空），重新异步放置")
+                    # 检查是否有正在进行的异步放置（避免重复放置）
+                    if not getattr(self, 'bed_placing', False):
+                        self._place_bed_blocks_async(self.instance)
+                        # _place_bed_blocks_async()会在完成后自动染色和创建装饰
+                    else:
+                        print("[WARN] [床预设] 已有异步放置任务进行中，跳过")
+                else:
+                    # 4. 床方块存在，只需重新染色和创建装饰
+                    print("[INFO] [床预设] 床方块已存在，重新染色和装饰")
+                    self._init_bed_color(self.instance)
+                    self._destroy_bed_ornament()
+                    self._create_bed_ornament()
+                    print("[INFO] [床预设] 床初始化完成（染色+装饰）")
+        except Exception as e:
+            print("[ERROR] [床预设] 初始化床失败: {}".format(str(e)))
+            import traceback
+            traceback.print_exc()
+            # 继续执行，不影响其他逻辑
 
         # 重置床状态（新一轮游戏开始，床未被破坏）
         self.bed_destroyed = False
@@ -331,9 +396,6 @@ class BedPresetDefServer(BlockPresetServerBase):
         # 清空已发送浮空文字消息的玩家记录，允许新一轮游戏重新发送
         # 重要：这个清空操作确保玩家在新一轮游戏中能收到浮动文字提示
         self.sent_floating_text_players.clear()
-
-        # 创建床装饰
-        self._create_bed_ornament()
 
         # 向已在线的同队玩家发送浮空文字消息
         # 解决时机问题:玩家在Lobby阶段已加载完成,但床预设在Running状态才创建
@@ -556,7 +618,7 @@ class BedPresetDefServer(BlockPresetServerBase):
             block_comp = serverApi.GetEngineCompFactory().CreateBlockInfo(levelId)
 
             # 设置每个床方块的颜色
-            dimension_id = instance.get_config("dimension_id", 0)
+            dimension_id = self._get_dimension_id(instance)
             for pos in self.bed_blocks:
                 try:
                     block_comp.SetBedColor(pos, color, dimension_id)
@@ -865,7 +927,7 @@ class BedPresetDefServer(BlockPresetServerBase):
             yaw = self._calculate_bed_yaw()
 
             # 获取维度ID
-            dimension_id = self.instance.get_config("dimension_id", 0)
+            dimension_id = self._get_dimension_id(self.instance)
 
             # 生成床装饰
             entity_id = bed_ornament_system.spawn_bed_ornament(
@@ -1000,6 +1062,9 @@ class BedPresetDefServer(BlockPresetServerBase):
         Args:
             instance: PresetInstance对象
         """
+        # [FIX 2025-11-22 v3] 标记正在异步放置，避免重复放置
+        self.bed_placing = True
+
         try:
             # 1. 获取配置参数
             pos = instance.get_config("pos")
@@ -1224,6 +1289,9 @@ class BedPresetDefServer(BlockPresetServerBase):
         # 浮空文字消息将在 _on_client_load_finish() 中按需发送
 
         print("[INFO] [床预设] 完整初始化完成: team={}".format(self.team))
+
+        # [FIX 2025-11-22 v3] 清除异步放置标志
+        self.bed_placing = False
 
     def _yaw_to_bed_direction(self, yaw):
         """

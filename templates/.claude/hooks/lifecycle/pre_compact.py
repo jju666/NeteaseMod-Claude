@@ -58,13 +58,16 @@ def main():
             sys.exit(0)
 
         task_id = task_binding['task_id']
-        current_step = task_binding['current_step']
 
-        # 加载任务元数据
+        # 加载任务元数据（从唯一数据源读取状态）
         task_meta = mgr.load_task_meta(task_id)
         if not task_meta:
             sys.stderr.write(u"[WARN] PreCompact: 加载任务元数据失败\n")
             sys.exit(0)
+
+        # 🔥 v25.2修复：从唯一数据源（task-meta.json）读取current_step
+        # 原因：.task-active.json不再缓存current_step，遵循单一数据源原则
+        current_step = task_meta.get('current_step', 'planning')
 
         # 记录压缩时间
         task_meta['last_compact_at'] = datetime.now().isoformat()

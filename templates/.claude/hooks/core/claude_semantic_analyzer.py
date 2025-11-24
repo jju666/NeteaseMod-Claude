@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Claude语义分析器 - LLM驱动的用户意图识别 (v25.0)
+Claude语义分析器 - LLM驱动的用户意图识别 (v25.3)
 
-基于Claude 3.5 Sonnet模型进行高精度语义分析，解决传统关键词匹配的局限性。
+基于Claude Sonnet 4.5模型进行高精度语义分析，解决传统关键词匹配的局限性。
 
 核心功能:
-1. 使用Claude API分析用户反馈意图
+1. 使用Claude API分析用户反馈意图（6种意图类型）
 2. 返回结构化意图识别结果
 3. 提供状态转移建议
 4. 内置重试和超时机制
+5. 5层置信度评分标准（v25.2新增）
+6. 转折词优先级规则（v25.2新增）
+7. ABCD选项识别（v25.3新增：支持"D方案错误"等选项标签）
 
 Author: NeteaseMod-Claude Workflow System
-Date: 2025-11-19
+Date: 2025-11-19, Updated: 2025-11-22 (v25.3)
 """
 
 import json
@@ -51,23 +54,25 @@ class ClaudeSemanticAnalyzer:
     使用Claude 3.5 Sonnet进行用户意图识别，准确率>95%
     """
 
-    # 意图类型定义
+    # 意图类型定义 (v25.2: 新增observation_only)
     INTENT_TYPES = {
         'complete_success': '任务完全成功，所有问题已解决',
         'partial_success': '部分成功，还有一些问题需要继续修复',
         'failure': '修复失败或出现新问题',
         'planning_required': '需要重新设计方案或思路',
         'continuation_request': '用户请求继续当前工作',
+        'observation_only': '纯测试结果描述，用户未明确表态成功或失败',
         'unknown': '无法确定用户意图'
     }
 
-    # 状态转移映射
+    # 状态转移映射 (v25.2: 新增observation_only)
     INTENT_TO_TRANSITION = {
         'complete_success': 'finalization',
         'partial_success': 'implementation',  # 继续修复
         'failure': 'implementation',  # 重新修复
         'planning_required': 'planning',  # 回退到规划
         'continuation_request': 'implementation',
+        'observation_only': None,  # 不转移状态，需要用户明确表态
         'unknown': None  # 需要人工确认
     }
 
@@ -101,7 +106,7 @@ class ClaudeSemanticAnalyzer:
         # v25.0修复：使用Claude Sonnet 4.5（3.5已于2025年10月退役）
         self.model = self.config.get('model', 'claude-sonnet-4-5')
         self.max_tokens = self.config.get('max_tokens', 300)
-        self.timeout_seconds = self.config.get('timeout_seconds', 15)
+        self.timeout_seconds = self.config.get('timeout_seconds', 300)
         self.retry_count = self.config.get('retry_count', 1)
         self.confidence_threshold = self.config.get('confidence_threshold', 0.8)
 
@@ -134,7 +139,7 @@ class ClaudeSemanticAnalyzer:
             'enabled': True,
             'model': 'claude-sonnet-4-5',
             'max_tokens': 300,
-            'timeout_seconds': 15,
+            'timeout_seconds': 300,
             'retry_count': 1,
             'confidence_threshold': 0.8
         }
@@ -334,9 +339,14 @@ class ClaudeSemanticAnalyzer:
 
     def _build_prompt(self, user_input: str, context: Dict) -> str:
         """
-        构建分析Prompt
+        构建分析Prompt (v25.3: ABCD选项识别)
 
-        基于MVP的最佳实践，针对中文口语优化
+        新增特性:
+        - 6种意图类型（新增observation_only）
+        - 5层置信度评分标准
+        - 转折词优先级规则
+        - 中文口语化等价示例
+        - ABCD选项识别（v25.3新增）
         """
         intent_descriptions = '\n'.join([
             u'- {}: {}'.format(intent, desc)
@@ -345,6 +355,27 @@ class ClaudeSemanticAnalyzer:
         ])
 
         prompt = u"""你是一个任务状态分析专家。请分析用户的反馈，判断任务应该转移到哪个状态。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ 重要：用户刚才看到的反馈指南（仪表盘显示）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+用户在上一轮修改后看到了以下反馈指南：
+
+A. ✅ 修复成功 → "修复了"、"都正确了"、"搞定了"
+B. ⚠️ 部分成功 → "基本正确，但还有XX问题"
+C. ❌ 修复失败 → "没修复"、"还是有问题"
+D. 🔄 方案错误 → "需要调整"、"方案有问题"、"思路不对"
+
+**ABCD选项识别规则（最高优先级）**:
+- 如果用户输入包含"A"/"选项A"/"A修复了"/"修复成功" → complete_success (confidence 0.95+)
+- 如果用户输入包含"B"/"选项B"/"B基本正确"/"部分成功" → partial_success (confidence 0.90+)
+- 如果用户输入包含"C"/"选项C"/"C没修复"/"修复失败" → failure (confidence 0.90+)
+- 如果用户输入包含"D"/"选项D"/"D方案错误"/"方案错误" → planning_required (confidence 0.95+)
+
+**关键**：选项标签（如"修复成功"、"方案错误"、"部分成功"、"修复失败"）本身就是明确的意图表达，置信度应为0.90-0.95
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 **当前任务上下文**:
 - 当前阶段: {current_step}
@@ -358,23 +389,64 @@ class ClaudeSemanticAnalyzer:
 可选意图类型:
 {intent_descriptions}
 
-**分析要点**:
-1. 注意转折词（"但是"、"不过"、"还有"等）- 有转折通常表示partial_success
-2. 识别完成度（"都"、"全部"、"完全"等表示complete，"部分"、"有些"表示partial）
-3. 识别失败信号（"没修复"、"还有问题"、"失败"等）
-4. 识别规划需求（"重新设计"、"换个思路"、"根本原因"等）
+**意图识别规则（按优先级排序）**:
+
+0. **ABCD选项识别**（v25.3新增，最高优先级）
+   - "A" / "A修复了" / "修复成功" → complete_success (confidence 0.95+)
+   - "B" / "B基本正确" / "部分成功" → partial_success (confidence 0.90+)
+   - "C" / "C没修复" / "修复失败" → failure (confidence 0.90+)
+   - "D" / "D方案错误" / "方案错误" → planning_required (confidence 0.95+)
+   - **注意**：优先识别ABCD选项，即使同时包含其他关键词
+
+1. **转折词优先规则**
+   - 如果包含转折词（"但是"、"不过"、"可是"、"然而"、"只是"、"就是"、"还有"、"还没"、"没有"）+ 问题描述
+   - 即使前半句表示成功，也应判断为 partial_success
+   - 示例: "羊毛给了，但是离开区域没删除" → partial_success (confidence 0.85+，转折+问题）
+   - 示例: "基本正确了，但还有BUG" → partial_success (confidence 0.85+)
+   - 注意: 转折词后必须跟"问题/BUG/没有/错误"等否定内容
+
+2. **明确关键词识别**
+   - complete_success: "都正确了"、"修复了"、"搞定了"、"好了"、"没问题了"、"全部修好了"、"修复成功"
+   - failure: "没修复"、"还是有问题"、"失败了"、"不行"、"根本没用"、"修复失败"
+   - planning_required: "方案错了"、"思路不对"、"重新设计"、"换个思路"、"需要调整"、"需要修改方案"、"方案有问题"、"方案错误"、"不够准确"、"根本原因错了"
+   - partial_success: "部分成功"、"基本正确"、"基本可以"
+   - continuation_request: "继续"、"继续修改"、"接着来"
+
+3. **纯描述识别**（observation_only）
+   - 用户详细描述了测试结果或现象
+   - 但没有明确表态"成功"或"失败"
+   - 示例: "羊毛给了但是离开区域后没删除" → observation_only (confidence 0.70-0.85)
+   - 示例: "玩家获得了道具，但是数量不对" → observation_only (confidence 0.70-0.85)
+   - **注意**: 如果包含转折词+成功词，应判断为partial_success，而不是observation_only
+
+4. **默认行为**
+   - 如果表达模糊、无明确关键词、无转折词 → observation_only (confidence 0.50-0.69)
+   - 如果完全无法理解 → unknown (confidence <0.50)
+
+**置信度评分标准（5层）**:
+- 0.95-1.0: 有明确关键词（"都正确了"、"修复了"），无歧义
+- 0.85-0.94: 清晰表达但使用口语化变体（"好了"、"搞定了"）
+- 0.70-0.84: 有转折或复杂逻辑，但意图明确（"基本正确，但..."）
+- 0.50-0.69: 表达模糊，可能是纯描述（"羊毛给了但没删除"）
+- 0.00-0.49: 完全无法判断意图
+
+**中文口语化等价识别**:
+- "都正确了" = "修复了" = "好了" = "搞定了" = "没问题了" → complete_success
+- "还有问题" = "还有BUG" = "还没修好" = "有点问题" → partial_success/failure
+- "继续" = "继续修改" = "接着来" = "继续搞" → continuation_request
 
 输出格式:
 {{
   "intent": "意图类型",
   "confidence": 0.0-1.0,
-  "reasoning": "一句话说明判断理由"
+  "reasoning": "一句话说明判断理由（必须引用识别到的具体关键词或转折词，例如：'识别到转折词但是+问题描述没删除'）"
 }}
 
-**重要**:
-- 置信度应反映你的确定程度（0.9+表示很确定，0.7-0.8表示较确定，<0.7表示不确定）
-- 如果用户使用了转折词，即使前半句表示成功，也应判断为partial_success
-- 中文口语变体很多，例如"都正确了"="修复了"="好了"="搞定了"，都表示complete_success
+**关键提醒**:
+- 转折词是最强信号，优先级高于一切
+- 如果有转折词+成功词 → partial_success（不是observation_only）
+- 如果仅描述现象，无明确表态 → observation_only
+- reasoning必须说明识别到的关键词或转折词
 """.format(
             current_step=context.get('current_step', 'implementation'),
             code_changes=context.get('code_changes', 0),

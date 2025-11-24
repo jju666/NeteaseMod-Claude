@@ -84,7 +84,7 @@ class BedWarsStartingState(GamingState):
         每帧更新
 
         功能:
-        1. 启动运镜(首次tick时)
+        1. 启动运镜(延迟3秒后启动)
         2. 设置旁观者模式(首次tick时)
         3. 显示地图名称标题(经过1秒后,即20 ticks)
         """
@@ -94,8 +94,8 @@ class BedWarsStartingState(GamingState):
         # 计算经过的秒数 (20 ticks = 1秒)
         seconds_passed = self.ticks_passed / 20.0
 
-        # 首次tick时启动运镜(模拟老项目行为)
-        if not self.camera_preview_started:
+        # 延迟3秒后启动运镜（避免玩家进入地图时的位置闪烁）
+        if not self.camera_preview_started and seconds_passed > 3.0:
             self._start_camera_preview()
 
         # 首次tick时设置旁观者模式(老项目在发送title时同时设置)

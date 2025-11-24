@@ -309,28 +309,13 @@ def handle_state_transition(user_input, cwd, session_id=None):
                 # 需要转换为UserPromptSubmit格式
                 sys.stderr.write(u"[INFO v25.0] StateTransitionCoordinator处理成功\n")
 
-                # 🔥 v27.2修复：确保systemMessage传递给用户（用户可见）
-                # 关键：systemMessage字段是用户能看到仪表盘和详细消息的唯一途径
-                if not result.get('continue', True):
-                    # 阻止状态转移
-                    return {
-                        "decision": "block",
-                        "reason": "状态转移被阻止",
-                        "systemMessage": result.get('systemMessage', ''),  # ✅ 添加：用户可见（显示仪表盘和详细原因）
-                        "hookSpecificOutput": {
-                            "hookEventName": "UserPromptSubmit",
-                            "additionalContext": result.get('systemMessage', '') or result.get('additionalContext', '')  # ✅ 保持：Claude上下文注入
-                        }
-                    }
-                else:
-                    # 允许继续
-                    return {
-                        "systemMessage": result.get('systemMessage', ''),  # ✅ 添加：用户可见（显示仪表盘和状态转移消息）
-                        "hookSpecificOutput": {
-                            "hookEventName": "UserPromptSubmit",
-                            "additionalContext": result.get('systemMessage', '') or result.get('additionalContext', '')  # ✅ 保持：Claude上下文注入
-                        }
-                    }
+                return {
+                    "hookSpecificOutput": {
+                        "hookEventName": "UserPromptSubmit",
+                        "additionalContext": result.get('additionalContext', '')
+                    },
+                    "continue": result.get('continue', True)
+                }
             else:
                 # 未检测到状态转移
                 sys.stderr.write(u"[DEBUG v25.0] StateTransitionCoordinator未检测到状态转移\n")
@@ -550,23 +535,6 @@ def main():
                 print(json.dumps(output, ensure_ascii=False))
                 sys.exit(0)
 
-        # === v28.0: 为非/mc命令生成仪表盘 ===
-        dashboard_for_normal_msg = None
-        if not cmd_info['is_mc_command'] and TaskMetaManager:
-            try:
-                mgr = TaskMetaManager(cwd)
-                task_info = mgr.get_active_task_by_session(session_id)
-
-                if task_info:
-                    task_id = task_info.get('task_id')
-                    task_meta = mgr.load_task_meta(task_id)
-
-                    if task_meta:
-                        from utils.dashboard_generator import generate_context_dashboard
-                        dashboard_for_normal_msg = generate_context_dashboard(task_meta)
-            except Exception as e:
-                sys.stderr.write(u"[WARN v28.0] 仪表盘生成失败: {}\n".format(e))
-
         # === v3.2: 检测是否是 /mc 命令 ===
         if not cmd_info['is_mc_command']:
             # 非 /mc 命令，先检查是否是状态转移关键词（v3.0 Final新增）
@@ -574,18 +542,48 @@ def main():
             state_transition_result = handle_state_transition(prompt, cwd, session_id)
 
             if state_transition_result:
-                # 🔥 P1-3修复：StateTransitionCoordinator的结果已包含仪表盘，不需要重复拼接
-                # StateTransitionCoordinator在_transition_*方法中已经调用generate_context_dashboard()
-                # 并将仪表盘包含在systemMessage中（参见state_transition_coordinator.py:188-201）
+                # 是状态转移命令，输出结果并退出
                 print(json.dumps(state_transition_result, ensure_ascii=False))
                 sys.exit(0)
             else:
-                # === v28.0: 非状态转移命令，添加仪表盘后放行 ===
-                output = {"continue": True}
-                if dashboard_for_normal_msg:
-                    output['systemMessage'] = dashboard_for_normal_msg
-                print(json.dumps(output, ensure_ascii=False))
-                sys.exit(0)
+                # 非状态转移命令，放行（v1.1新增：注入仪表盘）
+                # 尝试加载活跃任务元数据
+                task_meta = None
+                if TaskMetaManager:
+                    try:
+                        mgr = TaskMetaManager(cwd)
+                        task_id = mgr.get_active_task_id(session_id)
+                        if task_id:
+                            task_meta = mgr.load_task_meta(task_id)
+                    except Exception as e:
+                        sys.stderr.write(u"[WARN] 加载任务元数据失败: {}\n".format(e))
+
+                # 如果有活跃任务，注入仪表盘
+                if task_meta:
+                    try:
+                        from utils.dashboard_generator import generate_context_dashboard
+                        dashboard = generate_context_dashboard(task_meta)
+
+                        output = {
+                            "hookSpecificOutput": {
+                                "hookEventName": "UserPromptSubmit",
+                                "additionalContext": dashboard  # Claude看到
+                            },
+                            "continue": True
+                        }
+                        print(json.dumps(output, ensure_ascii=False))
+                        sys.exit(0)
+                    except Exception as e:
+                        sys.stderr.write(u"[WARN] 仪表盘生成失败: {}\n".format(e))
+                        # 降级：正常放行
+                        output = {"continue": True}
+                        print(json.dumps(output, ensure_ascii=False))
+                        sys.exit(0)
+                else:
+                    # 无活跃任务，正常放行
+                    output = {"continue": True}
+                    print(json.dumps(output, ensure_ascii=False))
+                    sys.exit(0)
 
         # === v20.3.1: 任务取消/失败检测 ===
         # v3.2修复：使用提取的command_args而非原始prompt
@@ -638,26 +636,6 @@ def main():
                 # 如果有systemMessage，添加到输出中
                 if 'systemMessage' in result:
                     output['systemMessage'] = result['systemMessage']
-
-                # === v27.9: 任务创建后生成仪表盘 ===
-                # 注意：此时任务已经创建并绑定到会话
-                if TaskMetaManager and result['continue']:
-                    try:
-                        mgr = TaskMetaManager(cwd)
-                        task_info = mgr.get_active_task_by_session(session_id)
-
-                        if task_info:
-                            task_id = task_info.get('task_id')
-                            task_meta = mgr.load_task_meta(task_id)
-
-                            if task_meta:
-                                from utils.dashboard_generator import generate_context_dashboard
-                                dashboard = generate_context_dashboard(task_meta)
-                                # 将仪表盘添加到systemMessage
-                                output['systemMessage'] = dashboard
-                    except Exception as e:
-                        # 仪表盘生成失败不应影响主流程
-                        sys.stderr.write(u"[WARN v27.9] 仪表盘生成失败: {}\n".format(e))
 
                 print(json.dumps(output, ensure_ascii=False))
                 sys.exit(0)

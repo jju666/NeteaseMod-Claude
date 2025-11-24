@@ -110,7 +110,7 @@ Read ../../CLAUDE.md
 ✅ 步骤0检查点：项目上下文理解
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-项目：tests
+项目：{{PROJECT_NAME}}
 类型：{{PROJECT_TYPE}}
 特殊规范：（如有，列出关键点）
 
@@ -270,7 +270,7 @@ try:
     # 搜索本地离线文档
     result = Grep(
         pattern=api_name,
-        path="C:/Users/28114/.claude-modsdk-workflow/docs/modsdk-wiki/docs/mcdocs/1-ModAPI/",
+        path="{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/",
         output_mode="files_with_matches"
     )
 
@@ -407,7 +407,7 @@ if not evidence:
 - ✅ Token消耗控制在5k以内（本地Grep <500 tokens, WebFetch ~1-2k tokens/次）
 
 **注意事项**:
-- ⚠️ 本地离线文档路径：`C:/Users/28114/.claude-modsdk-workflow/docs/modsdk-wiki/` = `~/.claude-modsdk-workflow/docs/modsdk-wiki/`
+- ⚠️ 本地离线文档路径：`{{GLOBAL_DOCS_PATH}}/modsdk-wiki/` = `~/.claude-modsdk-workflow/docs/modsdk-wiki/`
 - ⚠️ 如果全局文档未部署，级别1会失败，自动降级到级别2
 - ⚠️ 网络问题导致级别2失败时，自动降级到级别3（标记为"需确认"）
 - ⚠️ 自定义事件（非官方API）应标记为"未找到"但不视为错误
@@ -425,9 +425,9 @@ if not evidence:
 1. **优先全局离线文档**（推荐）：
    ```python
    # 示例：查询API用法
-   Read("C:/Users/28114/.claude-modsdk-workflow/docs/modsdk-wiki/docs/mcdocs/1-ModAPI/Component/actorOwnerComp.md")
+   Read("{{GLOBAL_DOCS_PATH}}/modsdk-wiki/docs/mcdocs/1-ModAPI/Component/actorOwnerComp.md")
    # 优点：速度快（<1秒）、支持离线、精确引用
-   # 路径说明：C:/Users/28114/.claude-modsdk-workflow/docs = ~/.claude-modsdk-workflow/docs/
+   # 路径说明：{{GLOBAL_DOCS_PATH}} = ~/.claude-modsdk-workflow/docs/
    ```
 
 2. **降级在线查询**（全局文档不存在时）：
@@ -624,8 +624,8 @@ if not evidence:
 
 | API/事件 | 验证来源 | 文档路径 | 验证结果 |
 |---------|---------|---------|---------|
-| CreateComponent | 本地文档 | C:/Users/28114/.claude-modsdk-workflow/docs/modsdk-wiki/.../actorOwnerComp.md | ✅ 已验证 |
-| NotifyToClient | 本地文档 | C:/Users/28114/.claude-modsdk-workflow/docs/modsdk-wiki/.../ServerSystem.md | ✅ 已验证 |
+| CreateComponent | 本地文档 | {{GLOBAL_DOCS_PATH}}/modsdk-wiki/.../actorOwnerComp.md | ✅ 已验证 |
+| NotifyToClient | 本地文档 | {{GLOBAL_DOCS_PATH}}/modsdk-wiki/.../ServerSystem.md | ✅ 已验证 |
 | ... | ... | ... | ... |
 
 ### 项目特定文档（如有）
@@ -773,7 +773,7 @@ TASK_ID = extract_task_id_from_arguments()
 
 # 方式2：查找最近的任务目录（降级方案）
 if not TASK_ID:
-    TASK_ID = Bash("ls -td D:/EcWork/基于Claude的MODSDK开发工作流/tests/tasks/task-* 2>/dev/null | head -1 | xargs basename")
+    TASK_ID = Bash("ls -td {{PROJECT_PATH}}/tasks/task-* 2>/dev/null | head -1 | xargs basename")
 ```
 
 ### X.2 保存审核报告
@@ -781,7 +781,7 @@ if not TASK_ID:
 **操作**：
 ```python
 # 1. 构建solution.md路径
-TASK_DIR = "D:/EcWork/基于Claude的MODSDK开发工作流/tests/tasks/" + TASK_ID
+TASK_DIR = "{{PROJECT_PATH}}/tasks/" + TASK_ID
 SOLUTION_FILE = TASK_DIR + "/solution.md"
 
 # 2. 将上面输出的审核报告完整内容保存到solution.md
@@ -829,7 +829,7 @@ if os.path.exists(f"{TASK_DIR}/solution.md"):
 ✅ 审核报告已保存
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-**保存位置**: D:/EcWork/基于Claude的MODSDK开发工作流/tests/tasks/{TASK_ID}/solution.md
+**保存位置**: {{PROJECT_PATH}}/tasks/{TASK_ID}/solution.md
 
 **文件内容**:
 - 审核评分: X/10
@@ -862,4 +862,4 @@ if os.path.exists(f"{TASK_DIR}/solution.md"):
 
 ---
 
-_最后更新: 2025-11-15 | 文档版本: 1.1（Hook方案3改进4）_
+_最后更新: {{CURRENT_DATE}} | 文档版本: 1.1（Hook方案3改进4）_

@@ -79,7 +79,7 @@ python claude_semantic_analyzer.py
 
 [INFO] ClaudeSemanticAnalyzer已初始化
        模型: claude-sonnet-4-5-20250929
-       超时: 15秒
+       超时: 300秒
        重试次数: 1
 
 [测试] 用户输入: "都正确了"
@@ -116,7 +116,7 @@ graph TB
 
 1. **用户输入反馈** - 例如："都正确了"
 2. **构建上下文** - 收集当前阶段、代码修改次数等信息
-3. **调用Claude API** - 发送Prompt进行语义分析（超时15秒）
+3. **调用Claude API** - 发送Prompt进行语义分析（超时300秒）
 4. **解析结果** - 提取意图、置信度、理由
 5. **验证置信度** - 如果 ≥0.8 采纳，否则提示用户明确
 6. **状态转移验证** - validate_state_transition() 强制检查合法性
@@ -174,7 +174,7 @@ tests/.claude/hooks/config/claude_semantic_config.json
   "enabled": true,
   "model": "claude-sonnet-4-5-20250929",
   "max_tokens": 300,
-  "timeout_seconds": 15,
+  "timeout_seconds": 300,
   "retry_count": 1,
   "confidence_threshold": 0.8
 }
@@ -187,7 +187,7 @@ tests/.claude/hooks/config/claude_semantic_config.json
 | `enabled` | boolean | true | 是否启用Claude语义分析（v25.0固定为true） |
 | `model` | string | claude-sonnet-4-5-20250929 | 使用的Claude模型（Sonnet 4.5最优精度） |
 | `max_tokens` | number | 300 | API响应的最大token数（200-500足够） |
-| `timeout_seconds` | number | 15 | API调用超时时间（适应真实延迟） |
+| `timeout_seconds` | number | 300 | API调用超时时间（适应真实延迟） |
 | `retry_count` | number | 1 | 失败后重试次数（平衡可靠性和速度） |
 | `confidence_threshold` | number | 0.8 | 置信度阈值（>=0.8采纳结果） |
 
@@ -196,7 +196,7 @@ tests/.claude/hooks/config/claude_semantic_config.json
 **如果遇到频繁超时**:
 ```json
 {
-  "timeout_seconds": 30,
+  "timeout_seconds": 600,
   "retry_count": 2
 }
 ```
@@ -235,12 +235,12 @@ tests/.claude/hooks/config/claude_semantic_config.json
 **症状**:
 ```
 [WARN] LLM分析置信度不足或失败
-  错误: API超时(15秒): Request timed out
+  错误: API超时(300秒): Request timed out
 ```
 
 **解决方案**:
 1. **检查网络连接**: `ping api.anthropic.com`
-2. **增加超时时间**: 修改配置文件 `timeout_seconds: 30`
+2. **增加超时时间**: 修改配置文件 `timeout_seconds: 600`
 3. **检查防火墙**: 确保允许访问 api.anthropic.com:443
 
 ---
@@ -301,7 +301,7 @@ tests/.claude/hooks/config/claude_semantic_config.json
 |------|---------------|-------------------|
 | P50延迟 | ~3-5秒 | ~2.5秒 |
 | P95延迟 | ~8-12秒 | ~4.2秒 |
-| 超时阈值 | 15秒 | 5秒 |
+| 超时阈值 | 300秒 | 5秒 |
 | 超时率 | <5% (预估) | <2% |
 
 ### 成本

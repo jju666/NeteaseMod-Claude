@@ -221,16 +221,10 @@ class PropTNTHandler(IPropHandler):
 
             # 生成TNT实体
             tnt_entity_id = comp_game.SpawnEntity(
-                'minecraft:tnt',  # TNT实体类型
+                'ecbedwars:tnt',  # 自定义TNT实体类型
                 pos,
                 dimension_id
             )
-
-            if tnt_entity_id:
-                # 设置TNT的Fuse时间(转换为游戏刻)
-                comp_entity_data = serverApi.GetEngineCompFactory().CreateEntityData(tnt_entity_id)
-                fuse_ticks = int(self.explode_time * 20)  # 2秒 = 40 ticks
-                comp_entity_data.SetValue('Fuse', fuse_ticks)
 
             return tnt_entity_id
 
@@ -337,9 +331,17 @@ class PropTNTHandler(IPropHandler):
             # 执行爆炸
             explosion.explode()
 
-            # 销毁TNT实体
+            # 销毁TNT实体（先检查实体是否存在）
             comp_game = serverApi.GetEngineCompFactory().CreateGame(serverApi.GetLevelId())
-            comp_game.DestroyEntity(entity_id)
+            try:
+                comp_entity_type = serverApi.GetEngineCompFactory().CreateEngineType(entity_id)
+                if comp_entity_type.GetEngineTypeStr():
+                    comp_game.DestroyEntity(entity_id)
+                else:
+                    print("[WARN] [PropTNTHandler] TNT实体已不存在: {}".format(entity_id))
+            except:
+                # 实体不存在或获取失败，忽略
+                print("[WARN] [PropTNTHandler] 无法销毁TNT实体（可能已被销毁）: {}".format(entity_id))
 
             print("[INFO] [PropTNTHandler] TNT爆炸: pos={} owner={}".format(
                 data['pos'], data['owner_id']
